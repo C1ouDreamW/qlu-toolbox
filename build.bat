@@ -17,8 +17,13 @@ echo Building QLU Toolbox Alpha...
 uv run --locked pyinstaller --noconfirm QLUToolbox.spec
 if errorlevel 1 goto :failed
 
+echo Creating shortcut...
+powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut((Resolve-Path 'dist\QLUToolbox').Path + '\QLUToolbox.lnk'); $s.TargetPath = (Resolve-Path 'dist\QLUToolbox\QLUToolbox.exe').Path; $s.WorkingDirectory = (Resolve-Path 'dist\QLUToolbox').Path; $s.IconLocation = (Resolve-Path 'assets\qlu-toolbox.ico').Path + ',0'; $s.Save()"
+if errorlevel 1 goto :failed
+
 echo.
 echo Build completed: dist\QLUToolbox\QLUToolbox.exe
+echo Shortcut created: dist\QLUToolbox\QLUToolbox.lnk
 pause
 exit /b 0
 

@@ -227,7 +227,7 @@ class GradeExportPage(QFrame):
         layout.setSpacing(16)
         title, subtitle = page_header(
             "分项成绩导出",
-            "由你在浏览器中完成登录，其余步骤由工具自动执行。账号信息不会由工具箱收集。",
+            "账号信息不会由工具箱收集。<b>开始前请确保你已经登录aTrust VPN或校园网，并关闭其他无关代理软件。</b>",
         )
         layout.addWidget(title)
         layout.addWidget(subtitle)

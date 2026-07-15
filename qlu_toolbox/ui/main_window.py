@@ -152,7 +152,7 @@ class MainWindow(QMainWindow):
         footer_layout = QVBoxLayout(footer)
         footer_layout.setContentsMargins(12, 10, 12, 10)
         footer_layout.setSpacing(3)
-        disclaimer = QLabel("非学校官方软件\n仅供个人非商业使用")
+        disclaimer = QLabel("非学校官方软件\n仅供个人学习交流使用")
         disclaimer.setObjectName("Muted")
         disclaimer.setAlignment(Qt.AlignmentFlag.AlignCenter)
         footer_layout.addWidget(disclaimer)

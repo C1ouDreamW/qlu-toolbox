@@ -1,0 +1,40 @@
+name: Build and Release
+
+on:
+  push:
+    tags: ["v*.*.*", "v*.*.*-*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      - name: Install Playwright browsers
+        run: uv run playwright install chromium
+
+      - name: Build with PyInstaller
+        run: uv run pyinstaller --noconfirm QLUToolbox.spec
+
+      - name: Package as zip
+        run: |
+          $version = "${{ github.ref_name }}"
+          Compress-Archive -Path dist/QLUToolbox/* -DestinationPath "QLUToolbox_$version.zip"
+
+      - name: Create Release and upload
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: QLUToolbox_${{ github.ref_name }}.zip
+          generate_release_notes: true
