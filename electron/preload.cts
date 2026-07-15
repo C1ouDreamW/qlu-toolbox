@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('qlu', {
   getFilePath: (file: File) => webUtils.getPathForFile(file),
   openPath: (target: string) => ipcRenderer.invoke('system:open-path', target),
   showItem: (target: string) => ipcRenderer.invoke('system:show-item', target),
+  copyText: (value: string) => ipcRenderer.invoke('system:copy-text', value),
   openExternal: (url: string) => ipcRenderer.invoke('system:open-external', url),
   checkUpdate: (currentVersion: string) => ipcRenderer.invoke('system:check-update', currentVersion),
   windowAction: (action: 'minimize' | 'maximize' | 'close') => ipcRenderer.send('window:action', action),

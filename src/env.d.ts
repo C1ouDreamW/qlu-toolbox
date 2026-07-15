@@ -9,6 +9,7 @@ interface Window {
     getFilePath(file: File): string
     openPath(target: string): Promise<string>
     showItem(target: string): Promise<void>
+    copyText?(value: string): Promise<void>
     openExternal(url: string): Promise<void>
     checkUpdate(currentVersion: string): Promise<UpdateInfo | null>
     windowAction(action: 'minimize' | 'maximize' | 'close'): void

@@ -1,11 +1,54 @@
 <script setup lang="ts">
-import { Github, Mail, Bug, ExternalLink, ShieldCheck, Heart, Code2 } from 'lucide-vue-next'
+import { Github, Mail, Bug, ExternalLink, Copy, ShieldCheck, Heart, Code2 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import type { BootstrapData } from '@/types'
 import { logoUrl } from '@/assets'
+import { appStore } from '@/store'
 
 defineProps<{ data: BootstrapData }>()
 const api = window.qlu
+const qqGroupNumber = '438767737'
+
+function copyWithSelection(value: string) {
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.readOnly = true
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  textarea.style.pointerEvents = 'none'
+  document.body.appendChild(textarea)
+  textarea.select()
+  textarea.setSelectionRange(0, value.length)
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  return copied
+}
+
+async function copyQQGroupNumber() {
+  let copied = false
+
+  if (typeof api.copyText === 'function') {
+    try {
+      await api.copyText(qqGroupNumber)
+      copied = true
+    } catch { /* Fall back to renderer clipboard methods. */ }
+  }
+
+  if (!copied) copied = copyWithSelection(qqGroupNumber)
+
+  if (!copied && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(qqGroupNumber)
+      copied = true
+    } catch { /* The final notification explains the failure. */ }
+  }
+
+  if (copied) {
+    appStore.notify(`QQ群号 ${qqGroupNumber} 已复制，请在 QQ 中搜索加入`, 'success')
+  } else {
+    appStore.notify(`复制失败，请手动搜索 QQ 群 ${qqGroupNumber}`, 'error')
+  }
+}
 </script>
 
 <template>
@@ -18,7 +61,7 @@ const api = window.qlu
         <p>一个注重隐私、完全本地运行的校园效率工具。</p>
         <div class="about-links">
           <button @click="api.openExternal(data.metadata.repository)"><Github :size="18" /><span><strong>GitHub</strong><small>查看项目源码</small></span><ExternalLink :size="13" /></button>
-          <div class="about-contact-card"><span class="qq-symbol">Q</span><span><strong>加入 QQ 群</strong><small>438767737</small></span></div>
+          <button class="about-contact-card" type="button" title="点击复制群号" :aria-label="`复制 QQ 群号 ${qqGroupNumber}`" @click="copyQQGroupNumber"><span class="qq-symbol">Q</span><span><strong>加入 QQ 群</strong><small>{{ qqGroupNumber }}</small></span><Copy :size="13" /></button>
           <button @click="api.openExternal(`mailto:${data.metadata.email}`)"><Mail :size="18" /><span><strong>联系作者</strong><small>cloud_aaa@163.com</small></span></button>
           <button @click="api.openExternal(data.metadata.issues)"><Bug :size="18" /><span><strong>反馈问题</strong><small>提交 Bug 或建议</small></span></button>
         </div>

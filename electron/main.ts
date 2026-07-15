@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PythonBridge } from './bridge.js'
@@ -47,6 +47,7 @@ function registerIpc() {
   })
   ipcMain.handle('system:open-path', async (_event, target: string) => shell.openPath(target))
   ipcMain.handle('system:show-item', (_event, target: string) => shell.showItemInFolder(target))
+  ipcMain.handle('system:copy-text', (_event, value: string) => clipboard.writeText(value))
   ipcMain.handle('system:open-external', async (_event, url: string) => {
     const parsed = new URL(url)
     if (!['https:', 'mailto:'].includes(parsed.protocol)) throw new Error('不允许打开此链接')
