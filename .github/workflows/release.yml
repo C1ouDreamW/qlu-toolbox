@@ -45,7 +45,7 @@ jobs:
           npm run build
 
       - name: Package Windows artifacts
-        run: npx electron-builder --win dir nsis
+        run: npx electron-builder --win dir nsis --publish never
 
       - name: Create shortcut
         run: |
