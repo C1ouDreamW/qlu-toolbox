@@ -74,6 +74,11 @@ function toggleAll() {
   const next = !allSelected.value
   for (const course of calculable.value) course.included = next
 }
+
+function toggleCourse(course: GPACourse) {
+  if (!course.issue) course.included = !course.included
+}
+
 </script>
 
 <template>
@@ -117,19 +122,25 @@ function toggleAll() {
       </section>
 
       <section class="gpa-controls">
-        <button class="check-all" :class="{ active: allSelected }" @click="toggleAll"><span><Check v-if="allSelected" :size="14" /></span>{{ allSelected ? '取消全选' : '选择全部可计算课程' }}</button>
+        <button class="check-all" :class="{ active: allSelected }" @click="toggleAll"><span><Check :size="14" /></span>{{ allSelected ? '取消全选' : '选择全部可计算课程' }}</button>
         <label class="search-box compact"><Search :size="17" /><input v-model="query" placeholder="搜索课程…" /></label>
       </section>
 
       <div v-if="workbook.warnings.length" class="gpa-notice"><AlertCircle :size="16" /><span>有 {{ workbook.warnings.length }} 门课程无法自动计算，已保留原始成绩并取消勾选。</span></div>
 
       <section class="gpa-course-list">
-        <article v-for="course in visibleCourses" :key="course.id" class="gpa-course" :class="{ excluded: !course.included, invalid: course.issue }">
+        <article v-for="course in visibleCourses" :key="course.id" class="gpa-course" :class="{ invalid: course.issue }">
           <header>
-            <label class="course-check" :title="course.issue || '纳入 GPA 计算'">
-              <input v-model="course.included" type="checkbox" :disabled="Boolean(course.issue)" />
-              <span><Check v-if="course.included" :size="14" /></span>
-            </label>
+            <button
+              type="button"
+              class="course-check"
+              :class="{ active: course.included }"
+              :aria-label="course.included ? `不计算${course.name}` : `计算${course.name}`"
+              :aria-pressed="course.included"
+              :disabled="Boolean(course.issue)"
+              :title="course.issue || '纳入 GPA 计算'"
+              @click="toggleCourse(course)"
+            ><Check :size="14" /></button>
             <div class="course-title"><strong>{{ course.name }}</strong><span>{{ [course.code, course.college, course.teaching_class].filter(Boolean).join(' · ') || '未提供课程信息' }}</span></div>
             <span class="course-semester">{{ semesterText(course) || '学期未知' }}</span>
             <div class="course-number"><span>学分</span><strong>{{ display(course.credit, 1) }}</strong></div>
