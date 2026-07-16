@@ -38,9 +38,6 @@ jobs:
       - name: Sync Python dependencies
         run: uv sync --locked
 
-      - name: Install Playwright browsers
-        run: uv run playwright install chromium
-
       - name: Build application
         run: |
           npm run build:backend
@@ -148,6 +145,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
@@ -158,10 +158,23 @@ jobs:
         working-directory: artifacts
         run: sha256sum * > SHA256SUMS.txt
 
+      - name: Prepare release notes from changelog
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v version="$version" '
+            index($0, "## [" version "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           files: artifacts/*
+          body_path: release-notes.md
           fail_on_unmatched_files: true
           generate_release_notes: true

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import unittest
+import tempfile
+import threading
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import parse_qs
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -17,9 +20,61 @@ from qlu_toolbox.modules.grade_export.domain import (
     workbook_extension,
     xlsx_semester_values,
 )
+from qlu_toolbox.core.paths import AppPaths
+from qlu_toolbox.modules.grade_export.service import _launch_context
 
 
 class ExporterTests(unittest.TestCase):
+    def test_missing_browsers_pause_then_launch_downloaded_chromium(self):
+        class FakePlaywrightError(Exception):
+            pass
+
+        class FakeChromium:
+            executable_path = "C:/missing/chrome.exe"
+
+            def __init__(self):
+                self.managed_attempts = 0
+
+            def launch_persistent_context(self, **kwargs):
+                if kwargs.get("channel"):
+                    raise FakePlaywrightError("channel unavailable")
+                self.managed_attempts += 1
+                if self.managed_attempts == 1:
+                    raise FakePlaywrightError("Executable doesn't exist")
+                return "managed-context"
+
+        class FakePlaywright:
+            chromium = FakeChromium()
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            paths = AppPaths(
+                root / "config",
+                root / "data",
+                root / "logs",
+                root / "profiles",
+                root / "browsers",
+            )
+            paths.ensure()
+            events: list[dict[str, object]] = []
+            ready = threading.Event()
+            ready.set()
+            with patch(
+                "qlu_toolbox.modules.grade_export.service.AppPaths.discover",
+                return_value=paths,
+            ):
+                context, transient = _launch_context(
+                    FakePlaywright(),
+                    FakePlaywrightError,
+                    ExportOptions("2025", "12", root),
+                    events.append,
+                    threading.Event(),
+                    ready,
+                )
+            self.assertEqual(context, "managed-context")
+            self.assertIsNone(transient)
+            self.assertIn("browser_required", [event["type"] for event in events])
+
     def test_default_academic_year_changes_in_august(self):
         self.assertEqual(default_academic_year(datetime(2026, 7, 15)), "2025")
         self.assertEqual(default_academic_year(datetime(2026, 8, 1)), "2026")

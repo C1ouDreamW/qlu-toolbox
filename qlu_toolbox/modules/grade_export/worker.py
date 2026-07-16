@@ -19,6 +19,7 @@ def worker_main(
 ) -> int:
     cancel_event = threading.Event()
     continue_event = threading.Event()
+    browser_ready_event = threading.Event()
     event_path = Path(event_file) if event_file else None
     event_sequence = 0
 
@@ -53,6 +54,8 @@ def worker_main(
                 cancel_event.set()
             elif command == "continue":
                 continue_event.set()
+            elif command == "browser-ready":
+                browser_ready_event.set()
 
     threading.Thread(target=listen, daemon=True).start()
     options = ExportOptions(
@@ -62,4 +65,4 @@ def worker_main(
         preferred_browser=preferred_browser,
         keep_login_state=keep_login_state,
     )
-    return run_export(options, emit, cancel_event, continue_event)
+    return run_export(options, emit, cancel_event, continue_event, browser_ready_event)

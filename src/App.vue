@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { CheckCircle2, AlertCircle, Info } from 'lucide-vue-next'
+import {
+  CheckCircle2, AlertCircle, Info, Download, HardDrive, ShieldCheck, XCircle,
+} from 'lucide-vue-next'
 import TitleBar from '@/components/TitleBar.vue'
 import Sidebar from '@/components/Sidebar.vue'
 import BaseModal from '@/components/BaseModal.vue'
@@ -22,6 +24,7 @@ const reloadApp = () => window.location.reload()
 const checkingUpdate = ref(false)
 const boot = appStore.boot
 const pageComponent = computed(() => ({ home: HomePage, tools: ToolsPage, tasks: TasksPage, settings: SettingsPage, about: AboutPage, grade: GradeExportPage, gpa: GPACalculatorPage }[appStore.state.page]))
+const browser = appStore.state.browser
 
 function navigate(page: PageName) { appStore.navigate(page) }
 async function acceptWelcome() { await appStore.saveSettings({ welcome_accepted: true }) }
@@ -61,5 +64,31 @@ onMounted(async () => {
       <button class="primary-button wide" :disabled="!disclaimerConfirmed" @click="acceptWelcome">确认并开始使用</button>
     </BaseModal>
     <BaseModal v-if="update" title="发现新版本" dismissible @close="update = null"><span class="update-version">{{ update.version }}</span><p class="modal-lead">{{ update.name || 'QLU 工具箱更新' }}</p><p class="update-notes">{{ update.notes || '本次发布暂无详细说明。' }}</p><div class="modal-actions"><button class="secondary-button" @click="update = null">稍后再说</button><button class="primary-button" @click="api.openExternal(update!.url)">查看新版本</button></div></BaseModal>
+    <BaseModal v-if="browser.required" :title="browser.error ? '浏览器组件下载未完成' : browser.installing ? '正在准备备用浏览器' : '需要备用浏览器组件'">
+      <div class="browser-download-mark" :data-state="browser.error ? 'error' : browser.installing ? 'loading' : 'ready'">
+        <XCircle v-if="browser.error" :size="28" />
+        <Download v-else :size="28" />
+      </div>
+      <p class="modal-lead browser-download-lead">
+        {{ browser.error || (browser.installing ? browser.message : '没有可用的 Edge 或 Chrome。下载一次后，今后可直接使用备用 Chromium。') }}
+      </p>
+      <div class="browser-download-facts">
+        <div><Download :size="17" /><span><strong>约 {{ boot?.browserComponent.downloadSizeMiB || 180 }} MiB</strong><small>本次下载</small></span></div>
+        <div><HardDrive :size="17" /><span><strong>约 {{ boot?.browserComponent.installedSizeMiB || 350 }} MiB</strong><small>安装后占用</small></span></div>
+        <div><ShieldCheck :size="17" /><span><strong>仅保存在本机</strong><small>可随时在设置中删除</small></span></div>
+      </div>
+      <div v-if="browser.installing" class="browser-download-progress">
+        <div><span>下载与安装进度</span><strong>{{ browser.progress }}%</strong></div>
+        <div class="progress-track"><i :style="{ width: `${browser.progress}%` }" /></div>
+        <p>请保持网络连接，完成后当前导出任务会自动继续。</p>
+      </div>
+      <div class="modal-actions browser-download-actions">
+        <button v-if="browser.installing" class="secondary-button" @click="appStore.cancelBrowserComponentInstall">取消下载</button>
+        <template v-else>
+          <button class="secondary-button" @click="appStore.declineBrowserComponent">暂不下载</button>
+          <button class="primary-button" @click="appStore.installBrowserComponent"><Download :size="16" /> {{ browser.error ? '重新下载' : '下载并继续' }}</button>
+        </template>
+      </div>
+    </BaseModal>
   </div>
 </template>

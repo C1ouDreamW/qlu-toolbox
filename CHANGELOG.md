@@ -2,6 +2,38 @@
 
 本项目版本遵循语义化版本号。Alpha 版本仍可能调整界面、配置格式和内部实现。
 
+## [1.1.0] - 2026-07-16
+
+这是自 v1.0.3 以来的跨平台大版本更新，首次提供 Apple Silicon macOS 版本，并完善无可用系统浏览器时的备用方案。
+
+### 新增
+
+- 新增 Apple Silicon（arm64）macOS DMG，分项成绩导出和绩点计算器均可在 macOS 上使用。
+- Edge 和 Chrome 均不可用时，可在应用内按需下载与当前 Playwright 版本匹配的备用 Chromium；安装完成后原导出任务自动继续。
+- 设置页新增浏览器组件状态、版本、磁盘占用、文件位置和删除入口。
+- GitHub Actions 新增 Apple Silicon 构建、Python Worker 启动、应用打包和 DMG 挂载验证。
+- 正式发布流程同时生成 Windows 安装包、Windows 免安装 ZIP、Apple Silicon DMG 和统一的 SHA-256 校验文件。
+
+### 更改
+
+- 备用 Chromium 仅在首次需要时下载，不随安装包分发；组件保存在系统应用数据目录，升级软件时会保留。
+- 浏览器组件下载支持进度显示、取消、失败重试和残留组件清理；取消时会终止相关下载进程。
+- macOS 窗口改用左上角原生红黄绿控制按钮，Windows 继续使用现有窗口控制方式。
+- macOS 设置、任务记录、日志、浏览器登录状态和备用浏览器统一保存在 `~/Library/Application Support/QLUToolbox`。
+- README 新增 macOS 下载、升级、本地数据位置和 Apple 官方未知开发者应用打开教程。
+
+### 修复
+
+- 修复用户电脑未安装可用 Edge 或 Chrome 时，分项成绩查询无法正常启动的问题。
+- 修复设置页打开数据位置时依赖 Windows 路径分隔符、在 macOS 上无法正确定位文件的问题。
+- 修复浏览器组件下载取消或失败后，设置页不能及时显示残留文件和磁盘占用的问题。
+
+### 兼容性与已知限制
+
+- macOS 当前仅提供 Apple Silicon（arm64）版本，暂不支持 Intel Mac。
+- macOS DMG 尚未使用 Apple 开发者证书签名和公证，首次启动可能需要按照 README 中的 Apple 官方教程手动确认“仍要打开”。
+- 备用 Chromium 首次下载约 180 MiB，安装后约占用 350 MiB，需要能够访问 Playwright 浏览器下载服务。
+
 ## [1.0.3] - 2026-07-16
 
 ### 新增

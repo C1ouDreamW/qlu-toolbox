@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import signal
 import shutil
 import subprocess
 import sys
@@ -10,6 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from qlu_toolbox import __version__
+from qlu_toolbox.core.browser_component import (
+    browser_component_status,
+    browser_install_command,
+    configure_browser_environment,
+)
 from qlu_toolbox.core.metadata import (
     AUTHOR_EMAIL,
     AUTHOR_GITHUB_URL,
@@ -31,6 +39,7 @@ class Bridge:
     def __init__(self) -> None:
         self.paths = AppPaths.discover()
         self.paths.ensure()
+        configure_browser_environment(self.paths)
         self.settings_store = SettingsStore(self.paths)
         self.settings = self.settings_store.load()
         self.tasks = TaskStore(self.paths.data_dir / "tasks.sqlite3")
@@ -38,6 +47,10 @@ class Bridge:
         self.worker_task_id: str | None = None
         self.lock = threading.Lock()
         self.write_lock = threading.Lock()
+        self.browser_lock = threading.Lock()
+        self.browser_install_process: subprocess.Popen[str] | None = None
+        self.browser_installing = False
+        self.browser_install_cancelled = False
 
     def emit(self, payload: dict[str, Any]) -> None:
         with self.write_lock:
@@ -61,6 +74,10 @@ class Bridge:
             "clearTasks": self.clear_tasks,
             "clearProfiles": self.clear_profiles,
             "clearLogs": self.clear_logs,
+            "browserComponentStatus": self.get_browser_component_status,
+            "startBrowserInstall": self.start_browser_install,
+            "cancelBrowserInstall": self.cancel_browser_install,
+            "removeBrowserComponent": self.remove_browser_component,
             "startGradeExport": self.start_grade_export,
             "gradeCommand": self.grade_command,
             "parseGradeWorkbook": self.parse_grade_workbook,
@@ -78,11 +95,13 @@ class Bridge:
             "semesters": SEMESTERS,
             "tool": asdict(MANIFEST),
             "tools": [asdict(MANIFEST), asdict(GPA_MANIFEST)],
+            "browserComponent": self.get_browser_component_status({}),
             "paths": {
                 "settings": str(self.settings_store.path),
                 "tasks": str(self.paths.data_dir / "tasks.sqlite3"),
                 "logs": str(self.paths.log_dir),
                 "profiles": str(self.paths.profile_dir),
+                "browsers": str(self.paths.browser_dir),
                 "data": str(self.paths.data_dir),
             },
             "metadata": {
@@ -125,6 +144,168 @@ class Bridge:
     def clear_logs(self, _params: dict[str, Any]) -> bool:
         self._clear_directory(self.paths.log_dir)
         return True
+
+    def get_browser_component_status(self, _params: dict[str, Any]) -> dict[str, Any]:
+        status = browser_component_status(self.paths)
+        with self.browser_lock:
+            status["installing"] = self.browser_installing
+        return status
+
+    def start_browser_install(self, _params: dict[str, Any]) -> dict[str, Any]:
+        status = self.get_browser_component_status({})
+        if status["installed"]:
+            self._send_worker_command("browser-ready")
+            return status
+        with self.browser_lock:
+            if self.browser_installing:
+                return {**status, "installing": True}
+            self.browser_installing = True
+            self.browser_install_cancelled = False
+        threading.Thread(target=self._install_browser_component, daemon=True).start()
+        return {**status, "installing": True}
+
+    def cancel_browser_install(self, _params: dict[str, Any]) -> bool:
+        with self.browser_lock:
+            if not self.browser_installing:
+                return False
+            self.browser_install_cancelled = True
+            process = self.browser_install_process
+        if process is not None and process.poll() is None:
+            self._terminate_process_tree(process)
+        return True
+
+    @staticmethod
+    def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
+        if process.poll() is not None:
+            return
+        if sys.platform == "win32":
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                check=False,
+            )
+            return
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            process.kill()
+
+    def remove_browser_component(self, _params: dict[str, Any]) -> dict[str, Any]:
+        with self.browser_lock:
+            if self.browser_installing:
+                raise RuntimeError("浏览器组件正在下载，请先取消下载")
+        with self.lock:
+            if self.worker is not None and self.worker.poll() is None:
+                raise RuntimeError("分项成绩任务正在运行，暂时不能删除浏览器组件")
+        self._clear_directory(self.paths.browser_dir)
+        return self.get_browser_component_status({})
+
+    def _emit_browser_event(self, event: dict[str, Any]) -> None:
+        self.emit({"channel": "event", "name": "browserComponent", "event": event})
+
+    def _install_browser_component(self) -> None:
+        progress = 0
+        phase = "browser"
+        diagnostics: list[str] = []
+        try:
+            self._emit_browser_event({
+                "type": "progress",
+                "progress": 0,
+                "message": "正在连接浏览器组件下载服务…",
+            })
+            command, environment = browser_install_command()
+            environment["PLAYWRIGHT_BROWSERS_PATH"] = str(self.paths.browser_dir)
+            creation_flags = 0
+            if sys.platform == "win32":
+                creation_flags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+                env=environment,
+                creationflags=creation_flags,
+                start_new_session=sys.platform != "win32",
+            )
+            with self.browser_lock:
+                self.browser_install_process = process
+                cancelled_before_start = self.browser_install_cancelled
+            if cancelled_before_start:
+                self._terminate_process_tree(process)
+            assert process.stdout is not None
+            for raw_line in process.stdout:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                if line.startswith("Downloading Chromium"):
+                    phase = "browser"
+                    message = "正在下载备用 Chromium…"
+                elif line.startswith("Downloading FFMPEG"):
+                    phase = "tools"
+                    progress = max(progress, 94)
+                    message = "正在准备浏览器运行组件…"
+                elif line.startswith("Downloading Winldd"):
+                    phase = "tools"
+                    progress = max(progress, 97)
+                    message = "正在完成组件安装…"
+                else:
+                    message = "正在下载并安装浏览器组件…"
+                match = re.search(r"(\d+)% of [\d.]+ MiB", line)
+                if match:
+                    percent = max(0, min(int(match.group(1)), 100))
+                    if phase == "browser":
+                        progress = max(progress, min(93, round(percent * 0.93)))
+                    else:
+                        progress = max(progress, min(99, 94 + round(percent * 0.05)))
+                    self._emit_browser_event({
+                        "type": "progress",
+                        "progress": progress,
+                        "message": message,
+                    })
+                elif "Error" in line or "failed" in line.lower():
+                    diagnostics.append(re.sub(r"https?://\S+", "下载地址", line))
+            exit_code = process.wait()
+            with self.browser_lock:
+                cancelled = self.browser_install_cancelled
+            if cancelled:
+                self._emit_browser_event({
+                    "type": "cancelled",
+                    "message": "浏览器组件下载已取消。",
+                    "status": browser_component_status(self.paths),
+                })
+                return
+            status = browser_component_status(self.paths)
+            if exit_code == 0 and status["installed"]:
+                self._emit_browser_event({
+                    "type": "success",
+                    "progress": 100,
+                    "message": "浏览器组件安装完成，正在继续任务…",
+                    "status": status,
+                })
+                self._send_worker_command("browser-ready")
+                return
+            detail = diagnostics[-1] if diagnostics else f"安装程序退出码 {exit_code}"
+            self._emit_browser_event({
+                "type": "error",
+                "message": f"浏览器组件下载失败，请检查网络后重试。{detail}",
+                "status": browser_component_status(self.paths),
+            })
+        except Exception as exc:
+            self._emit_browser_event({
+                "type": "error",
+                "message": f"无法安装浏览器组件：{str(exc).splitlines()[0]}",
+                "status": browser_component_status(self.paths),
+            })
+        finally:
+            with self.browser_lock:
+                self.browser_install_process = None
+                self.browser_installing = False
+                self.browser_install_cancelled = False
 
     @staticmethod
     def _clear_directory(path: Path) -> None:
@@ -178,8 +359,11 @@ class Bridge:
 
     def grade_command(self, params: dict[str, Any]) -> bool:
         command = str(params.get("command", ""))
-        if command not in {"continue", "cancel"}:
+        if command not in {"continue", "cancel", "browser-ready"}:
             raise ValueError("不支持的任务命令")
+        return self._send_worker_command(command)
+
+    def _send_worker_command(self, command: str) -> bool:
         worker = self.worker
         if worker is None or worker.poll() is not None or worker.stdin is None:
             return False
@@ -243,4 +427,5 @@ def bridge_main() -> int:
     finally:
         if bridge.worker is not None and bridge.worker.poll() is None:
             bridge.worker.kill()
+        bridge.cancel_browser_install({})
     return 0

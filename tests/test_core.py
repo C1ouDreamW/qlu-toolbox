@@ -35,6 +35,7 @@ class AppPathsTests(unittest.TestCase):
                 paths = AppPaths.discover()
             self.assertEqual(paths.config_dir, root / "roaming" / "QLUToolbox")
             self.assertEqual(paths.data_dir, root / "local" / "QLUToolbox")
+            self.assertEqual(paths.browser_dir, root / "local" / "QLUToolbox" / "browsers")
 
     def test_discovers_macos_application_support_directory(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -50,13 +51,20 @@ class AppPathsTests(unittest.TestCase):
             self.assertEqual(paths.data_dir, expected)
             self.assertEqual(paths.log_dir, expected / "logs")
             self.assertEqual(paths.profile_dir, expected / "profiles")
+            self.assertEqual(paths.browser_dir, expected / "browsers")
 
 
 class SettingsTests(unittest.TestCase):
     def test_round_trip_and_unknown_keys(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            paths = AppPaths(root / "config", root / "data", root / "logs", root / "profiles")
+            paths = AppPaths(
+                root / "config",
+                root / "data",
+                root / "logs",
+                root / "profiles",
+                root / "browsers",
+            )
             paths.ensure()
             store = SettingsStore(paths)
             settings = AppSettings(default_output_dir=str(root), preferred_browser="edge")
@@ -71,7 +79,13 @@ class SettingsTests(unittest.TestCase):
     def test_broken_settings_are_backed_up(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            paths = AppPaths(root / "config", root / "data", root / "logs", root / "profiles")
+            paths = AppPaths(
+                root / "config",
+                root / "data",
+                root / "logs",
+                root / "profiles",
+                root / "browsers",
+            )
             paths.ensure()
             store = SettingsStore(paths)
             store.path.write_text("{broken", encoding="utf-8")

@@ -22,6 +22,20 @@ export interface ToolManifest {
   id: string; name: string; description: string; category: string; version: string; icon_text: string
 }
 
+export interface BrowserComponentStatus {
+  installed: boolean
+  hasFiles: boolean
+  installing: boolean
+  version: string
+  revision: string
+  path: string
+  executable: string
+  sizeBytes: number
+  downloadSizeMiB: number
+  installedSizeMiB: number
+  error: string
+}
+
 export interface BootstrapData {
   version: string
   settings: Settings
@@ -30,13 +44,22 @@ export interface BootstrapData {
   semesters: Record<string, string>
   tool: ToolManifest
   tools: ToolManifest[]
-  paths: Record<'settings' | 'tasks' | 'logs' | 'profiles' | 'data', string>
+  browserComponent: BrowserComponentStatus
+  paths: Record<'settings' | 'tasks' | 'logs' | 'profiles' | 'browsers' | 'data', string>
   metadata: Record<'author' | 'email' | 'github' | 'repository' | 'issues' | 'releases', string>
 }
 
 export interface GradeEvent {
-  type: 'status' | 'log' | 'success' | 'error' | 'cancelled'
+  type: 'status' | 'log' | 'success' | 'error' | 'cancelled' | 'browser_required'
   stage?: string; message?: string; path?: string; code?: string
+  downloadSizeMiB?: number; installedSizeMiB?: number
+}
+
+export interface BrowserComponentEvent {
+  type: 'progress' | 'success' | 'error' | 'cancelled'
+  progress?: number
+  message?: string
+  status?: BrowserComponentStatus
 }
 
 export interface GPAScoreRow {

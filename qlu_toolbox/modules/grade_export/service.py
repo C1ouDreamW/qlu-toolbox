@@ -8,6 +8,11 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from qlu_toolbox.core.browser_component import (
+    DOWNLOAD_SIZE_MIB,
+    INSTALLED_SIZE_MIB,
+    configure_browser_environment,
+)
 from qlu_toolbox.core.paths import AppPaths
 
 from .domain import (
@@ -54,7 +59,7 @@ def _browser_candidates(preference: str) -> tuple[tuple[str | None, str], ...]:
     candidates = {
         "edge": ("msedge", "Microsoft Edge"),
         "chrome": ("chrome", "Google Chrome"),
-        "chromium": (None, "兼容 Chromium"),
+        "chromium": (None, "备用 Chromium"),
     }
     order = ["edge", "chrome", "chromium"]
     if preference in candidates:
@@ -63,7 +68,14 @@ def _browser_candidates(preference: str) -> tuple[tuple[str | None, str], ...]:
     return tuple(candidates[item] for item in order)
 
 
-def _launch_context(playwright, playwright_error, options: ExportOptions, emit: EventSink):
+def _launch_context(
+    playwright,
+    playwright_error,
+    options: ExportOptions,
+    emit: EventSink,
+    cancel_event: threading.Event,
+    browser_ready_event: threading.Event,
+):
     paths = AppPaths.discover()
     paths.ensure()
     transient_root: Path | None = None
@@ -74,6 +86,7 @@ def _launch_context(playwright, playwright_error, options: ExportOptions, emit: 
         transient_root = Path(tempfile.mkdtemp(prefix="grade-export-", dir=paths.data_dir))
         profile_root = transient_root
 
+    managed_browser_installed = Path(playwright.chromium.executable_path).is_file()
     failures: list[str] = []
     for channel, label in _browser_candidates(options.preferred_browser):
         profile_dir = profile_root / f"browser-{channel or 'chromium'}"
@@ -93,10 +106,37 @@ def _launch_context(playwright, playwright_error, options: ExportOptions, emit: 
             failures.append(f"{label}: {str(exc).splitlines()[0]}")
             _event(emit, "log", message=f"{label} 不可用，正在尝试其他浏览器")
 
+    if not managed_browser_installed:
+        _event(
+            emit,
+            "browser_required",
+            stage="browser",
+            message="未找到可用的 Edge 或 Chrome，需要下载备用浏览器组件。",
+            downloadSizeMiB=DOWNLOAD_SIZE_MIB,
+            installedSizeMiB=INSTALLED_SIZE_MIB,
+        )
+        while not browser_ready_event.wait(0.25):
+            _check_cancelled(cancel_event)
+        browser_ready_event.clear()
+        _check_cancelled(cancel_event)
+        _event(emit, "status", stage="browser", message="浏览器组件已就绪，正在继续任务…")
+        profile_dir = profile_root / "browser-chromium"
+        try:
+            context = playwright.chromium.launch_persistent_context(
+                user_data_dir=str(profile_dir),
+                headless=False,
+                accept_downloads=True,
+                no_viewport=True,
+            )
+            _event(emit, "log", message="已启动备用 Chromium")
+            return context, transient_root
+        except playwright_error as exc:
+            failures.append(f"备用 Chromium: {str(exc).splitlines()[0]}")
+
     if transient_root:
         shutil.rmtree(transient_root, ignore_errors=True)
     detail = "；".join(failures)
-    raise ExportError(f"没有可用浏览器。请安装或启用 Edge、Chrome 或兼容 Chromium。{detail}")
+    raise ExportError(f"没有可用浏览器。请安装或启用 Edge、Chrome，或下载备用 Chromium。{detail}")
 
 
 def _wait_for_login(
@@ -189,6 +229,7 @@ def run_export(
     emit: EventSink,
     cancel_event: threading.Event,
     manual_continue_event: threading.Event,
+    browser_ready_event: threading.Event,
 ) -> int:
     context = None
     transient_root: Path | None = None
@@ -200,6 +241,7 @@ def run_export(
         probe.unlink()
         _check_cancelled(cancel_event)
 
+        configure_browser_environment(AppPaths.discover())
         try:
             from playwright.sync_api import Error as PlaywrightError
             from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -209,7 +251,14 @@ def run_export(
 
         _event(emit, "status", stage="browser", message="正在启动浏览器…")
         with sync_playwright() as playwright:
-            context, transient_root = _launch_context(playwright, PlaywrightError, options, emit)
+            context, transient_root = _launch_context(
+                playwright,
+                PlaywrightError,
+                options,
+                emit,
+                cancel_event,
+                browser_ready_event,
+            )
             page = context.pages[0] if context.pages else context.new_page()
             try:
                 page.goto(BASE_URL, wait_until="domcontentloaded", timeout=60_000)

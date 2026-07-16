@@ -12,6 +12,7 @@ class AppPaths:
     data_dir: Path
     log_dir: Path
     profile_dir: Path
+    browser_dir: Path
 
     @classmethod
     def discover(cls) -> "AppPaths":
@@ -33,10 +34,17 @@ class AppPaths:
             data_dir=data_dir,
             log_dir=data_dir / "logs",
             profile_dir=data_dir / "profiles",
+            browser_dir=data_dir / "browsers",
         )
 
     def ensure(self) -> None:
-        for path in (self.config_dir, self.data_dir, self.log_dir, self.profile_dir):
+        for path in (
+            self.config_dir,
+            self.data_dir,
+            self.log_dir,
+            self.profile_dir,
+            self.browser_dir,
+        ):
             path.mkdir(parents=True, exist_ok=True)
 
 
