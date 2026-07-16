@@ -54,3 +54,77 @@ jobs:
 
       - name: Package Windows application directory
         run: npx electron-builder --win dir --publish never
+
+  verify-macos:
+    name: macOS arm64 verification
+    runs-on: macos-14
+    timeout-minutes: 40
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Sync Python dependencies
+        run: uv sync --locked
+
+      - name: Check Python lockfile
+        run: uv lock --check
+
+      - name: Run Python tests
+        run: uv run --locked python -B -m unittest discover -s tests -v
+
+      - name: Build Vue and Electron
+        run: npm run build
+
+      - name: Build Python worker
+        run: npm run build:backend
+
+      - name: Smoke-test Python worker
+        shell: bash
+        run: |
+          test "$(uname -m)" = "arm64"
+          response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | ./backend-dist/QLUToolboxWorker --bridge)
+          expected=$(node -p "require('./package.json').version")
+          node -e 'const message=JSON.parse(process.argv[1]); if(message.id!=="smoke" || message.result.version!==process.argv[2]) process.exit(1)' "$response" "$expected"
+
+      - name: Package unsigned Apple Silicon DMG
+        run: npx electron-builder --mac dmg --arm64 --publish never
+
+      - name: Verify and mount DMG
+        shell: bash
+        run: |
+          worker=$(find release -path '*/QLUToolbox.app/Contents/Resources/backend/QLUToolboxWorker' -type f -print -quit)
+          dmg=$(find release -maxdepth 1 -name 'QLUToolbox_v*_arm64.dmg' -type f -print -quit)
+          test -n "$worker"
+          test -x "$worker"
+          test -n "$dmg"
+          mount_dir=$(mktemp -d)
+          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach "$dmg" -nobrowse -mountpoint "$mount_dir"
+          test -d "$mount_dir/QLUToolbox.app"
+          hdiutil detach "$mount_dir"
+          trap - EXIT
+
+      - name: Upload macOS test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QLUToolbox-macOS-arm64-${{ github.sha }}
+          path: release/QLUToolbox_v*_arm64.dmg
+          if-no-files-found: error
+          retention-days: 7

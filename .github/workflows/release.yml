@@ -4,16 +4,18 @@ on:
   push:
     tags: ["v*.*.*", "v*.*.*-*"]
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  build-windows:
+    name: Build Windows artifacts
     runs-on: windows-latest
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -25,7 +27,7 @@ jobs:
           $version = "${{ github.ref_name }}".TrimStart("v")
           npm version $version --no-git-tag-version --allow-same-version
 
-      - name: Install uv
+      - name: Set up uv and Python
         uses: astral-sh/setup-uv@v5
         with:
           python-version-file: ".python-version"
@@ -48,24 +50,118 @@ jobs:
         run: npx electron-builder --win dir nsis --publish never
 
       - name: Create shortcut
+        shell: pwsh
         run: |
           $ws = New-Object -ComObject WScript.Shell
           $lnk = $ws.CreateShortcut("release\win-unpacked\QLUToolbox.lnk")
           $lnk.TargetPath = ".\QLUToolbox.exe"
           $lnk.Save()
 
-      - name: Package as zip
+      - name: Package portable zip
+        shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}"
           Rename-Item release\win-unpacked QLUToolbox
-          Compress-Archive -Path release\QLUToolbox -DestinationPath "QLUToolbox_$version.zip"
+          Compress-Archive -Path release\QLUToolbox -DestinationPath "release\QLUToolbox_${{ github.ref_name }}.zip"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            release/QLUToolbox_v*.zip
+            release/QLUToolbox_*_Setup.exe
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS arm64 artifact
+    runs-on: macos-14
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Set release version from tag
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Sync Python dependencies
+        run: uv sync --locked
+
+      - name: Build application
+        run: |
+          npm run build:backend
+          npm run build
+
+      - name: Smoke-test Python worker
+        shell: bash
+        run: |
+          test "$(uname -m)" = "arm64"
+          response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | ./backend-dist/QLUToolboxWorker --bridge)
+          expected=$(node -p "require('./package.json').version")
+          node -e 'const message=JSON.parse(process.argv[1]); if(message.id!=="smoke" || message.result.version!==process.argv[2]) process.exit(1)' "$response" "$expected"
+
+      - name: Package unsigned Apple Silicon DMG
+        run: npx electron-builder --mac dmg --arm64 --publish never
+
+      - name: Verify and mount DMG
+        shell: bash
+        run: |
+          worker=$(find release -path '*/QLUToolbox.app/Contents/Resources/backend/QLUToolboxWorker' -type f -print -quit)
+          dmg=$(find release -maxdepth 1 -name 'QLUToolbox_v*_arm64.dmg' -type f -print -quit)
+          test -n "$worker"
+          test -x "$worker"
+          test -n "$dmg"
+          mount_dir=$(mktemp -d)
+          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach "$dmg" -nobrowse -mountpoint "$mount_dir"
+          test -d "$mount_dir/QLUToolbox.app"
+          hdiutil detach "$mount_dir"
+          trap - EXIT
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: release/QLUToolbox_v*_arm64.dmg
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-macos]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        working-directory: artifacts
+        run: sha256sum * > SHA256SUMS.txt
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
-          files: |
-            QLUToolbox_${{ github.ref_name }}.zip
-            release/QLUToolbox_*_Setup.exe
+          files: artifacts/*
           fail_on_unmatched_files: true
           generate_release_notes: true

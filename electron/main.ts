@@ -8,12 +8,17 @@ const bridge = new PythonBridge()
 let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
+  const isMac = process.platform === 'darwin'
   mainWindow = new BrowserWindow({
     width: 1220,
     height: 790,
     minWidth: 980,
     minHeight: 650,
-    frame: false,
+    frame: isMac,
+    ...(isMac ? {
+      titleBarStyle: 'hiddenInset' as const,
+      trafficLightPosition: { x: 14, y: 12 },
+    } : {}),
     show: false,
     backgroundColor: '#f4f7fb',
     icon: path.join(

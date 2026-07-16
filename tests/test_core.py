@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from qlu_toolbox.core.paths import AppPaths
 from qlu_toolbox.core.settings import AppSettings, SettingsStore
@@ -15,6 +17,39 @@ from qlu_toolbox.modules.grade_export.domain import (
     output_path,
     validate_academic_year,
 )
+
+
+class AppPathsTests(unittest.TestCase):
+    def test_discovers_windows_app_data_directories(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {
+                "APPDATA": str(root / "roaming"),
+                "LOCALAPPDATA": str(root / "local"),
+            }
+            with (
+                patch("qlu_toolbox.core.paths.sys.platform", "win32"),
+                patch("qlu_toolbox.core.paths.Path.home", return_value=root / "home"),
+                patch.dict(os.environ, environment, clear=True),
+            ):
+                paths = AppPaths.discover()
+            self.assertEqual(paths.config_dir, root / "roaming" / "QLUToolbox")
+            self.assertEqual(paths.data_dir, root / "local" / "QLUToolbox")
+
+    def test_discovers_macos_application_support_directory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary) / "home"
+            with (
+                patch("qlu_toolbox.core.paths.sys.platform", "darwin"),
+                patch("qlu_toolbox.core.paths.Path.home", return_value=home),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                paths = AppPaths.discover()
+            expected = home / "Library" / "Application Support" / "QLUToolbox"
+            self.assertEqual(paths.config_dir, expected)
+            self.assertEqual(paths.data_dir, expected)
+            self.assertEqual(paths.log_dir, expected / "logs")
+            self.assertEqual(paths.profile_dir, expected / "profiles")
 
 
 class SettingsTests(unittest.TestCase):
@@ -88,4 +123,3 @@ class GradeDomainTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

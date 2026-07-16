@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,10 +16,18 @@ class AppPaths:
     @classmethod
     def discover(cls) -> "AppPaths":
         home = Path.home()
-        roaming = Path(os.environ.get("APPDATA", home / ".config"))
-        local = Path(os.environ.get("LOCALAPPDATA", home / ".local" / "share"))
-        config_dir = roaming / "QLUToolbox"
-        data_dir = local / "QLUToolbox"
+        if sys.platform == "win32":
+            config_root = Path(os.environ.get("APPDATA", home / "AppData" / "Roaming"))
+            data_root = Path(os.environ.get("LOCALAPPDATA", home / "AppData" / "Local"))
+        elif sys.platform == "darwin":
+            application_support = home / "Library" / "Application Support"
+            config_root = application_support
+            data_root = application_support
+        else:
+            config_root = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
+            data_root = Path(os.environ.get("XDG_DATA_HOME", home / ".local" / "share"))
+        config_dir = config_root / "QLUToolbox"
+        data_dir = data_root / "QLUToolbox"
         return cls(
             config_dir=config_dir,
             data_dir=data_dir,
@@ -34,4 +43,3 @@ class AppPaths:
 def downloads_dir() -> Path:
     candidate = Path.home() / "Downloads"
     return candidate if candidate.exists() else Path.home()
-

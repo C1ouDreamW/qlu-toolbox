@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron') as typeof import('electron')
 
 contextBridge.exposeInMainWorld('qlu', {
+  platform: process.platform,
   invoke: (method: string, params?: Record<string, unknown>) => ipcRenderer.invoke('bridge:invoke', method, params),
   onEvent: (callback: (name: string, payload: unknown) => void) => {
     const listener = (_event: unknown, name: string, payload: unknown) => callback(name, payload)
