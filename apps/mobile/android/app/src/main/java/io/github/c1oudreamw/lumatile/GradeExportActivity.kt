@@ -15,7 +15,6 @@ import android.util.Base64
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
@@ -113,7 +112,6 @@ class GradeExportActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         val id = intent.getStringExtra(EXTRA_TASK_ID)
         val year = intent.getStringExtra(EXTRA_ACADEMIC_YEAR)
         val term = intent.getStringExtra(EXTRA_SEMESTER)

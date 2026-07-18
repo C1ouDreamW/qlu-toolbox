@@ -201,7 +201,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="app-shell">
-    <header class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>QLU 工具箱</strong></div><span class="beta">Android Kotlin 测试版</span></header>
+    <header class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>QLU 工具箱</strong></div></header>
 
     <section v-if="page === 'home'" class="page">
       <div class="hero"><p class="eyebrow">QLU TOOLBOX MOBILE</p><h1>校园工具，装进口袋</h1><p>数据留在设备本地，登录始终在学校原始页面完成。</p></div>
@@ -275,7 +275,7 @@ onBeforeUnmount(() => {
     <section v-else-if="page === 'settings'" class="page">
       <div class="page-title"><p class="eyebrow">PRIVACY & DATA</p><h1>设置</h1><p>管理学校登录状态和本地数据。</p></div>
       <button class="setting-card" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>清除 Cookie、缓存与站点数据</small></span></button>
-      <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version} · 双更新渠道` }}</small></span><ChevronRight /></button>
+      <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
       <button class="setting-card about-entry" @click="selectPage('about')"><Info /><span><strong>关于与声明</strong><small>查看非官方声明、职责声明和免责声明</small></span><ChevronRight /></button>
       <div class="settings-footnote"><ShieldAlert />非学校官方 · 仅供学习交流</div>
     </section>
