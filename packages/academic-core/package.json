@@ -1,0 +1,16 @@
+{
+  "name": "@qlu-toolbox/academic-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@qlu-toolbox/contracts": "0.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}

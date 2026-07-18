@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">QLU工具箱</string>
+    <string name="title_activity_main">QLU工具箱</string>
+    <string name="package_name">cn.edu.qlu.toolbox</string>
+    <string name="custom_url_scheme">cn.edu.qlu.toolbox</string>
+</resources>

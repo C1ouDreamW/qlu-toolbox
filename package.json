@@ -3,7 +3,9 @@
   "version": "1.1.0",
   "private": true,
   "workspaces": [
-    "apps/mobile-poc"
+    "apps/mobile-poc",
+    "apps/mobile",
+    "packages/*"
   ],
   "author": "C1ouDreamW",
   "description": "面向齐鲁工业大学学生的非官方本地校园效率工具箱",
@@ -20,6 +22,9 @@
     "dist:zip": "npm run build:backend && npm run build && electron-builder --win zip",
     "dist:installer": "npm run build:backend && npm run build && electron-builder --win nsis",
     "dist:mac": "npm run build:backend && npm run build && electron-builder --mac dmg",
+    "mobile:dev": "npm run dev --workspace @qlu-toolbox/mobile",
+    "mobile:build": "npm run build --workspace @qlu-toolbox/mobile",
+    "mobile:sync": "npm run cap:sync --workspace @qlu-toolbox/mobile",
     "mobile:poc:build": "npm run build --workspace @qlu-toolbox/mobile-poc",
     "mobile:poc:sync": "npm run cap:sync --workspace @qlu-toolbox/mobile-poc"
   },
