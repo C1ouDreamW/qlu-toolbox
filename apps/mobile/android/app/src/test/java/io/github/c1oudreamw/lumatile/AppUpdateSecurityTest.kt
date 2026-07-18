@@ -8,7 +8,7 @@ class AppUpdateSecurityTest {
     @Test
     fun acceptsOnlyProjectReleaseUrlsAndKnownRedirectHosts() {
         assertTrue(AppUpdateSecurity.isAllowedDownloadUrl(
-            "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v1.2.2/QLU-Toolbox-Android-v1.2.2.apk",
+            "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v1.2.3/QLU-Toolbox-Android-v1.2.3.apk",
         ))
         assertTrue(AppUpdateSecurity.isAllowedDownloadUrl(
             "https://github.com/C1ouDreamW/lumatile/releases/download/v2.0.0/LumaTile-Android-v2.0.0.apk",

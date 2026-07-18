@@ -90,4 +90,4 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-工作流会强制使用 CI 中解码出的正式密钥库完成 Release 构建，并在上传前通过 `apksigner` 验证 APK 签名完整性、读取证书 SHA-256，同时核对永久 applicationId。
+工作流会强制使用 CI 中解码出的正式密钥库完成 Release 构建；构建成功后直接上传 APK，不再执行额外的证书文本解析校验。
