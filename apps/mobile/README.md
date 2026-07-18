@@ -88,7 +88,6 @@ ANDROID_KEYSTORE_BASE64
 ANDROID_KEYSTORE_PASSWORD
 ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
-ANDROID_CERT_SHA256
 ```
 
-`ANDROID_CERT_SHA256` 必须是正式密钥证书的 SHA-256 指纹；工作流会在上传 APK 前用 `apksigner` 再次核对，避免误用其他签名破坏后续覆盖升级。
+工作流会从 CI 中解码出的正式密钥库导出公钥证书，并将其 SHA-256 与 `apksigner` 从成品 APK 读取的证书指纹进行核对，避免构建过程误用其他签名破坏后续覆盖升级。

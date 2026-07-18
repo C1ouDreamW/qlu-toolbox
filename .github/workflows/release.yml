@@ -26,11 +26,12 @@ jobs:
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
           npm version $version --no-git-tag-version --allow-same-version
+          node scripts/set-python-version.mjs $version
 
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@v5
         with:
-          python-version-file: ".python-version"
+          python-version: "3.12"
 
       - name: Install npm dependencies
         run: npm ci
@@ -86,12 +87,15 @@ jobs:
 
       - name: Set release version from tag
         shell: bash
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          npm version "$version" --no-git-tag-version --allow-same-version
+          node scripts/set-python-version.mjs "$version"
 
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@v5
         with:
-          python-version-file: ".python-version"
+          python-version: "3.12"
 
       - name: Install npm dependencies
         run: npm ci
@@ -174,13 +178,11 @@ jobs:
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_CERT_SHA256: ${{ secrets.ANDROID_CERT_SHA256 }}
         run: |
           test -n "$ANDROID_KEYSTORE_BASE64"
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           test -n "$ANDROID_KEY_ALIAS"
           test -n "$ANDROID_KEY_PASSWORD"
-          test -n "$ANDROID_CERT_SHA256"
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > apps/mobile/android/release-signing.jks
 
       - name: Install npm dependencies
@@ -206,17 +208,22 @@ jobs:
 
       - name: Verify application ID and signing certificate
         shell: bash
-        env:
-          ANDROID_CERT_SHA256: ${{ secrets.ANDROID_CERT_SHA256 }}
         run: |
           apk="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          keystore="apps/mobile/android/release-signing.jks"
           apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)
           test -f "$apk"
+          test -f "$keystore"
           test -n "$apksigner"
           "$apksigner" verify --verbose --print-certs "$apk" > apksigner-report.txt
           grep -F "io.github.c1oudreamw.lumatile" apps/mobile/android/app/build/outputs/logs/manifest-merger-release-report.txt
+          keytool -exportcert \
+            -keystore "$keystore" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            -file signing-cert.der
           actual=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' apksigner-report.txt | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
-          expected=$(printf '%s' "$ANDROID_CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          expected=$(sha256sum signing-cert.der | awk '{print $1}')
           test -n "$actual"
           test "$actual" = "$expected"
 
