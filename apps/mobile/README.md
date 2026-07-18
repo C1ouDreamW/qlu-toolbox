@@ -90,4 +90,4 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-工作流会从 CI 中解码出的正式密钥库导出公钥证书，并将其 SHA-256 与 `apksigner` 从成品 APK 读取的证书指纹进行核对，避免构建过程误用其他签名破坏后续覆盖升级。
+工作流会强制使用 CI 中解码出的正式密钥库完成 Release 构建，并在上传前通过 `apksigner` 验证 APK 签名完整性、读取证书 SHA-256，同时核对永久 applicationId。
