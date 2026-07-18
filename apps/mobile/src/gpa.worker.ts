@@ -1,5 +1,5 @@
-import { parseGradeRows } from '@qlu-toolbox/academic-core'
-import type { GradeWorkbookRows } from '@qlu-toolbox/contracts'
+import { parseGradeRows } from '@lumatile/academic-core'
+import type { GradeWorkbookRows } from '@lumatile/contracts'
 
 interface ParseRequest {
   id: number

@@ -5,7 +5,7 @@ import type {
   GPAWorkbook,
   GradeWorkbookRows,
   SemesterCode,
-} from '@qlu-toolbox/contracts'
+} from '@lumatile/contracts'
 
 export const GRADE_EXPORT_MAX_BYTES = 20 * 1024 * 1024
 export const GRADE_EXPORT_CHUNK_CHARS = 128 * 1024

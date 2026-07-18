@@ -1,4 +1,4 @@
-package cn.edu.qlu.toolbox
+package io.github.c1oudreamw.lumatile
 
 import android.content.Intent
 import android.os.SystemClock
@@ -106,7 +106,7 @@ class GradeTaskRecoveryInstrumentedTest {
         val recoveryProbeId = UUID.randomUUID().toString()
         repository.create(recoveryProbeId, "2025", "12")
         instrumentation.uiAutomation
-            .executeShellCommand("am start -W -n cn.edu.qlu.toolbox/.MainActivity")
+            .executeShellCommand("am start -W -n io.github.c1oudreamw.lumatile/.MainActivity")
             .close()
         instrumentation.waitForIdleSync()
 

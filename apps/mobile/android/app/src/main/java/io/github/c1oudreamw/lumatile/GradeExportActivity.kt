@@ -1,4 +1,4 @@
-package cn.edu.qlu.toolbox
+package io.github.c1oudreamw.lumatile
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -287,7 +287,7 @@ class GradeExportActivity : AppCompatActivity() {
     private fun pollExportResult(deadline: Long) {
         if (workflowTerminal) return
         if (SystemClock.elapsedRealtime() >= deadline) { fail("QUERY_FAILED", "等待成绩查询或导出响应超时，请检查网络后重试。"); return }
-        webView.evaluateJavascript("window.__QLU_GRADE_EXPORT__ && window.__QLU_GRADE_EXPORT__[${JSONObject.quote(taskId)}] && window.__QLU_GRADE_EXPORT__[${JSONObject.quote(taskId)}].result") { raw ->
+        webView.evaluateJavascript("window.__LUMATILE_GRADE_EXPORT__ && window.__LUMATILE_GRADE_EXPORT__[${JSONObject.quote(taskId)}] && window.__LUMATILE_GRADE_EXPORT__[${JSONObject.quote(taskId)}].result") { raw ->
             if (workflowTerminal) return@evaluateJavascript
             if (raw == null || raw == "null" || raw == "undefined") { handler.postDelayed({ pollExportResult(deadline) }, POLL_MS); return@evaluateJavascript }
             try {
@@ -310,7 +310,7 @@ class GradeExportActivity : AppCompatActivity() {
         if (workflowTerminal) return
         if (offset >= base64Length) { finishTransfer(expectedBytes, writtenBytes, expectedSha256); return }
         val end = minOf(offset + BASE64_CHUNK_SIZE, base64Length)
-        val expression = "window.__QLU_GRADE_EXPORT__[${JSONObject.quote(taskId)}].base64.slice($offset,$end)"
+        val expression = "window.__LUMATILE_GRADE_EXPORT__[${JSONObject.quote(taskId)}].base64.slice($offset,$end)"
         webView.evaluateJavascript(expression) { raw ->
             try {
                 val base64 = JSONTokener(raw).nextValue() as? String ?: throw IOException("无效分块")
@@ -364,7 +364,7 @@ class GradeExportActivity : AppCompatActivity() {
         return """
             (() => {
               const taskId = $quotedTask;
-              const root = window.__QLU_GRADE_EXPORT__ || (window.__QLU_GRADE_EXPORT__ = {});
+              const root = window.__LUMATILE_GRADE_EXPORT__ || (window.__LUMATILE_GRADE_EXPORT__ = {});
               root[taskId] = {result:null, base64:null};
               (async () => {
                 try {
@@ -478,7 +478,7 @@ class GradeExportActivity : AppCompatActivity() {
 
     private fun clearJavascriptTask() {
         if (::webView.isInitialized) try {
-            webView.evaluateJavascript("if(window.__QLU_GRADE_EXPORT__) delete window.__QLU_GRADE_EXPORT__[${JSONObject.quote(taskId)}]") {}
+            webView.evaluateJavascript("if(window.__LUMATILE_GRADE_EXPORT__) delete window.__LUMATILE_GRADE_EXPORT__[${JSONObject.quote(taskId)}]") {}
         } catch (_: RuntimeException) {
             // renderer 已终止时只需依赖原生临时文件清理。
         }

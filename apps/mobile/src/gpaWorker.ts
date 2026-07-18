@@ -1,4 +1,4 @@
-import type { GPAWorkbook, GradeWorkbookRows } from '@qlu-toolbox/contracts'
+import type { GPAWorkbook, GradeWorkbookRows } from '@lumatile/contracts'
 
 interface ParseResponse {
   id: number

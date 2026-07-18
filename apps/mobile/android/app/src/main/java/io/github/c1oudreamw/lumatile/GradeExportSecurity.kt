@@ -1,4 +1,4 @@
-package cn.edu.qlu.toolbox
+package io.github.c1oudreamw.lumatile
 
 import java.net.URI
 

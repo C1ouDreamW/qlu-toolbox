@@ -2,6 +2,30 @@
 
 本项目版本遵循语义化版本号。Alpha 版本仍可能调整界面、配置格式和内部实现。
 
+## [1.2.0] - 2026-07-19
+
+这是 Android 端最后一个以“QLU 工具箱”为显示名称的迁移版本，为后续“一格有光 / LumaTile”品牌切换建立稳定的覆盖升级链。
+
+### 新增
+
+- Android 新增双更新清单机制，同时检查当前 `qlu-toolbox` 与未来 `lumatile` 仓库地址，单个地址不可用不会中断更新检查。
+- 新增更新 APK 下载进度、文件大小和 SHA-256 校验，以及 applicationId、versionCode 和签名证书一致性校验。
+- 新增 Android 正式签名配置、CI Debug 验证和 GitHub Actions 签名 Release 构建。
+- Release 发布完成后自动生成 `updates/android.json`，确保清单只指向已经上传并完成校验的 APK。
+
+### 更改
+
+- Android 永久 applicationId 与 Kotlin namespace 改为 `io.github.c1oudreamw.lumatile`。
+- Android versionCode 提升至 `5`；后续 LumaTile 版本必须继续递增。
+- 移动端 npm workspace 作用域从 `@qlu-toolbox` 迁移为 `@lumatile`。
+- 本版本继续显示“QLU 工具箱”并保留原图标，用户可见品牌将在后续大版本中切换。
+
+### 兼容性与迁移
+
+- 从 v1.2.0 Android 迁移版升级到 LumaTile 时，必须保持相同 applicationId 和签名证书，Android 才会覆盖安装并保留本地数据。
+- 此前的 `cn.edu.qlu.toolbox` 测试包不能直接覆盖升级到本版本，需要先卸载旧测试包。
+- 当前仓库暂不重命名；迁移版已经内置新旧两个更新地址，不依赖仓库重命名重定向。
+
 ## [1.1.0] - 2026-07-16
 
 这是自 v1.0.3 以来的跨平台大版本更新，首次提供 Apple Silicon macOS 版本，并完善无可用系统浏览器时的备用方案。

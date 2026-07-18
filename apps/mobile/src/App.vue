@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { AlertCircle, Archive, BookOpen, Calculator, Check, ChevronRight, Code2, Eraser, FileDown, FileSpreadsheet, FolderOpen, Heart, Home, Info, LockKeyhole, Play, RefreshCw, RotateCcw, Search, Settings, ShieldAlert, ShieldCheck, SquareActivity, UploadCloud, UserRoundCheck, Wifi } from 'lucide-vue-next'
-import { calculateGpa, defaultAcademicYear, semesterName } from '@qlu-toolbox/academic-core'
-import type { GPACourse, GPAWorkbook, GradeEvent, GradeTaskSnapshot, SemesterCode } from '@qlu-toolbox/contracts'
+import { AlertCircle, Archive, BookOpen, Calculator, Check, ChevronRight, Code2, Download, Eraser, FileDown, FileSpreadsheet, FolderOpen, Heart, Home, Info, LockKeyhole, Play, RefreshCw, RotateCcw, Search, Settings, ShieldAlert, ShieldCheck, SquareActivity, UploadCloud, UserRoundCheck, Wifi } from 'lucide-vue-next'
+import { calculateGpa, defaultAcademicYear, semesterName } from '@lumatile/academic-core'
+import type { GPACourse, GPAWorkbook, GradeEvent, GradeTaskSnapshot, SemesterCode } from '@lumatile/contracts'
 import { gradeExport } from './gradeExport'
 import { parseGradeWorkbook } from './gpaWorker'
+import { appUpdate } from './update/appUpdate'
+import { findAvailableUpdate } from './update/updateService'
+import type { AvailableUpdate, UpdateDownloadProgress } from './update/types'
 import brandIconUrl from '../../../assets/qlu-toolbox.png'
 import mobilePackage from '../package.json'
 
@@ -26,6 +29,11 @@ const gpaWorkbook = ref<GPAWorkbook | null>(null)
 const gpaLoading = ref(false)
 const gpaError = ref('')
 const gpaQuery = ref('')
+const availableUpdate = ref<AvailableUpdate | null>(null)
+const updateChecking = ref(false)
+const updateInstalling = ref(false)
+const updateMessage = ref('')
+const updateProgress = ref<UpdateDownloadProgress | null>(null)
 const busy = computed(() => task.value?.outcome === 'running')
 const message = computed(() => task.value?.message || '选择范围后即可开始查询')
 const gpaSummary = computed(() => calculateGpa(gpaWorkbook.value?.courses ?? []))
@@ -38,6 +46,7 @@ const visibleGpaCourses = computed(() => {
   return courses.filter(course => `${course.name}${course.code}${course.college}${course.teachingClass}`.toLowerCase().includes(keyword))
 })
 let listener: PluginListenerHandleLike | undefined
+let updateListener: PluginListenerHandleLike | undefined
 
 interface PluginListenerHandleLike { remove: () => Promise<void> }
 
@@ -84,6 +93,48 @@ function acceptLegalNotice() {
   if (!legalNoticeConfirmed.value) return
   window.localStorage.setItem('legalNoticeAcceptedVersion', legalNoticeVersion)
   legalNoticeAccepted.value = true
+  void checkForUpdate(false)
+}
+
+async function checkForUpdate(manual = true) {
+  if (!appUpdate.isNativeAndroid() || updateChecking.value) return
+  updateChecking.value = true
+  updateMessage.value = ''
+  try {
+    const current = await appUpdate.getCurrentVersion()
+    availableUpdate.value = await findAvailableUpdate(current)
+    if (manual && !availableUpdate.value) updateMessage.value = `当前已是最新版本（v${current.versionName}）`
+  } catch (error) {
+    if (manual) updateMessage.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    updateChecking.value = false
+  }
+}
+
+async function installAvailableUpdate() {
+  const update = availableUpdate.value
+  if (!update || updateInstalling.value) return
+  updateMessage.value = ''
+  try {
+    if (!await appUpdate.canInstallPackages()) {
+      updateMessage.value = '请在系统设置中允许安装未知应用，返回后再次点击“下载并安装”。'
+      await appUpdate.openInstallPermissionSettings()
+      return
+    }
+    updateInstalling.value = true
+    updateProgress.value = { state: 'downloading', received: 0, total: update.size, percent: 0 }
+    await appUpdate.downloadAndInstall(update)
+    updateMessage.value = '系统安装界面已打开，请确认覆盖更新。'
+  } catch (error) {
+    updateMessage.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    updateInstalling.value = false
+  }
+}
+
+function formatBytes(value = 0) {
+  if (value < 1024 * 1024) return `${Math.max(0, value / 1024).toFixed(0)} KB`
+  return `${(value / 1024 / 1024).toFixed(1)} MB`
 }
 
 async function acceptGpaRows(source: Awaited<ReturnType<typeof gradeExport.readArtifactWorkbook>>) {
@@ -137,10 +188,15 @@ async function selectPage(next: Page) {
 onMounted(async () => {
   if (!nativeAndroid) return
   listener = await gradeExport.onEvent(event => void receive(event))
+  updateListener = await appUpdate.onProgress(event => { updateProgress.value = event })
   task.value = await gradeExport.getActiveTask()
   await refreshTasks()
+  if (legalNoticeAccepted.value) void checkForUpdate(false)
 })
-onBeforeUnmount(() => void listener?.remove())
+onBeforeUnmount(() => {
+  void listener?.remove()
+  void updateListener?.remove()
+})
 </script>
 
 <template>
@@ -219,6 +275,7 @@ onBeforeUnmount(() => void listener?.remove())
     <section v-else-if="page === 'settings'" class="page">
       <div class="page-title"><p class="eyebrow">PRIVACY & DATA</p><h1>设置</h1><p>管理学校登录状态和本地数据。</p></div>
       <button class="setting-card" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>清除 Cookie、缓存与站点数据</small></span></button>
+      <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version} · 双更新渠道` }}</small></span><ChevronRight /></button>
       <button class="setting-card about-entry" @click="selectPage('about')"><Info /><span><strong>关于与声明</strong><small>查看非官方声明、职责声明和免责声明</small></span><ChevronRight /></button>
       <div class="settings-footnote"><ShieldAlert />非学校官方 · 仅供学习交流</div>
     </section>
@@ -242,7 +299,7 @@ onBeforeUnmount(() => void listener?.remove())
         <p>应用中出现的学校名称仅用于说明工具的适用场景和兼容对象，不表示学校对本应用的认可、推荐或授权。</p>
       </section>
       <section class="card contact-section">
-        <div><Code2 /><span><strong>项目与反馈</strong><small>开源项目：github.com/C1ouDreamW/qlu-toolbox</small><small>联系邮箱：cloud_aaa@163.com</small><small>QQ 交流群：438767737</small></span></div>
+        <div><Code2 /><span><strong>项目与反馈</strong><small>源码公开项目：github.com/C1ouDreamW/qlu-toolbox</small><small>联系邮箱：cloud_aaa@163.com</small><small>QQ 交流群：438767737</small></span></div>
       </section>
     </section>
 
@@ -262,6 +319,27 @@ onBeforeUnmount(() => void listener?.remove())
         </div>
         <label class="legal-confirm"><input v-model="legalNoticeConfirmed" type="checkbox" /><span>我已阅读、理解并同意上述声明与使用须知</span></label>
         <button class="primary" :disabled="!legalNoticeConfirmed" @click="acceptLegalNotice"><Check />确认并开始使用</button>
+      </section>
+    </div>
+
+    <div v-if="availableUpdate" class="update-backdrop">
+      <section class="update-dialog" role="dialog" aria-modal="true" aria-labelledby="update-dialog-title">
+        <span class="update-icon"><Download /></span>
+        <p class="eyebrow">APP UPDATE</p>
+        <h1 id="update-dialog-title">{{ availableUpdate.title }}</h1>
+        <p class="update-version">v{{ availableUpdate.versionName }} · versionCode {{ availableUpdate.versionCode }} · {{ formatBytes(availableUpdate.size) }}</p>
+        <p class="update-notes">{{ availableUpdate.notes }}</p>
+        <div v-if="updateProgress" class="update-progress">
+          <div><span>{{ updateProgress.message || (updateProgress.state === 'ready' ? '校验完成' : '正在下载并校验更新包') }}</span><strong v-if="updateProgress.percent !== undefined && updateProgress.percent >= 0">{{ updateProgress.percent }}%</strong></div>
+          <progress v-if="updateProgress.percent !== undefined && updateProgress.percent >= 0" :value="updateProgress.percent" max="100" />
+          <small v-if="updateProgress.received !== undefined">{{ formatBytes(updateProgress.received) }} / {{ formatBytes(updateProgress.total || availableUpdate.size) }}</small>
+        </div>
+        <div v-if="updateMessage" class="notice" :class="{ error: !updateMessage.includes('已打开') }">{{ updateMessage }}</div>
+        <div class="update-actions">
+          <button v-if="!availableUpdate.mandatory" class="secondary" :disabled="updateInstalling" @click="availableUpdate = null">稍后提醒</button>
+          <button class="primary" :disabled="updateInstalling" @click="installAvailableUpdate"><RefreshCw v-if="updateInstalling" class="spin" /><Download v-else />{{ updateInstalling ? '正在准备更新' : '下载并安装' }}</button>
+        </div>
+        <small class="update-safety">更新包将校验 applicationId、版本号、签名和 SHA-256，确认无误后才会交给 Android 系统安装。</small>
       </section>
     </div>
   </main>

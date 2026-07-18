@@ -1,4 +1,4 @@
-package cn.edu.qlu.toolbox
+package io.github.c1oudreamw.lumatile
 
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File

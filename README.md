@@ -4,6 +4,8 @@
 
 # QLU 工具箱
 
+> **品牌迁移说明**：Android 最终迁移版仍显示“QLU 工具箱”，但已提前使用 LumaTile 的永久 applicationId、正式签名和新旧双更新渠道。后续本仓库将重命名为 `lumatile`，已安装最终迁移版的用户可直接覆盖更新至“一格有光 / LumaTile”。
+
 <p align="center">
   <img src="https://img.shields.io/badge/Vue-3.5-42B883?logo=vuedotjs&logoColor=white" alt="Vue 3">
   <img src="https://img.shields.io/badge/Electron-37-47848F?logo=electron&logoColor=white" alt="Electron">

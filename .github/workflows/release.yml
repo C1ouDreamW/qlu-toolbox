@@ -137,10 +137,107 @@ jobs:
           path: release/QLUToolbox_v*_arm64.dmg
           if-no-files-found: error
 
+  build-android:
+    name: Build signed Android migration APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ANDROID_KEYSTORE_FILE: release-signing.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Android SDK 36
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Validate Android signing secrets
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_CERT_SHA256: ${{ secrets.ANDROID_CERT_SHA256 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          test -n "$ANDROID_CERT_SHA256"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > apps/mobile/android/release-signing.jks
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Verify mobile version matches tag
+        shell: bash
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          actual=$(node -p "require('./apps/mobile/package.json').version")
+          test "$actual" = "$expected"
+
+      - name: Build and sync Android web assets
+        run: |
+          npm run mobile:build
+          npm run mobile:sync
+
+      - name: Run Android tests and signed release build
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest assembleRelease
+
+      - name: Verify application ID and signing certificate
+        shell: bash
+        env:
+          ANDROID_CERT_SHA256: ${{ secrets.ANDROID_CERT_SHA256 }}
+        run: |
+          apk="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)
+          test -f "$apk"
+          test -n "$apksigner"
+          "$apksigner" verify --verbose --print-certs "$apk" > apksigner-report.txt
+          grep -F "io.github.c1oudreamw.lumatile" apps/mobile/android/app/build/outputs/logs/manifest-merger-release-report.txt
+          actual=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' apksigner-report.txt | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          expected=$(printf '%s' "$ANDROID_CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          test -n "$actual"
+          test "$actual" = "$expected"
+
+      - name: Prepare Android artifact
+        shell: bash
+        run: |
+          mkdir -p release-android
+          version="${GITHUB_REF_NAME#v}"
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "release-android/QLU-Toolbox-Android-v${version}.apk"
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: release-android/QLU-Toolbox-Android-v*.apk
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos, build-android]
     permissions:
       contents: write
 
@@ -178,3 +275,33 @@ jobs:
           body_path: release-notes.md
           fail_on_unmatched_files: true
           generate_release_notes: true
+
+      - name: Publish Android update manifest branch
+        shell: bash
+        run: |
+          apk=$(find artifacts -maxdepth 1 -name 'QLU-Toolbox-Android-v*.apk' -type f -print -quit)
+          test -n "$apk"
+          version="${GITHUB_REF_NAME#v}"
+          git fetch origin main
+          git checkout -B main origin/main
+          version_code=$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9]\+\).*$/\1/p' apps/mobile/android/app/build.gradle | head -n 1)
+          test -n "$version_code"
+          node scripts/generate-android-update-manifest.mjs "$apk" updates/android.json "$version_code" "$version" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add updates/android.json
+          if git diff --cached --quiet; then exit 0; fi
+          branch="automation/android-update-${GITHUB_REF_NAME}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git checkout -b "$branch"
+          git commit -m "chore: publish Android update manifest for $GITHUB_REF_NAME"
+          git push --set-upstream origin "$branch"
+          compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}?quick_pull=1"
+          {
+            echo "## Android update manifest"
+            echo
+            echo "The signed APK was published successfully."
+            echo
+            echo "[Create the update manifest pull request](${compare_url})"
+            echo
+            echo "Merge it after all required status checks pass to make the update visible to installed apps."
+          } >> "$GITHUB_STEP_SUMMARY"

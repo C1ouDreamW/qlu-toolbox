@@ -45,7 +45,7 @@
 
 ### 1.2 正式 Kotlin 测试版进度
 
-正式工程已建立在 `apps/mobile/`，应用 ID 为 `cn.edu.qlu.toolbox`。0.4.0-beta.1 已实现 Kotlin `GradeExportActivity`/Capacitor Plugin、Room 任务 snapshot、缓存 ArtifactStore、SAF 保存与再次保存、FileProvider 分享、精确域名限制、SHA-256 分块完整性验证、工作表 relationship 定位、ZIP 安全限制和实际学期校验；已接入本地 GPA 垂直链路，包括从导出 artifact 直接读取、系统文件选择器导入、Kotlin 安全提取工作表行、`academic-core` 课程分组与总评识别、桌面端等价绩点规则、逐课选择和加权 GPA 汇总；并新增冷启动孤立任务修正、Activity 重建中断保护、桌面/Android 共用品牌图标和蓝黄品牌配色。
+正式工程已建立在 `apps/mobile/`，永久应用 ID 为 `io.github.c1oudreamw.lumatile`。v1.2.0 是最后一个显示为“QLU 工具箱”的 Android 迁移版本，已实现 Kotlin `GradeExportActivity`/Capacitor Plugin、Room 任务 snapshot、缓存 ArtifactStore、SAF 保存与再次保存、FileProvider 分享、精确域名限制、SHA-256 分块完整性验证、工作表 relationship 定位、ZIP 安全限制和实际学期校验；已接入本地 GPA 垂直链路，包括从导出 artifact 直接读取、系统文件选择器导入、Kotlin 安全提取工作表行、`academic-core` 课程分组与总评识别、桌面端等价绩点规则、逐课选择和加权 GPA 汇总；并新增冷启动孤立任务修正、Activity 重建中断保护、双更新清单、签名 APK 校验与覆盖安装流程。
 
 尚未宣称完成的正式版范围包括 WebView renderer/完整进程回收仪器测试、已保存 SAF URI 失效处理、多设备支持矩阵和 release 签名发布。后续测试版统一在 `apps/mobile/` 开发。
 
@@ -847,7 +847,7 @@ Android 首期发布建议：
 版本建议共享产品版本号，但产物带平台：
 
 ```text
-QLUToolbox_v1.2.0_android_arm64.apk
+LumaTile-Android-v1.2.0.apk
 QLUToolbox_v1.2.0_windows_x64_Setup.exe
 ```
 

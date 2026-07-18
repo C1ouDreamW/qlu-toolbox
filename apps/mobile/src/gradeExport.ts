@@ -1,5 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
-import type { ArtifactHandle, GradeEvent, GradeExportOptions, GradeTaskSnapshot, GradeWorkbookRows, SavedArtifact } from '@qlu-toolbox/contracts'
+import type { ArtifactHandle, GradeEvent, GradeExportOptions, GradeTaskSnapshot, GradeWorkbookRows, SavedArtifact } from '@lumatile/contracts'
 
 interface NativeGradeExportPlugin {
   start(options: GradeExportOptions): Promise<{ taskId: string }>

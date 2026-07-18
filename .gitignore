@@ -62,6 +62,9 @@ Thumbs.db
 *.pfx
 *.p12
 *.key
+*.jks
+*.keystore
+keystore.properties
 
 # 用户导出文件与本地发布压缩包
 *.xlsx
