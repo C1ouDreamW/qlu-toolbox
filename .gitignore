@@ -21,6 +21,11 @@ htmlcov/
 /node_modules/
 /release/
 /release-*/
+/apps/mobile-poc/dist/
+/apps/mobile-poc/android/.gradle/
+/apps/mobile-poc/android/.gradle-user/
+/apps/mobile-poc/android/build/
+/apps/mobile-poc/android/app/build/
 /npm-cache/
 /deployment/
 /artifacts/
