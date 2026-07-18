@@ -24,7 +24,7 @@
 
 ### 1.1 Android 可行性验证结论
 
-`apps/mobile-poc/` 已在 Android 实机完成阶段 0 核心链路验证，结论是该方案可行，可以进入正式 Kotlin 测试版开发。已验证行为包括：
+阶段 0 PoC 已在 Android 实机完成核心链路验证，结论是该方案可行。PoC 源码在正式 Kotlin 版通过实机回归后移除，验证结论保留如下：
 
 - 独立 WebView 打开教务系统，并经 `sso.qlu.edu.cn` 完成统一身份认证后回到 `jw.qlu.edu.cn`；
 - 首次登录和保留登录状态后的再次使用均可完成；
@@ -34,20 +34,20 @@
 - 导出结束、失败或关闭后会释放活动任务，返回工具箱可立即开始下一次查询，不再依赖等待或重启 App；
 - 错误学期、无效工作簿、未知跳转域名、TLS/网络错误不会被误报为成功。
 
-本次 PoC 的 Android 原生层由 Capacitor 脚手架生成的 Java 实现，仅作为已验证行为和回归测试的参考，不是正式技术选型。正式测试版必须按第 4 节使用 Kotlin 重写原生 Activity、插件、校验和生命周期代码；不得在正式目录中继续扩展 PoC Java 类。
+阶段 0 PoC 的 Android 原生层由 Capacitor 脚手架生成的 Java 实现，仅用于验证行为，不是正式技术选型。正式版已按第 4 节使用 Kotlin 重写原生 Activity、插件、校验和生命周期代码，历史 Java 源码不再留在当前源码树中。
 
-文档与 PoC 的优先级约定如下：
+文档与历史 PoC 验证结论的优先级约定如下：
 
 1. 技术栈、正式架构、安全目标和持久化方案以本文档为准；
-2. 教务系统页面交互、学年/学期映射、查询与导出时序、异步脚本取回方式、工作簿学期校验和任务释放逻辑，以已通过实机验证的 PoC 行为为准；
-3. 正式 Kotlin 版不是逐行翻译 Java，而是按本文档重构，并用 PoC 行为测试和脱敏样本保证结果不回退；
+2. 教务系统页面交互、学年/学期映射、查询与导出时序、异步脚本取回方式、工作簿学期校验和任务释放逻辑，以阶段 0 的实机验证结论为准；
+3. 正式 Kotlin 版不是逐行翻译 Java，而是按本文档重构，并用契约测试和脱敏样本保证结果不回退；
 4. Room、ArtifactStore、分享、GPA、进程恢复和完整 ZIP 安全校验仍属于正式版工作，不得标记为已由阶段 0 验证。
 
 ### 1.2 正式 Kotlin 测试版进度
 
-正式工程已建立在 `apps/mobile/`，应用 ID 为 `cn.edu.qlu.toolbox`，与 `apps/mobile-poc/` 的 Java 验证包分离。0.4.0-beta.1 已实现 Kotlin `GradeExportActivity`/Capacitor Plugin、Room 任务 snapshot、缓存 ArtifactStore、SAF 保存与再次保存、FileProvider 分享、精确域名限制、SHA-256 分块完整性验证、工作表 relationship 定位、ZIP 安全限制和实际学期校验；已接入本地 GPA 垂直链路，包括从导出 artifact 直接读取、系统文件选择器导入、Kotlin 安全提取工作表行、`academic-core` 课程分组与总评识别、桌面端等价绩点规则、逐课选择和加权 GPA 汇总；并新增冷启动孤立任务修正、Activity 重建中断保护、桌面/Android 共用品牌图标和蓝黄品牌配色。
+正式工程已建立在 `apps/mobile/`，应用 ID 为 `cn.edu.qlu.toolbox`。0.4.0-beta.1 已实现 Kotlin `GradeExportActivity`/Capacitor Plugin、Room 任务 snapshot、缓存 ArtifactStore、SAF 保存与再次保存、FileProvider 分享、精确域名限制、SHA-256 分块完整性验证、工作表 relationship 定位、ZIP 安全限制和实际学期校验；已接入本地 GPA 垂直链路，包括从导出 artifact 直接读取、系统文件选择器导入、Kotlin 安全提取工作表行、`academic-core` 课程分组与总评识别、桌面端等价绩点规则、逐课选择和加权 GPA 汇总；并新增冷启动孤立任务修正、Activity 重建中断保护、桌面/Android 共用品牌图标和蓝黄品牌配色。
 
-尚未宣称完成的正式版范围包括 WebView renderer/完整进程回收仪器测试、已保存 SAF URI 失效处理、多设备支持矩阵和 release 签名发布。后续测试版继续在 `apps/mobile/` 开发，不把新功能回写到 Java PoC。
+尚未宣称完成的正式版范围包括 WebView renderer/完整进程回收仪器测试、已保存 SAF URI 失效处理、多设备支持矩阵和 release 签名发布。后续测试版统一在 `apps/mobile/` 开发。
 
 ## 2. 建设目标与非目标
 
@@ -128,7 +128,7 @@ Capacitor 官方支持直接加入现有现代 Web 项目，并通过 Kotlin/Jav
 | min SDK | 24 |
 | AndroidX WebKit | 1.14.0 |
 
-正式 Android 源码语言固定为 Kotlin。PoC 中的 Java 文件只保留在 `apps/mobile-poc/` 作为验证参考；正式工程新建 Kotlin 类和 Kotlin 测试，不采用 Java/Kotlin 双轨长期维护。
+正式 Android 源码语言固定为 Kotlin。历史 PoC 的 Java 源码已移除，正式工程只维护 Kotlin 类和 Kotlin 测试，不采用 Java/Kotlin 双轨维护。
 
 ### 4.2 本地数据
 
@@ -857,7 +857,7 @@ QLUToolbox_v1.2.0_windows_x64_Setup.exe
 
 ### 阶段 0：Android 可行性验证（核心链路已通过）
 
-目标：只回答“手机 WebView 登录后能否稳定导出”。该问题已得到肯定结论，PoC 保留为正式 Kotlin 版的行为参考，不继续扩展为产品代码。
+目标：只回答“手机 WebView 登录后能否稳定导出”。该问题已得到肯定结论，验证结果已固化到文档、契约测试和 Git 历史中，PoC 源码不再继续保留或扩展。
 
 工作：
 
@@ -939,9 +939,9 @@ Apple 要求应用具有超越简单网站封装的实际功能，因此 iOS 版
 
 ## 16. 阶段 0 验证结果与正式版输入
 
-以下状态以当前 `apps/mobile-poc/` 和已经完成的实机验证为准：
+以下状态记录阶段 0 已完成的实机验证结果：
 
-- [x] `apps/mobile-poc/` 最小 Capacitor Android 工程和独立 `GradeExportActivity`；
+- [x] 历史 PoC 已验证最小 Capacitor Android 工程和独立 `GradeExportActivity`；
 - [x] `jw.qlu.edu.cn`、`sso.qlu.edu.cn` 精确 HTTPS/443 允许列表；
 - [x] 教务系统加载、网络/TLS/HTTP 错误和未知域名阻止；
 - [x] 登录成功 URL/DOM 检测、统一认证跳转、保留和清除登录状态；

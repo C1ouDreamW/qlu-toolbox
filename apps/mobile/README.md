@@ -1,6 +1,6 @@
 # QLU 工具箱 Android 正式测试版
 
-这是 `docs/MOBILE_DEVELOPMENT_SOLUTION.md` 对应的正式 Android 工程，与 `apps/mobile-poc` 的一次性 Java 可行性验证分开维护。
+这是 `docs/MOBILE_DEVELOPMENT_SOLUTION.md` 对应的正式 Android 工程。阶段 0 的 Java PoC 已完成使命并从当前源码树移除。
 
 ## 技术栈
 
@@ -11,7 +11,7 @@
 - Android System WebView、Storage Access Framework、FileProvider
 - JDK 21、Gradle 8.14.3、AGP 8.13、compile/target SDK 36、min SDK 24
 
-正式原生源码只使用 Kotlin。`apps/mobile-poc` 中的 Java 代码只用于核对已经实机验证过的页面交互行为。
+正式原生源码只使用 Kotlin；历史 PoC 的实机验证结论已经固化到技术文档与自动化测试中。
 
 ## 当前测试版能力
 
@@ -50,4 +50,4 @@ APK 输出：`apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`。
 adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-正式包使用应用 ID `cn.edu.qlu.toolbox`，可与应用 ID 为 `cn.edu.qlu.toolbox.mobilepoc` 的 PoC 同时安装。
+正式包使用应用 ID `cn.edu.qlu.toolbox`。

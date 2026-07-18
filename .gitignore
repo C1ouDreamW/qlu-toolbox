@@ -23,11 +23,6 @@ node_modules/
 /packages/*/coverage/
 /release/
 /release-*/
-/apps/mobile-poc/dist/
-/apps/mobile-poc/android/.gradle/
-/apps/mobile-poc/android/.gradle-user/
-/apps/mobile-poc/android/build/
-/apps/mobile-poc/android/app/build/
 /apps/mobile/dist/
 /apps/mobile/android/.gradle/
 /apps/mobile/android/.gradle-user/
