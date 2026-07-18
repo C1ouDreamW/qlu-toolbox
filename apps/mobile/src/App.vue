@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { AlertCircle, Archive, Calculator, Check, Eraser, FileDown, FileSpreadsheet, FolderOpen, Home, LockKeyhole, Play, RefreshCw, RotateCcw, Search, Settings, ShieldCheck, SquareActivity, UploadCloud, Wifi } from 'lucide-vue-next'
+import { AlertCircle, Archive, BookOpen, Calculator, Check, ChevronRight, Code2, Eraser, FileDown, FileSpreadsheet, FolderOpen, Heart, Home, Info, LockKeyhole, Play, RefreshCw, RotateCcw, Search, Settings, ShieldAlert, ShieldCheck, SquareActivity, UploadCloud, UserRoundCheck, Wifi } from 'lucide-vue-next'
 import { calculateGpa, defaultAcademicYear, semesterName } from '@qlu-toolbox/academic-core'
 import type { GPACourse, GPAWorkbook, GradeEvent, GradeTaskSnapshot, SemesterCode } from '@qlu-toolbox/contracts'
 import { gradeExport } from './gradeExport'
 import { parseGradeWorkbook } from './gpaWorker'
 import brandIconUrl from '../../../assets/qlu-toolbox.png'
+import mobilePackage from '../package.json'
 
-type Page = 'home' | 'grade' | 'gpa' | 'tasks' | 'settings'
+type Page = 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about'
+const legalNoticeVersion = '2026-07-19'
 const page = ref<Page>('home')
+const legalNoticeAccepted = ref(localStorage.getItem('legalNoticeAcceptedVersion') === legalNoticeVersion)
+const legalNoticeConfirmed = ref(false)
 const nativeAndroid = gradeExport.isNativeAndroid()
 const currentYear = Number(defaultAcademicYear())
 const years = Array.from({ length: 8 }, (_, index) => currentYear - index)
@@ -76,6 +80,11 @@ async function openSaved(item: GradeTaskSnapshot) { try { uiError.value = ''; aw
 async function share(item: GradeTaskSnapshot) { if (item.artifact) try { uiError.value = ''; await gradeExport.shareArtifact(item.artifact) } catch (error) { uiError.value = error instanceof Error ? error.message : String(error) } }
 async function clearLogin() { try { uiError.value = ''; await gradeExport.clearLoginState() } catch (error) { uiError.value = error instanceof Error ? error.message : String(error) } }
 function persistKeepLoginState() { window.localStorage.setItem('keepLoginState', String(keepLoginState.value)) }
+function acceptLegalNotice() {
+  if (!legalNoticeConfirmed.value) return
+  window.localStorage.setItem('legalNoticeAcceptedVersion', legalNoticeVersion)
+  legalNoticeAccepted.value = true
+}
 
 async function acceptGpaRows(source: Awaited<ReturnType<typeof gradeExport.readArtifactWorkbook>>) {
   gpaWorkbook.value = await parseGradeWorkbook(source)
@@ -140,6 +149,7 @@ onBeforeUnmount(() => void listener?.remove())
 
     <section v-if="page === 'home'" class="page">
       <div class="hero"><p class="eyebrow">QLU TOOLBOX MOBILE</p><h1>校园工具，装进口袋</h1><p>数据留在设备本地，登录始终在学校原始页面完成。</p></div>
+      <div class="unofficial-banner"><ShieldAlert /><span><strong>非学校官方应用</strong><small>仅供个人学习与交流使用，不代表学校官方立场</small></span></div>
       <div v-if="!nativeAndroid" class="notice error">当前为网页预览，原生功能仅在 Android 安装包中可用。</div>
       <button class="tool-card" @click="selectPage('grade')"><span class="tool-icon"><FileDown /></span><span><strong>分项成绩查询</strong><small>选择学年学期，登录后自动导出 XLSX</small></span><em>已可用</em></button>
       <button class="tool-card" @click="selectPage('gpa')"><span class="tool-icon gpa-icon"><Calculator /></span><span><strong>绩点计算器</strong><small>导入成绩文件，自由选择课程并计算加权 GPA</small></span><em>测试版</em></button>
@@ -206,12 +216,53 @@ onBeforeUnmount(() => void listener?.remove())
       <article v-for="item in tasks" :key="item.taskId" class="task-card"><div><strong>{{ item.academicYear }}-{{ Number(item.academicYear)+1 }} · {{ semesterName(item.semester) }}</strong><small>{{ item.message }}</small></div><span :class="['pill', item.outcome]">{{ item.outcome }}</span><button v-if="item.artifactState === 'temporary'" @click="retrySave(item)">保存</button><button v-if="item.artifactState === 'saved'" @click="openSaved(item)">打开</button><button v-if="item.artifact" @click="share(item)">分享</button><button v-if="item.artifact" @click="calculateFromTask(item)">计算 GPA</button></article>
     </section>
 
-    <section v-else class="page">
+    <section v-else-if="page === 'settings'" class="page">
       <div class="page-title"><p class="eyebrow">PRIVACY & DATA</p><h1>设置</h1><p>管理学校登录状态和本地数据。</p></div>
       <button class="setting-card" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>清除 Cookie、缓存与站点数据</small></span></button>
-      <div class="card about"><strong>QLU 工具箱 Android 测试版</strong><p>Vue 3 + TypeScript + Capacitor 8 + Kotlin</p><p>非学校官方应用，仅处理本人有权访问的数据。</p></div>
+      <button class="setting-card about-entry" @click="selectPage('about')"><Info /><span><strong>关于与声明</strong><small>查看非官方声明、职责声明和免责声明</small></span><ChevronRight /></button>
+      <div class="settings-footnote"><ShieldAlert />非学校官方 · 仅供学习交流</div>
     </section>
 
-    <nav><button :class="{active:page==='home'}" @click="selectPage('home')"><Home />首页</button><button :class="{active:page==='grade'}" @click="selectPage('grade')"><FileDown />查分</button><button :class="{active:page==='gpa'}" @click="selectPage('gpa')"><Calculator />GPA</button><button :class="{active:page==='tasks'}" @click="selectPage('tasks')"><Archive />任务</button><button :class="{active:page==='settings'}" @click="selectPage('settings')"><Settings />设置</button></nav>
+    <section v-else class="page about-page">
+      <div class="page-title"><p class="eyebrow">ABOUT & LEGAL</p><h1>关于 QLU 工具箱</h1><p>由学生开发者维护的本地校园效率工具。</p></div>
+      <div class="card about-identity">
+        <span class="about-logo"><img :src="brandIconUrl" alt="QLU 工具箱 Logo" /></span>
+        <span><strong>QLU 工具箱</strong><small>Android v{{ mobilePackage.version }} · 测试版</small><small>Vue 3 + TypeScript + Capacitor + Kotlin</small></span>
+      </div>
+      <div class="unofficial-banner prominent"><ShieldAlert /><span><strong>本应用并非齐鲁工业大学官方应用</strong><small>与齐鲁工业大学及其教务系统服务商不存在隶属、授权、合作或担保关系，也不代表学校官方立场。</small></span></div>
+      <div class="about-values">
+        <article class="card"><ShieldCheck /><div><h2>隐私说明</h2><p>工具箱不会要求你在应用界面填写账号、密码或验证码；登录在教务系统原始页面完成。成绩文件在本机处理，不会发送给开发者。</p></div></article>
+        <article class="card"><Heart /><div><h2>仅供学习交流</h2><p>本项目仅供个人学习、交流和非商业用途。未经开发者明确书面许可，不得用于收费服务、商业产品、商业推广、代运营或其他营利活动。</p></div></article>
+        <article class="card"><UserRoundCheck /><div><h2>职责声明</h2><p>本工具仅提供本地查询、导出和计算辅助，不参与账号管理、学业评定或任何学校业务决策。请仅处理本人有权访问的数据，并自行核对结果。</p></div></article>
+      </div>
+      <section class="card legal-section">
+        <div class="legal-title"><BookOpen /><h2>免责声明</h2></div>
+        <p>本软件按“现状”提供。受学校系统、网络环境、设备兼容性等因素影响，不保证功能持续可用，也不保证查询、导出或计算结果绝对完整、准确。</p>
+        <p>使用者应自行承担使用、误用或无法使用本软件产生的风险和后果。在适用法律允许的范围内，开发者不承担由此造成的账号、数据、学业、设备或其他损失。</p>
+        <p>应用中出现的学校名称仅用于说明工具的适用场景和兼容对象，不表示学校对本应用的认可、推荐或授权。</p>
+      </section>
+      <section class="card contact-section">
+        <div><Code2 /><span><strong>项目与反馈</strong><small>开源项目：github.com/C1ouDreamW/qlu-toolbox</small><small>联系邮箱：cloud_aaa@163.com</small><small>QQ 交流群：438767737</small></span></div>
+      </section>
+    </section>
+
+    <nav><button :class="{active:page==='home'}" @click="selectPage('home')"><Home />首页</button><button :class="{active:page==='grade'}" @click="selectPage('grade')"><FileDown />查分</button><button :class="{active:page==='gpa'}" @click="selectPage('gpa')"><Calculator />GPA</button><button :class="{active:page==='tasks'}" @click="selectPage('tasks')"><Archive />任务</button><button :class="{active:page==='settings'||page==='about'}" @click="selectPage('settings')"><Settings />设置</button></nav>
+
+    <div v-if="!legalNoticeAccepted" class="legal-backdrop">
+      <section class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-dialog-title">
+        <span class="dialog-logo"><img :src="brandIconUrl" alt="" /></span>
+        <p class="eyebrow">BEFORE YOU START</p>
+        <h1 id="legal-dialog-title">免责声明与使用须知</h1>
+        <p class="dialog-lead">请先了解本应用的性质和使用边界。</p>
+        <div class="legal-notice-list">
+          <article class="critical"><ShieldAlert /><span><strong>非学校官方</strong><small>本应用与齐鲁工业大学及教务系统服务商不存在隶属、授权、合作或担保关系，不代表学校官方立场。</small></span></article>
+          <article><Heart /><span><strong>仅供学习交流</strong><small>仅限个人学习、交流和非商业用途，禁止用于收费服务、商业推广、代运营或其他营利活动。</small></span></article>
+          <article><UserRoundCheck /><span><strong>职责与使用责任</strong><small>工具仅提供本地辅助；请仅处理本人有权访问的数据，遵守学校与目标系统规则，自行核对结果并承担使用风险。</small></span></article>
+          <article><ShieldCheck /><span><strong>隐私与登录</strong><small>登录在教务系统原始页面完成；成绩仅在本机处理，不会上传给开发者。</small></span></article>
+        </div>
+        <label class="legal-confirm"><input v-model="legalNoticeConfirmed" type="checkbox" /><span>我已阅读、理解并同意上述声明与使用须知</span></label>
+        <button class="primary" :disabled="!legalNoticeConfirmed" @click="acceptLegalNotice"><Check />确认并开始使用</button>
+      </section>
+    </div>
   </main>
 </template>
