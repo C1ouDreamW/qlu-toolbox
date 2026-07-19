@@ -2,149 +2,191 @@
   <img src="assets/qlu-toolbox.png" width="128" alt="QLU 工具箱 Logo">
 </p>
 
-# QLU 工具箱
-
-> **品牌迁移说明**：Android 最终迁移版仍显示“QLU 工具箱”，但已提前使用 LumaTile 的永久 applicationId、正式签名和新旧双更新渠道。后续本仓库将重命名为 `lumatile`，已安装最终迁移版的用户可直接覆盖更新至“一格有光 / LumaTile”。
+<h1 align="center">QLU 工具箱</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Vue-3.5-42B883?logo=vuedotjs&logoColor=white" alt="Vue 3">
-  <img src="https://img.shields.io/badge/Electron-37-47848F?logo=electron&logoColor=white" alt="Electron">
-  <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/Playwright-1.55-2EAD33?logo=playwright&logoColor=white" alt="Playwright">
-  <img src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white" alt="Vite">
-  <img src="https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white" alt="Windows">
-  <img src="https://img.shields.io/badge/platform-macOS-000000?logo=apple&logoColor=white" alt="macOS">
-  <img src="https://img.shields.io/badge/license-non--commercial-red" alt="license">
+  本地优先的非官方校园效率工具
 </p>
 
-QLU 工具箱是一款面向齐鲁工业大学学生的本地校园效率桌面软件。v1.1.0 使用 Vue 3、TypeScript 与 Electron 提供桌面界面，Python 与 Playwright 负责可靠的本地自动化。当前内置“分项成绩导出”和“绩点计算器”两个教务工具，后续工具将通过统一模块规范逐步加入。
+<p align="center">
+  <img src="https://img.shields.io/badge/Windows-x64-0078D6?logo=windows11&logoColor=white" alt="Windows x64">
+  <img src="https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white" alt="macOS Apple Silicon">
+  <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0 及以上">
+</p>
 
-分项成绩导出会打开本机 Edge、Chrome 或兼容 Chromium。用户在浏览器中手动登录教务系统后，工具自动查询指定学期，并将经过校验的分项成绩保存为 Excel 文件。
+<p align="center">
+  <img src="https://img.shields.io/badge/Vue-3.5-42B883?logo=vuedotjs&logoColor=white" alt="Vue 3.5">
+  <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white" alt="TypeScript 5.8">
+  <img src="https://img.shields.io/badge/Electron-37-47848F?logo=electron&logoColor=white" alt="Electron 37">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.2">
+</p>
 
-绩点计算器读取分项成绩导出的 XLSX 文件，完整展示课程成绩分项，并根据用户勾选的课程实时计算总学分、总成绩点和加权平均 GPA。成绩文件只在本机读取。
+<p align="center">
+  <a href="#支持平台">支持平台</a> ·
+  <a href="#桌面版">桌面版</a> ·
+  <a href="#android-版">Android 版</a> ·
+  <a href="#隐私与安全边界">隐私安全</a> ·
+  <a href="#源码运行">开发指南</a> ·
+  <a href="#交流与反馈">交流反馈</a>
+</p>
 
-工具箱不会要求用户在客户端填写或复制账号、密码、验证码、Cookie，也不会把成绩发送到开发者服务器。
+<p align="center">
+  面向齐鲁工业大学学生的非官方工具，提供分项成绩导出和 GPA 计算。<br>
+  用户在独立浏览器或受限 WebView 中手动登录，成绩解析与计算均在本机完成。
+</p>
 
-浏览器登录状态、任务记录和设置默认保存在当前用户的系统应用数据目录中，**程序完全本地运行**。
+## 支持平台
 
-## 交流与其他学校适配版本
+| 平台 | 当前版本 | 发布形式 | 说明 |
+|---|---:|---|---|
+| Windows x64 | 1.1.0 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
+| macOS Apple Silicon | 1.1.0 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
+| Android 7.0 及以上 | 1.2.4（versionCode 9） | APK | 使用系统 WebView，支持系统文件保存和应用内更新检查 |
 
-- QLU 工具箱 QQ 交流群：`438767737`
-- 山东师范大学：[SDNU 工具箱](https://github.com/LoMoCatAp/sdnu-toolbox)——经授权基于本项目改造，由 [LoMoCatAp](https://github.com/LoMoCatAp) 独立维护。版本发布、使用说明和问题反馈请以该仓库为准。
+所有正式产物均发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases)。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
-## v1.1.0 更新亮点
+## 桌面版
 
-- 首次提供 Apple Silicon（arm64）macOS DMG，并使用 macOS 原生窗口控制和标准应用数据目录。
-- Edge 和 Chrome 均不可用时，可在应用内按需下载备用 Chromium，支持进度、取消、重试和删除。
-- Windows 与 macOS 由独立 CI 验证，正式 Release 同时提供两端安装包及 SHA-256 校验文件。
+### 功能
 
-完整变更与已知限制请参阅 [CHANGELOG.md](CHANGELOG.md)。
+- **分项成绩导出**：选择学年、学期和保存目录，在浏览器中手动登录后自动查询并导出 Excel。
+- **结果校验**：保存前识别 XLS/XLSX，并核对工作簿中的实际学期，降低误保存其他学期数据的风险。
+- **GPA 计算器**：读取分项成绩 XLSX，展示课程成绩分项，支持逐课勾选并计算总学分、总成绩点和加权平均 GPA。
+- **任务记录**：保存成功、失败、取消和异常中断的任务状态。
+- **本地设置**：管理默认目录、浏览器偏好、主题、更新检查和登录状态。
+- **备用浏览器**：Edge 和 Chrome 均不可用时，可在应用内按需下载与当前 Playwright 版本匹配的 Chromium。
 
-## 使用
+<p align="center">
+  <img src="assets/桌面端首页截图.png" width="900" alt="QLU 工具箱桌面端首页">
+</p>
 
-1. 前往 [Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载最新版本：
-   - Windows：推荐下载 `QLUToolbox_v*_x64_Setup.exe`；需要免安装使用时，下载 `QLUToolbox_v*.zip`，完整解压后运行 `QLUToolbox.exe`。
-   - Apple Silicon Mac：下载 `QLUToolbox_v*_arm64.dmg`，打开后将 `QLUToolbox.app` 拖入“应用程序”。当前 DMG 未使用 Apple 开发者证书签名或公证，首次启动可能被 macOS 拦截。
-     - 先尝试打开一次 `QLUToolbox.app` 并关闭警告，然后前往“系统设置 → 隐私与安全性”，在“安全性”中点按“仍要打开”，输入 Mac 登录密码确认。该按钮通常只在尝试打开应用后约一小时内显示。
-     - 详细步骤请参阅 [Apple 官方教程：打开来自未知开发者的 Mac App](https://support.apple.com/zh-cn/guide/mac-help/-mh40616/mac)。只应信任从本仓库 GitHub Releases 下载的安装包，不要使用来源不明的第三方包，也不建议关闭 macOS 的全局安全保护。
-2. 若无法访问 GitHub，可从蓝奏云下载：[wwavy.lanzouq.com/b00b5q2orc](https://wwavy.lanzouq.com/b00b5q2orc)（密码 `d7os`）
+### 下载与安装
 
-### 更新方式
+前往 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载对应平台的文件：
 
-- 软件会检查 GitHub Releases 并提示新版本，但不会自动下载或安装更新。
-- 已使用安装程序安装时，关闭正在运行的 QLU 工具箱，再运行新版安装程序即可覆盖升级，无需先卸载。保持相同的 Windows 用户和安装方式时，安装程序会识别已有安装。
-- 使用免安装 ZIP 时，关闭程序，完整解压新版并替换旧程序目录；不要只替换 `QLUToolbox.exe`。
-- macOS 使用新版 DMG 中的 `QLUToolbox.app` 替换“应用程序”中的旧版本即可升级。
-- 上述更新方式都会保留设置、任务记录、日志和浏览器登录状态；导出的文件位于用户选择的目录，也不会被更新程序删除。
+- Windows 推荐使用 `QLUToolbox_v*_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `QLUToolbox.exe`，不要只复制可执行文件。
+- Apple Silicon Mac 下载 `QLUToolbox_v*_arm64.dmg`，打开后将 `QLUToolbox.app` 拖入“应用程序”。当前不提供 Intel Mac 版本。
 
-## 作者与反馈
+macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若被阻止：
 
-- 联系邮箱：[cloud_aaa@163.com](mailto:cloud_aaa@163.com)
-- Bug 与功能建议：[GitHub Issues](https://github.com/C1ouDreamW/qlu-toolbox/issues/new/choose)
-- 版本发布：[GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases)
+1. 先尝试打开一次 `QLUToolbox.app` 并关闭系统警告。
+2. 前往“系统设置 → 隐私与安全性”。
+3. 在“安全性”区域选择“仍要打开”并确认。
 
-提交 Bug 时请注明软件版本、操作系统及版本、处理器架构、复现步骤、预期结果和实际结果。请勿在公开 Issue 中上传账号、密码、验证码、Cookie、成绩文件或未经脱敏的日志；涉及安全、隐私或个人信息的问题请通过邮箱私下联系作者。
+具体步骤见 [Apple 官方教程：打开来自未知开发者的 Mac App](https://support.apple.com/zh-cn/guide/mac-help/-mh40616/mac)。不要为了运行应用关闭 macOS 全局安全保护，也不要使用来源不明的安装包。
 
-## 使用说明与免责声明
+### 使用流程
 
-本项目仅供个人学习、交流和非商业用途。未经开发者明确书面许可，禁止将本项目或其修改版本用于收费服务、商业产品、商业推广、代运营或其他营利活动。
+1. 打开“分项成绩导出”，选择学年、学期和保存目录。
+2. 在弹出的浏览器窗口中手动完成教务系统登录。
+3. 返回工具箱确认继续，等待查询、校验和保存完成。
+4. 可直接跳转到 GPA 计算器，也可稍后导入保存的 `.xlsx` 文件。
 
-本项目不是齐鲁工业大学官方软件，与齐鲁工业大学及其教务系统服务商不存在隶属、授权、合作或担保关系。本项目不代表学校官方立场，学校系统变更可能导致部分功能暂时不可用。
+浏览器默认尝试顺序为 Microsoft Edge、Google Chrome、备用 Chromium，可在设置中调整首选浏览器。浏览器登录数据使用工具箱专用档案，不会读取日常浏览器个人资料。
 
-本软件按相应接口现状提供，**不保证功能持续可用**，也不保证导出结果绝对完整或准确。
+若系统没有可用的 Edge 或 Chrome，应用会先征求同意，再下载备用 Chromium。首次下载约 180 MiB，安装后约占用 350 MiB，需要能够访问 Playwright 浏览器下载服务。
 
-使用者应仅处理本人有权访问的数据，遵守学校规定、目标系统规则及适用法律法规，**并自行承担使用、误用或无法使用本软件产生的风险和后果**。在适用法律允许的范围内，开发者不承担由此造成的账号、数据、学业、设备或其他损失。
+### 更新与本地数据
 
-## v1.1.0 当前模块
+- 应用启动时可检查 GitHub Releases，也可在设置中手动检查；桌面版只提示更新，不自动下载安装。
+- Windows 安装版可在关闭应用后直接运行新版安装程序覆盖升级；免安装版应完整解压新版并替换旧程序目录。
+- macOS 使用新版 DMG 中的 `QLUToolbox.app` 替换旧版本。
+- 覆盖升级不会删除设置、任务记录、浏览器档案或导出文件。
 
-- 首页：工具入口和最近任务。
-- 全部工具：搜索和打开内置工具。
-- 分项成绩导出：选择学年、学期和保存目录，完成登录后自动导出。
-- 绩点计算器：导入分项成绩 XLSX，查看成绩明细并自由勾选课程计算 GPA。
-- 任务记录：查看成功、失败、取消和异常中断记录。
-- 设置：默认目录、浏览器、主题和登录状态管理。
-- 更新提醒：启动时检查 GitHub Release，也可在设置中手动检查；不会自动下载安装。
-- 关于：版本、非商业说明和非官方免责声明。
+本地数据位置：
+
+| 数据 | Windows | macOS |
+|---|---|---|
+| 设置 | `%APPDATA%\QLUToolbox\settings.json` | `~/Library/Application Support/QLUToolbox/settings.json` |
+| 任务、日志和浏览器数据 | `%LOCALAPPDATA%\QLUToolbox` | `~/Library/Application Support/QLUToolbox` |
+| 导出文件 | 用户选择的目录，默认通常为“下载” | 用户选择的目录，默认通常为“下载” |
+
+浏览器档案可能包含 Cookie 等敏感会话数据，请勿上传或分享。完整路径可在“设置 → 数据管理”中查看。
+
+## Android 版
+
+### 功能
+
+- **独立教务 WebView**：只允许齐鲁工业大学教务和统一认证域名的 HTTPS 导航，不暴露通用 JavaScript Bridge。
+- **手动登录与会话管理**：在 WebView 中完成登录和验证码操作，可选择保留或清除登录状态。
+- **本地成绩导出**：在同一登录会话中查询和导出，校验文件头、大小、SHA-256、ZIP 结构和实际学期。
+- **系统文件保存**：通过 Android 系统文件选择器保存 XLSX，支持取消后再次保存、打开和分享。
+- **本地 GPA 计算**：可直接读取刚导出的结果，也可从系统文件选择器导入分项成绩 XLSX。
+- **任务恢复**：使用 Room 保存任务状态，对冷启动遗留任务和 Activity 重建提供可解释的中断处理。
+- **安全更新**：下载 APK 后校验文件大小、SHA-256、applicationId、versionCode 和签名证书，再交给系统安装。
+
+<p align="center">
+  <img src="assets/移动端首页截图.jpg" width="320" alt="QLU 工具箱 Android 端首页">
+</p>
+
+### 下载与安装
+
+1. 从 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载 `QLU-Toolbox-Android-v*.apk`。
+2. 在 Android 系统设置中允许当前浏览器或文件管理器“安装未知应用”。
+3. 打开 APK 完成安装；安装后可关闭该来源的安装权限。
+
+正式 Android 应用 ID 为 `io.github.c1oudreamw.lumatile`。
+
+### 使用流程
+
+1. 确保手机可以访问 `https://jw.qlu.edu.cn/`。校外环境可能需要用户自行通过 aTrust 或学校提供的网络方式建立连接。
+2. 打开分项成绩导出，选择学年和学期。
+3. 在独立 WebView 中手动完成统一身份认证。
+4. 等待应用查询、下载并校验工作簿。
+5. 使用系统文件选择器保存，或直接将临时结果交给 GPA 计算器。
+
+Android 版不安装、启动或控制 aTrust，也不申请 VPN 控制权限。网络不可用时，请先确认校园网、aTrust、DNS、TLS 和教务系统状态。
+
+### 更新与本地数据
+
+- 应用会读取公开更新清单并提示新版；用户确认后才会下载 APK。
+- 更新 APK 只有在摘要、包名、版本和签名校验通过后才会交给 Android 系统安装。
+- Room 任务数据库、WebView 登录状态和应用设置保存在应用私有目录。
+- 导出中的临时文件保存在应用缓存中并有有效期；永久文件仅保存到用户在系统文件选择器中指定的位置。
+- 卸载应用通常会删除应用私有数据，但不会自动删除用户已经保存到公共文档目录的 XLSX。
+
+当前 Android 版仍显示“QLU 工具箱”；后续 LumaTile 版本必须保持相同 applicationId 和正式签名，并递增 versionCode，才能覆盖安装并保留应用数据。
+
+更多 Android 构建和签名说明见 [`apps/mobile/README.md`](apps/mobile/README.md)。
+
+## 隐私与安全边界
+
+- 应用不建设代登录、Cookie 中转或成绩云端存储服务。
+- 账号、密码、验证码和 Cookie 不会发送到开发者服务器。
+- 成绩文件和 GPA 结果只在本地处理；用户主动通过其他应用分享文件不在此范围内。
+- 桌面登录状态保存在专用浏览器档案，Android 登录状态保存在应用 WebView 数据中，均可由用户清除。
+- Android 对顶层导航、TLS、XLSX 和更新 APK 进行额外校验；桌面版通过 Electron 沙箱、上下文隔离和预加载层限制渲染进程权限。
+
+本项目不是齐鲁工业大学官方软件，与学校及教务系统服务商不存在隶属、授权、合作或担保关系。学校系统、认证流程和页面结构变化可能导致功能暂时不可用。
 
 ## 源码运行
 
-1. 安装 [Node.js](https://nodejs.org/) 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)；uv 会按 `.python-version` 准备 Python 3.12。
-2. 克隆本仓库，进入项目目录。
-3. 运行：
-    ```powershell
-    uv sync --locked
-    npm ci
-    npm run dev
-    ```
+### 环境要求
 
-前端与桌面依赖声明在 `package.json`，Python 依赖声明在 `pyproject.toml`。Vue 渲染进程通过 Electron 安全预加载层与本地 Python Bridge 通信，不直接访问文件系统或数据库。
+- Node.js 22
+- npm
+- [uv](https://docs.astral.sh/uv/)
+- Python 3.12，由 uv 按 `.python-version` 准备
+- Android 开发额外需要 JDK 21、Android SDK 36 和可用的 Android Gradle 工具链
 
-## 浏览器顺序
+安装根 workspace 和 Python 依赖：
 
-默认依次尝试：
-
-1. Microsoft Edge
-2. Google Chrome
-3. 备用 Chromium
-
-可在“设置”中调整首选浏览器。若 Edge 和 Chrome 均无法启动且尚未安装备用 Chromium，软件会先征求用户同意，再按需下载与当前版本匹配的浏览器组件；下载完成后原任务自动继续。组件保存在应用数据目录中，可在“设置 → 浏览器组件”查看占用或删除。浏览器登录数据使用工具箱专用档案，不读取日常浏览器个人资料。
-
-## 本地数据位置
-
-软件的“设置 → 数据管理”会显示完整路径，并可直接打开对应位置：
-
-- Windows 设置文件：`%APPDATA%\QLUToolbox\settings.json`
-- Windows 任务记录、日志、浏览器登录状态和备用浏览器组件：`%LOCALAPPDATA%\QLUToolbox`
-- macOS 设置、任务记录、日志、浏览器登录状态和备用浏览器组件：`~/Library/Application Support/QLUToolbox`
-- 导出文件：默认为当前用户的“下载”目录，也可在设置中修改
-
-安装包覆盖升级或替换免安装程序目录不会删除这些数据。浏览器登录状态目录可能包含 Cookie 等敏感信息，请勿上传或分享。
-
-## 当前限制
-
-- 仅针对 `https://jw.qlu.edu.cn/` 当前使用的正方教务系统页面。
-- 登录等待时间为 15 分钟。
-- 当前提供 Windows x64 安装包、免安装 ZIP 和 Apple Silicon（arm64）DMG，暂不提供 Intel Mac 版本。
-- Windows 安装包尚未数字签名，可能显示来源未知或 SmartScreen 提示；macOS DMG 尚未使用 Apple 开发者证书签名和公证，首次启动需要用户在系统设置中确认。
-- 更新提醒依赖访问 GitHub；网络异常不会影响工具使用。
-
-## 项目结构
-
-```text
-src/                                Vue 3 页面、组件、状态与设计系统
-electron/                           Electron 主进程、安全预加载层和 Python IPC
-main.py                             Python Bridge 和 Worker 统一入口
-qlu_toolbox/bridge.py               设置、任务和后台任务通信桥
-qlu_toolbox/core/                   设置、路径、任务数据库、工具注册
-qlu_toolbox/modules/grade_export/   分项成绩导出业务核心
-qlu_toolbox/modules/gpa_calculator/ 绩点解析与计算核心
-tests/                              Python 核心与 Bridge 自动化测试
-package.json                        Electron/Vue 依赖与联合构建配置
-pyproject.toml                      Python 项目元数据与依赖声明
+```powershell
+uv sync --locked
+npm ci
 ```
 
-## 开发验证
+### 桌面端
+
+首次启动开发环境前先编译 Electron 主进程：
+
+```powershell
+npm run build:electron
+npm run dev
+```
+
+修改 `electron/` 下的 TypeScript 后，需要重新执行 `npm run build:electron` 再重启开发进程。桌面端验证命令：
 
 ```powershell
 uv run --locked python -B -m unittest discover -s tests -v
@@ -152,16 +194,88 @@ npm run typecheck
 npm run build
 ```
 
-生成 Windows 发布目录：
+构建发布产物：
 
 ```powershell
-build.bat
+# Windows NSIS 安装包
+npm run dist:installer
+
+# Windows 免安装 ZIP
+npm run dist:zip
 ```
 
-在 Apple Silicon Mac 上生成 DMG：
+在 Apple Silicon Mac 上构建 DMG：
 
 ```bash
 npm run dist:mac -- --arm64
 ```
 
-macOS 包必须在 macOS 环境中构建；提交 PR 后，仓库的 macOS CI 会自动构建并挂载检查测试 DMG。
+桌面产物输出到 `release/`；Python Worker 构建中间产物输出到 `backend-dist/` 和 `backend-build/`。
+
+### Android 端
+
+验证共享领域逻辑并构建移动 Web 资源：
+
+```powershell
+npm test --workspace @lumatile/academic-core
+npm run mobile:build
+npm run mobile:sync
+```
+
+构建 Android Debug APK：
+
+```powershell
+cd apps/mobile/android
+./gradlew.bat testDebugUnitTest assembleDebug
+```
+
+APK 输出到 `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`。Release APK 必须配置长期正式签名，具体环境变量和密钥库要求见 [`apps/mobile/README.md`](apps/mobile/README.md)。
+
+## 项目结构
+
+```text
+src/                                  桌面 Vue 页面、组件和状态
+electron/                             Electron 主进程、preload 和 Python IPC 客户端
+main.py                               Python Bridge 与 Worker 统一入口
+qlu_toolbox/bridge.py                 设置、任务、浏览器组件和 Worker 调度
+qlu_toolbox/core/                     路径、设置、任务数据库和工具定义
+qlu_toolbox/modules/grade_export/     桌面分项成绩导出领域与 Playwright Worker
+qlu_toolbox/modules/gpa_calculator/   桌面 XLSX 解析与 GPA 规则
+apps/mobile/src/                      Android 端 Vue、Capacitor 和 Web Worker 代码
+apps/mobile/android/                  Kotlin Activity、原生插件、Room 和 Gradle 工程
+packages/contracts/                   移动端共享 TypeScript 数据契约
+packages/academic-core/               学期、导出参数、成绩解析和 GPA 领域逻辑
+tests/                                Python 单元与 Bridge 集成测试
+.github/workflows/                    Windows、macOS、Android CI 与 Release 流程
+updates/android.json                  Android 公开更新清单
+docs/                                 移动端方案、产品与发布文档
+```
+
+桌面端和 Android 端使用不同的自动化与文件处理实现，但目标是在学年、学期、导出字段、课程分组和 GPA 结果上保持一致。移动端共享规则集中在 `packages/academic-core`；桌面端对应规则位于 Python 领域模块。
+
+## 当前限制
+
+- 仅适配 `https://jw.qlu.edu.cn/` 当前使用的教务系统和统一认证流程。
+- 登录、教务查询和 GitHub 更新检查均依赖用户当前网络环境。
+- 桌面端登录等待时间为 15 分钟。
+- macOS 仅提供 Apple Silicon 版本，DMG 尚未签名或公证。
+- Windows 安装包尚未数字签名，可能触发 SmartScreen 来源提示。
+- Android 依赖设备的 System WebView，不承诺所有厂商系统和 WebView 版本均已验证。
+- 当前不提供 iOS 版本。
+
+## 交流与反馈
+
+- QLU 工具箱 QQ 交流群：`438767737`
+- 联系邮箱：[cloud_aaa@163.com](mailto:cloud_aaa@163.com)
+- Bug 与功能建议：[GitHub Issues](https://github.com/C1ouDreamW/qlu-toolbox/issues/new/choose)
+- 安全与隐私问题：[SECURITY.md](SECURITY.md)
+- 版本发布：[GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases)
+- 其他学校适配版本：[SDNU 工具箱](https://github.com/LoMoCatAp/sdnu-toolbox)，经授权基于本项目改造并由其维护者独立发布和支持
+
+提交问题时请注明应用版本、平台、系统版本、处理器架构、复现步骤、预期结果和实际结果。请勿在公开 Issue 中上传账号、密码、验证码、Cookie、成绩文件或未经脱敏的日志；涉及安全、隐私或个人信息的问题请通过邮箱私下联系。
+
+## 使用说明与免责声明
+
+本项目仅供个人学习、交流和非商业用途。未经开发者明确书面许可，禁止将本项目或其修改版本用于收费服务、商业产品、商业推广、代运营或其他营利活动。
+
+软件按相应接口和系统现状提供，不保证功能持续可用，也不保证导出结果绝对完整或准确。使用者应仅处理本人有权访问的数据，遵守学校规定、目标系统规则及适用法律法规，并自行承担使用、误用或无法使用软件产生的风险和后果。在适用法律允许的范围内，开发者不承担由此造成的账号、数据、学业、设备或其他损失。
