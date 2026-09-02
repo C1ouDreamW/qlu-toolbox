@@ -1,5 +1,6 @@
 ext {
-    minSdkVersion = 24
+    // Maintained Apache POI HSSF builds use bytecode APIs introduced in Android O.
+    minSdkVersion = 26
     compileSdkVersion = 36
     targetSdkVersion = 36
     androidxActivityVersion = '1.11.0'
