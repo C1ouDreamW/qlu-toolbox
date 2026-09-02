@@ -7,6 +7,7 @@ class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(GradeExportPlugin::class.java)
         registerPlugin(AppUpdatePlugin::class.java)
+        registerPlugin(SchedulePlugin::class.java)
         super.onCreate(savedInstanceState)
     }
 }

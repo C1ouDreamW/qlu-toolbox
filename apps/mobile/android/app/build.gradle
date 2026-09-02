@@ -86,6 +86,7 @@ dependencies {
     implementation "androidx.webkit:webkit:$androidxWebkitVersion"
     implementation "androidx.room:room-runtime:2.7.2"
     implementation "androidx.room:room-ktx:2.7.2"
+    implementation "org.apache.poi:poi:5.5.1"
     kapt "androidx.room:room-compiler:2.7.2"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
