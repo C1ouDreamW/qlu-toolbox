@@ -129,6 +129,20 @@ export function parseWeekExpression(value: string, totalWeeks = 30): number[] {
       weeks.add(week)
     }
   }
+  if (!weeks.size) {
+    for (const token of normalizedValue.split(/[,，、;；]/)) {
+      const match = token.match(/^(单|双)?(\d+)(?:-(\d+))?(单|双)?$/)
+      if (!match) continue
+      const parity = match[1] || match[4]
+      const start = Number(match[2])
+      const end = Number(match[3] || match[2])
+      for (let week = Math.max(1, start); week <= Math.min(totalWeeks, end); week += 1) {
+        if (parity === '单' && week % 2 === 0) continue
+        if (parity === '双' && week % 2 !== 0) continue
+        weeks.add(week)
+      }
+    }
+  }
   return [...weeks].sort((left, right) => left - right)
 }
 
