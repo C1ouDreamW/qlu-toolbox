@@ -301,6 +301,7 @@ internal object AppUpdateSecurity {
             if (!uri.scheme.equals("https", ignoreCase = true) || uri.userInfo != null || uri.port !in listOf(-1, 443)) return false
             val host = uri.host?.lowercase(Locale.ROOT) ?: return false
             when (host) {
+                "lumatile.ishua.cloud" -> uri.path.startsWith("/releases/")
                 "github.com" -> uri.path.startsWith("/C1ouDreamW/qlu-toolbox/releases/download/") ||
                     uri.path.startsWith("/C1ouDreamW/lumatile/releases/download/")
                 "objects.githubusercontent.com", "release-assets.githubusercontent.com" -> true

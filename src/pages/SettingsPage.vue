@@ -75,7 +75,7 @@ async function removeBrowser() {
         <div class="setting-row"><div><strong>首选浏览器</strong><span>登录教务系统时优先尝试使用</span></div><BaseSelect v-model="preferredBrowser" :options="browserOptions" aria-label="选择首选浏览器" /></div>
         <div class="setting-row"><div><strong>界面主题</strong><span>更改会在保存后立即生效</span></div><div class="segmented theme-segments"><button :class="{active:form.theme==='light'}" @click="form.theme='light'"><Sun :size="15" />浅色</button><button :class="{active:form.theme==='dark'}" @click="form.theme='dark'"><Moon :size="15" />深色</button><button :class="{active:form.theme==='system'}" @click="form.theme='system'"><Monitor :size="15" />跟随系统</button></div></div>
         <label class="setting-row toggle-row"><div><strong>保留浏览器登录状态</strong><span>下次使用时可能无需重新登录</span></div><input v-model="form.keep_login_state" type="checkbox" class="switch" /></label>
-        <label class="setting-row toggle-row"><div><strong>启动时检查更新</strong><span>只访问公开的 GitHub Releases，不发送个人数据</span></div><input v-model="form.check_updates" type="checkbox" class="switch" /></label>
+        <label class="setting-row toggle-row"><div><strong>启动时检查更新</strong><span>只访问公开更新源，不发送个人数据</span></div><input v-model="form.check_updates" type="checkbox" class="switch" /></label>
       </div>
     </section>
 

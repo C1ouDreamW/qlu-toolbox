@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-APP_NAME = "QLU 工具箱"
+APP_NAME = "一格有光"
 AUTHOR_NAME = "C1ouDreamW"
 AUTHOR_EMAIL = "cloud_aaa@163.com"
 AUTHOR_GITHUB_URL = "https://github.com/C1ouDreamW"

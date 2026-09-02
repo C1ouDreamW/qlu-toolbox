@@ -30,6 +30,25 @@ wheels = [
 ]
 
 [[package]]
+name = "lumatile"
+version = "2.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "playwright" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pyinstaller" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "playwright", specifier = "==1.55.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pyinstaller", specifier = "==6.15.0" }]
+
+[[package]]
 name = "macholib"
 version = "1.16.4"
 source = { registry = "https://pypi.org/simple" }
@@ -138,25 +157,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/85/9f/01a1a99704853cb63
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/3d/8161f7711c017e01ac9f008dfddd9410dff3674334c233bde66e7ba65bbf/pywin32_ctypes-0.2.3-py3-none-any.whl", hash = "sha256:8a1513379d709975552d202d942d9837758905c8d01eb82b8bcc30918929e7b8", size = 30756, upload-time = "2024-08-14T10:15:33.187Z" },
 ]
-
-[[package]]
-name = "qlu-toolbox"
-version = "1.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "playwright" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pyinstaller" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "playwright", specifier = "==1.55.0" }]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pyinstaller", specifier = "==6.15.0" }]
 
 [[package]]
 name = "setuptools"

@@ -1,13 +1,13 @@
 {
-  "name": "qlu-toolbox",
-  "version": "1.1.0",
+  "name": "lumatile",
+  "version": "2.0.0",
   "private": true,
   "workspaces": [
     "apps/mobile",
     "packages/*"
   ],
   "author": "C1ouDreamW",
-  "description": "面向齐鲁工业大学学生的非官方本地校园效率工具箱",
+  "description": "一格有光：面向齐鲁工业大学学生的非官方本地校园效率工具",
   "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {
@@ -42,7 +42,7 @@
   },
   "build": {
     "appId": "student.qlu.toolbox",
-    "productName": "QLUToolbox",
+    "productName": "LumaTile",
     "asar": true,
     "compression": "maximum",
     "directories": {
@@ -57,7 +57,7 @@
     "win": {
       "icon": "assets/qlu-toolbox.ico",
       "target": ["nsis"],
-      "artifactName": "QLUToolbox_v${version}_${arch}.${ext}",
+      "artifactName": "LumaTile_v${version}_${arch}.${ext}",
       "extraResources": [
         {
           "from": "backend-dist/QLUToolboxWorker.exe",
@@ -69,7 +69,7 @@
       "icon": "assets/qlu-toolbox.icns",
       "category": "public.app-category.education",
       "target": ["dmg"],
-      "artifactName": "QLUToolbox_v${version}_${arch}.${ext}",
+      "artifactName": "LumaTile_v${version}_${arch}.${ext}",
       "extraResources": [
         {
           "from": "backend-dist/QLUToolboxWorker",
@@ -78,18 +78,18 @@
       ]
     },
     "dmg": {
-      "title": "QLUToolbox ${version}",
-      "artifactName": "QLUToolbox_v${version}_${arch}.${ext}"
+      "title": "LumaTile ${version}",
+      "artifactName": "LumaTile_v${version}_${arch}.${ext}"
     },
     "nsis": {
-      "artifactName": "QLUToolbox_v${version}_${arch}_Setup.${ext}",
+      "artifactName": "LumaTile_v${version}_${arch}_Setup.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "selectPerMachineByDefault": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "QLUToolbox",
+      "shortcutName": "LumaTile",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "installerLanguages": ["zh_CN"],

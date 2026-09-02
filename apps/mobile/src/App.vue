@@ -201,10 +201,10 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="app-shell">
-    <header class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>QLU 工具箱</strong></div></header>
+    <header class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>一格有光</strong></div></header>
 
     <section v-if="page === 'home'" class="page">
-      <div class="hero"><p class="eyebrow">QLU TOOLBOX MOBILE</p><h1>校园工具，装进口袋</h1><p>数据留在设备本地，登录始终在学校原始页面完成。</p></div>
+      <div class="hero"><p class="eyebrow">LUMATILE MOBILE</p><h1>校园工具，装进口袋</h1><p>数据留在设备本地，登录始终在学校原始页面完成。</p></div>
       <div class="unofficial-banner"><ShieldAlert /><span><strong>非学校官方应用</strong><small>仅供个人学习与交流使用，不代表学校官方立场</small></span></div>
       <div v-if="!nativeAndroid" class="notice error">当前为网页预览，原生功能仅在 Android 安装包中可用。</div>
       <button class="tool-card" @click="selectPage('grade')"><span class="tool-icon"><FileDown /></span><span><strong>分项成绩查询</strong><small>选择学年学期，登录后自动导出 XLSX</small></span><em>已可用</em></button>
@@ -281,10 +281,10 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else class="page about-page">
-      <div class="page-title"><p class="eyebrow">ABOUT & LEGAL</p><h1>关于 QLU 工具箱</h1><p>由学生开发者维护的本地校园效率工具。</p></div>
+      <div class="page-title"><p class="eyebrow">ABOUT & LEGAL</p><h1>关于一格有光</h1><p>由学生开发者维护的本地校园效率工具。</p></div>
       <div class="card about-identity">
-        <span class="about-logo"><img :src="brandIconUrl" alt="QLU 工具箱 Logo" /></span>
-        <span><strong>QLU 工具箱</strong><small>Android v{{ mobilePackage.version }} · 测试版</small><small>Vue 3 + TypeScript + Capacitor + Kotlin</small></span>
+        <span class="about-logo"><img :src="brandIconUrl" alt="一格有光 Logo" /></span>
+        <span><strong>一格有光 · LumaTile</strong><small>Android v{{ mobilePackage.version }}</small><small>Vue 3 + TypeScript + Capacitor + Kotlin</small></span>
       </div>
       <div class="unofficial-banner prominent"><ShieldAlert /><span><strong>本应用并非齐鲁工业大学官方应用</strong><small>与齐鲁工业大学及其教务系统服务商不存在隶属、授权、合作或担保关系，也不代表学校官方立场。</small></span></div>
       <div class="about-values">

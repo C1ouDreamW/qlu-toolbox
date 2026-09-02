@@ -17,8 +17,8 @@ const items = [
 <template>
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark"><img :src="logoUrl" alt="QLU 工具箱 Logo" /></div>
-      <div><strong>QLU 工具箱</strong><span>校园效率工作台</span></div>
+      <div class="brand-mark"><img :src="logoUrl" alt="一格有光 Logo" /></div>
+      <div><strong>一格有光</strong><span>LumaTile · 校园效率工作台</span></div>
     </div>
     <nav class="side-nav" aria-label="主导航">
       <button v-for="item in items" :key="item.id" :class="{ active: current === item.id }" @click="emit('navigate', item.id)">

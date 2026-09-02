@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 
-const [apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag] = process.argv.slice(2)
+const [apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag, downloadBaseUrl] = process.argv.slice(2)
 if (![apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag].every(Boolean)) {
   throw new Error('Usage: node scripts/generate-android-update-manifest.mjs <apk> <output> <versionCode> <versionName> <owner/repo> <tag>')
 }
@@ -29,7 +29,9 @@ const manifest = {
     ? '本版本完成 Android 应用身份、正式签名和双更新渠道迁移。后续版本将更名为一格有光 / LumaTile。'
     : '发现一格有光 / LumaTile 新版本，请安装更新。',
   publishedAt: new Date().toISOString(),
-  apkUrl: `https://github.com/${repository}/releases/download/${tag}/${fileName}`,
+  apkUrl: downloadBaseUrl
+    ? `${downloadBaseUrl.replace(/\/$/, '')}/${fileName}`
+    : `https://github.com/${repository}/releases/download/${tag}/${fileName}`,
   sha256,
   size: details.size,
   mandatory: false,

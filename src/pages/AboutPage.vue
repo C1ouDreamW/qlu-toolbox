@@ -53,11 +53,11 @@ async function copyQQGroupNumber() {
 
 <template>
   <div class="page about-page">
-    <PageHeader eyebrow="ABOUT" title="关于 QLU 工具箱" description="由学生开发者维护，为更轻松的校园生活而做。" />
+    <PageHeader eyebrow="ABOUT" title="关于一格有光" description="由学生开发者维护，为更轻松的校园生活而做。" />
     <section class="about-hero">
-      <div class="about-logo"><img :src="logoUrl" alt="QLU 工具箱 Logo" /></div>
+      <div class="about-logo"><img :src="logoUrl" alt="一格有光 Logo" /></div>
       <div>
-        <h2>QLU 工具箱 <span>v{{ data.version }}</span></h2>
+        <h2>一格有光 · LumaTile <span>v{{ data.version }}</span></h2>
         <p>一个注重隐私、完全本地运行的校园效率工具。</p>
         <div class="about-links">
           <button @click="api.openExternal(data.metadata.repository)"><Github :size="18" /><span><strong>GitHub</strong><small>查看项目源码</small></span><ExternalLink :size="13" /></button>
@@ -74,7 +74,7 @@ async function copyQQGroupNumber() {
     </div>
     <section class="legal-card">
       <h3>非官方声明与使用责任</h3>
-      <p>QLU 工具箱是由学生开发者维护的非官方软件，与齐鲁工业大学及其教务系统服务商不存在隶属、授权、合作或担保关系。本软件不代表学校官方立场。</p>
+      <p>一格有光是由学生开发者维护的非官方软件，与齐鲁工业大学及其教务系统服务商不存在隶属、授权、合作或担保关系。本软件不代表学校官方立场。</p>
       <p>本软件按“现状”提供，不保证功能始终可用，也不保证导出结果绝对完整或准确。请仅处理本人有权访问的数据，并自行核对导出结果。</p>
     </section>
   </div>

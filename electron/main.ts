@@ -6,6 +6,60 @@ import { PythonBridge } from './bridge.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const bridge = new PythonBridge()
 let mainWindow: BrowserWindow | null = null
+const UPDATE_MANIFEST_URL = 'https://lumatile.ishua.cloud/stable/desktop.json'
+
+function isNewerVersion(candidate: string, current: string) {
+  const numeric = (value: string) => value.replace(/^v/, '').split('-')[0].split('.').map(Number)
+  const [a, b] = [numeric(candidate), numeric(current)]
+  return a.some((part, i) => part > (b[i] || 0) && a.slice(0, i).every((value, j) => value === (b[j] || 0)))
+}
+
+function isTrustedUpdateUrl(value: string) {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return false
+    if (url.hostname === 'lumatile.ishua.cloud') return url.pathname.startsWith('/releases/')
+    return url.hostname === 'github.com' && (
+      url.pathname.startsWith('/C1ouDreamW/qlu-toolbox/releases/') ||
+      url.pathname.startsWith('/C1ouDreamW/lumatile/releases/')
+    )
+  } catch {
+    return false
+  }
+}
+
+async function checkSelfHostedUpdate(currentVersion: string) {
+  const response = await fetch(UPDATE_MANIFEST_URL, {
+    headers: { Accept: 'application/json', 'User-Agent': 'LumaTile-UpdateChecker' },
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (!response.ok) throw new Error(`更新源返回 ${response.status}`)
+  const item = await response.json() as Record<string, unknown>
+  const downloads = item.downloads as Record<string, unknown> | undefined
+  const url = downloads?.[process.platform]
+  if (item.schemaVersion !== 1 || typeof item.version !== 'string' || typeof item.name !== 'string' ||
+      typeof item.notes !== 'string' || typeof url !== 'string' || !isTrustedUpdateUrl(url)) {
+    throw new Error('更新清单无效')
+  }
+  return isNewerVersion(item.version, currentVersion)
+    ? { version: item.version, name: item.name, notes: item.notes, url }
+    : null
+}
+
+async function checkGithubUpdate(currentVersion: string) {
+  const response = await fetch('https://api.github.com/repos/C1ouDreamW/qlu-toolbox/releases?per_page=20', {
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'LumaTile-UpdateChecker' },
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (!response.ok) throw new Error(`GitHub 返回 ${response.status}`)
+  const releases = await response.json() as Array<Record<string, unknown>>
+  const currentPrerelease = currentVersion.includes('-')
+  const latest = releases.find(item => !item.draft && (currentPrerelease || !item.prerelease))
+  if (!latest || !isNewerVersion(String(latest.tag_name || ''), currentVersion)) return null
+  const url = String(latest.html_url || '')
+  if (!isTrustedUpdateUrl(url)) throw new Error('GitHub 更新地址无效')
+  return { version: String(latest.tag_name), name: String(latest.name || ''), notes: String(latest.body || ''), url }
+}
 
 function createWindow() {
   const isMac = process.platform === 'darwin'
@@ -63,21 +117,8 @@ function registerIpc() {
     await shell.openExternal(url)
   })
   ipcMain.handle('system:check-update', async (_event, currentVersion: string) => {
-    const response = await fetch('https://api.github.com/repos/C1ouDreamW/qlu-toolbox/releases?per_page=20', {
-      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'QLUToolbox-UpdateChecker' },
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!response.ok) throw new Error(`GitHub 返回 ${response.status}`)
-    const releases = await response.json() as Array<Record<string, unknown>>
-    const currentPrerelease = currentVersion.includes('-')
-    const candidates = releases.filter((item) => !item.draft && (currentPrerelease || !item.prerelease))
-    const latest = candidates[0]
-    if (!latest) return null
-    const tag = String(latest.tag_name || '').replace(/^v/, '')
-    const numeric = (value: string) => value.split('-')[0].split('.').map(Number)
-    const [a, b] = [numeric(tag), numeric(currentVersion)]
-    const newer = a.some((part, i) => part > (b[i] || 0) && a.slice(0, i).every((v, j) => v === (b[j] || 0)))
-    return newer ? { version: String(latest.tag_name), name: latest.name, notes: latest.body, url: latest.html_url } : null
+    try { return await checkSelfHostedUpdate(currentVersion) }
+    catch { return checkGithubUpdate(currentVersion) }
   })
   ipcMain.on('window:action', (_event, action: string) => {
     if (action === 'minimize') mainWindow?.minimize()

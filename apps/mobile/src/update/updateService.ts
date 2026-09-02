@@ -2,6 +2,7 @@ import type { AvailableUpdate, CurrentAppVersion, UpdateManifest } from './types
 import { UPDATE_APPLICATION_ID } from './types'
 
 export const UPDATE_MANIFEST_URLS = [
+  'https://lumatile.ishua.cloud/stable/android.json',
   'https://raw.githubusercontent.com/C1ouDreamW/qlu-toolbox/main/updates/android.json',
   'https://raw.githubusercontent.com/C1ouDreamW/lumatile/main/updates/android.json',
 ] as const
@@ -72,6 +73,7 @@ function isAllowedApkUrl(value: string): boolean {
   try {
     const url = new URL(value)
     if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return false
+    if (url.hostname === 'lumatile.ishua.cloud') return url.pathname.startsWith('/releases/')
     if (url.hostname !== 'github.com') return false
     return url.pathname.startsWith('/C1ouDreamW/qlu-toolbox/releases/download/') ||
       url.pathname.startsWith('/C1ouDreamW/lumatile/releases/download/')

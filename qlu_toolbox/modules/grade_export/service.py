@@ -247,7 +247,7 @@ def run_export(
             from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
             from playwright.sync_api import sync_playwright
         except ImportError as exc:
-            raise ExportError("缺少 Playwright 运行组件，请重新安装 QLU 工具箱。") from exc
+            raise ExportError("缺少 Playwright 运行组件，请重新安装一格有光。") from exc
 
         _event(emit, "status", stage="browser", message="正在启动浏览器…")
         with sync_playwright() as playwright:

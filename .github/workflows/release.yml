@@ -51,23 +51,23 @@ jobs:
         shell: pwsh
         run: |
           $ws = New-Object -ComObject WScript.Shell
-          $lnk = $ws.CreateShortcut("release\win-unpacked\QLUToolbox.lnk")
-          $lnk.TargetPath = ".\QLUToolbox.exe"
+          $lnk = $ws.CreateShortcut("release\win-unpacked\LumaTile.lnk")
+          $lnk.TargetPath = ".\LumaTile.exe"
           $lnk.Save()
 
       - name: Package portable zip
         shell: pwsh
         run: |
-          Rename-Item release\win-unpacked QLUToolbox
-          Compress-Archive -Path release\QLUToolbox -DestinationPath "release\QLUToolbox_${{ github.ref_name }}.zip"
+          Rename-Item release\win-unpacked LumaTile
+          Compress-Archive -Path release\LumaTile -DestinationPath "release\LumaTile_${{ github.ref_name }}.zip"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
           path: |
-            release/QLUToolbox_v*.zip
-            release/QLUToolbox_*_Setup.exe
+            release/LumaTile_v*.zip
+            release/LumaTile_*_Setup.exe
           if-no-files-found: error
 
   build-macos:
@@ -122,15 +122,15 @@ jobs:
       - name: Verify and mount DMG
         shell: bash
         run: |
-          worker=$(find release -path '*/QLUToolbox.app/Contents/Resources/backend/QLUToolboxWorker' -type f -print -quit)
-          dmg=$(find release -maxdepth 1 -name 'QLUToolbox_v*_arm64.dmg' -type f -print -quit)
+          worker=$(find release -path '*/LumaTile.app/Contents/Resources/backend/QLUToolboxWorker' -type f -print -quit)
+          dmg=$(find release -maxdepth 1 -name 'LumaTile_v*_arm64.dmg' -type f -print -quit)
           test -n "$worker"
           test -x "$worker"
           test -n "$dmg"
           mount_dir=$(mktemp -d)
           trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
           hdiutil attach "$dmg" -nobrowse -mountpoint "$mount_dir"
-          test -d "$mount_dir/QLUToolbox.app"
+          test -d "$mount_dir/LumaTile.app"
           hdiutil detach "$mount_dir"
           trap - EXIT
 
@@ -138,7 +138,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-release
-          path: release/QLUToolbox_v*_arm64.dmg
+          path: release/LumaTile_v*_arm64.dmg
           if-no-files-found: error
 
   build-android:
@@ -211,13 +211,13 @@ jobs:
         run: |
           mkdir -p release-android
           version="${GITHUB_REF_NAME#v}"
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "release-android/QLU-Toolbox-Android-v${version}.apk"
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "release-android/LumaTile-Android-v${version}.apk"
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-release
-          path: release-android/QLU-Toolbox-Android-v*.apk
+          path: release-android/LumaTile-Android-v*.apk
           if-no-files-found: error
 
   release:
@@ -262,10 +262,30 @@ jobs:
           fail_on_unmatched_files: true
           generate_release_notes: true
 
+      - name: Build self-hosted update source bundle
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          version_code=$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9]\+\).*$/\1/p' apps/mobile/android/app/build.gradle | head -n 1)
+          apk=$(find artifacts -maxdepth 1 -name 'LumaTile-Android-v*.apk' -type f -print -quit)
+          release_dir="update-source/releases/${GITHUB_REF_NAME}"
+          mkdir -p "$release_dir" update-source/stable
+          cp artifacts/* "$release_dir/"
+          base_url="https://lumatile.ishua.cloud/releases/${GITHUB_REF_NAME}"
+          node scripts/generate-android-update-manifest.mjs "$apk" update-source/stable/android.json "$version_code" "$version" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" "$base_url"
+          node scripts/generate-desktop-update-manifest.mjs artifacts update-source/stable/desktop.json "$version" "$base_url" release-notes.md
+
+      - name: Upload self-hosted update source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-source-${{ github.ref_name }}
+          path: update-source
+          if-no-files-found: error
+
       - name: Publish Android update manifest branch
         shell: bash
         run: |
-          apk=$(find artifacts -maxdepth 1 -name 'QLU-Toolbox-Android-v*.apk' -type f -print -quit)
+          apk=$(find artifacts -maxdepth 1 -name 'LumaTile-Android-v*.apk' -type f -print -quit)
           test -n "$apk"
           version="${GITHUB_REF_NAME#v}"
           git fetch origin main

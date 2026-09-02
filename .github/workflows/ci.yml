@@ -109,23 +109,23 @@ jobs:
       - name: Verify and mount DMG
         shell: bash
         run: |
-          worker=$(find release -path '*/QLUToolbox.app/Contents/Resources/backend/QLUToolboxWorker' -type f -print -quit)
-          dmg=$(find release -maxdepth 1 -name 'QLUToolbox_v*_arm64.dmg' -type f -print -quit)
+          worker=$(find release -path '*/LumaTile.app/Contents/Resources/backend/QLUToolboxWorker' -type f -print -quit)
+          dmg=$(find release -maxdepth 1 -name 'LumaTile_v*_arm64.dmg' -type f -print -quit)
           test -n "$worker"
           test -x "$worker"
           test -n "$dmg"
           mount_dir=$(mktemp -d)
           trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
           hdiutil attach "$dmg" -nobrowse -mountpoint "$mount_dir"
-          test -d "$mount_dir/QLUToolbox.app"
+          test -d "$mount_dir/LumaTile.app"
           hdiutil detach "$mount_dir"
           trap - EXIT
 
       - name: Upload macOS test artifact
         uses: actions/upload-artifact@v4
         with:
-          name: QLUToolbox-macOS-arm64-${{ github.sha }}
-          path: release/QLUToolbox_v*_arm64.dmg
+          name: LumaTile-macOS-arm64-${{ github.sha }}
+          path: release/LumaTile_v*_arm64.dmg
           if-no-files-found: error
           retention-days: 7
 

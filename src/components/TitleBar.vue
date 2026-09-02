@@ -7,7 +7,7 @@ const isMac = api.platform === 'darwin'
 
 <template>
   <header class="titlebar" :class="{ 'is-macos': isMac }">
-    <div class="titlebar-drag"><span class="app-dot"><img :src="logoUrl" alt="" /></span><span>QLU 工具箱</span></div>
+    <div class="titlebar-drag"><span class="app-dot"><img :src="logoUrl" alt="" /></span><span>一格有光 · LumaTile</span></div>
     <div v-if="!isMac" class="window-controls">
       <button aria-label="最小化" @click="api.windowAction('minimize')"><Minus :size="15" /></button>
       <button aria-label="最大化" @click="api.windowAction('maximize')"><Square :size="13" /></button>

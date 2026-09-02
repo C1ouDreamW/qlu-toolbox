@@ -12,7 +12,7 @@ def configure_streams() -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="QLU 工具箱")
+    parser = argparse.ArgumentParser(description="一格有光")
     parser.add_argument("--bridge", action="store_true")
     parser.add_argument("--worker", choices=("grade-export",))
     parser.add_argument("--year")
@@ -50,7 +50,7 @@ def main() -> int:
             arguments.event_file,
         )
 
-    print("QLU 工具箱桌面界面已迁移至 Vue 3 + Electron。请使用 npm run dev 启动开发版。")
+    print("一格有光桌面界面使用 Vue 3 + Electron。请使用 npm run dev 启动开发版。")
     return 0
 
 

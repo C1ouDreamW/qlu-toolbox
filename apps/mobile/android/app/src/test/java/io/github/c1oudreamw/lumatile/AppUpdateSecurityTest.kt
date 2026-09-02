@@ -14,6 +14,9 @@ class AppUpdateSecurityTest {
             "https://github.com/C1ouDreamW/lumatile/releases/download/v2.0.0/LumaTile-Android-v2.0.0.apk",
         ))
         assertTrue(AppUpdateSecurity.isAllowedDownloadUrl(
+            "https://lumatile.ishua.cloud/releases/v2.0.1/LumaTile-Android-v2.0.1.apk",
+        ))
+        assertTrue(AppUpdateSecurity.isAllowedDownloadUrl(
             "https://release-assets.githubusercontent.com/github-production-release-asset/example",
         ))
         assertFalse(AppUpdateSecurity.isAllowedDownloadUrl(
@@ -26,5 +29,6 @@ class AppUpdateSecurityTest {
             "https://user@github.com/C1ouDreamW/lumatile/releases/download/v2.0.0/update.apk",
         ))
         assertFalse(AppUpdateSecurity.isAllowedDownloadUrl("https://example.com/update.apk"))
+        assertFalse(AppUpdateSecurity.isAllowedDownloadUrl("https://lumatile.ishua.cloud/not-releases/update.apk"))
     }
 }
