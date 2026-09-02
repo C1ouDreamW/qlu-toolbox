@@ -95,28 +95,38 @@ function openEditor(course: ScheduleCourse | null = null) {
   workspace.value = 'editor'
 }
 async function saveBook(next: ScheduleBook) {
-  schedule.value = next
-  await scheduleStorage.save(next, true)
-  await loadSchedules(next.id)
+  try {
+    await scheduleStorage.save(next, true)
+    await loadSchedules(next.id)
+    return true
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : String(reason)
+    return false
+  }
 }
 async function saveCourse(course: ScheduleCourse) {
   if (!schedule.value) return
   const courses = schedule.value.courses.some(item => item.id === course.id)
     ? schedule.value.courses.map(item => item.id === course.id ? course : item)
     : [...schedule.value.courses, course]
-  await saveBook({ ...schedule.value, courses, updatedAt: new Date().toISOString() })
-  workspace.value = 'courses'
+  if (await saveBook({ ...schedule.value, courses, updatedAt: new Date().toISOString() })) workspace.value = 'courses'
 }
 async function deleteCourse(id: string) {
   if (!schedule.value || !window.confirm('确定删除这门课程及其所有时段吗？')) return
-  await saveBook({ ...schedule.value, courses: schedule.value.courses.filter(course => course.id !== id), updatedAt: new Date().toISOString() })
-  workspace.value = 'courses'
+  if (await saveBook({ ...schedule.value, courses: schedule.value.courses.filter(course => course.id !== id), updatedAt: new Date().toISOString() })) workspace.value = 'courses'
 }
 async function deleteBook() {
   if (!schedule.value || !window.confirm('确定删除整份课表吗？此操作不可撤销。')) return
   await scheduleStorage.delete(schedule.value.id)
-  workspace.value = 'calendar'
+  closeWorkspace()
   await loadSchedules()
+}
+function closeWorkspace() {
+  workspace.value = 'calendar'
+  requestAnimationFrame(() => window.scrollTo({ top: 0 }))
+}
+async function saveSettings(next: ScheduleBook) {
+  if (await saveBook(next)) closeWorkspace()
 }
 
 async function loadSchedules(preferredId = '') {
@@ -191,17 +201,17 @@ function changeWeek(delta: number) {
 function currentWeek() {
   if (schedule.value) week.value = Math.max(1, Math.min(schedule.value.totalWeeks, weekForDate(schedule.value)))
 }
-function touchStart(event: TouchEvent) {
-  touchX = event.changedTouches[0].clientX
-  touchY = event.changedTouches[0].clientY
+function touchStart(event: PointerEvent) {
+  touchX = event.clientX
+  touchY = event.clientY
 }
-function touchEnd(event: TouchEvent) {
-  const dx = event.changedTouches[0].clientX - touchX
-  const dy = event.changedTouches[0].clientY - touchY
+function touchEnd(event: PointerEvent) {
+  const dx = event.clientX - touchX
+  const dy = event.clientY - touchY
   if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.35) changeWeek(dx < 0 ? 1 : -1)
 }
 
-onMounted(() => { if (props.nativeAndroid) void loadSchedules() })
+onMounted(() => { void loadSchedules() })
 </script>
 
 <template>
@@ -219,8 +229,8 @@ onMounted(() => { if (props.nativeAndroid) void loadSchedules() })
       <div
         class="schedule-grid"
         :style="{ '--day-count': days.length }"
-        @touchstart.passive="touchStart"
-        @touchend.passive="touchEnd"
+        @pointerdown="touchStart"
+        @pointerup="touchEnd"
       >
         <div class="grid-corner">{{ monthLabel }}</div>
         <div
@@ -297,8 +307,8 @@ onMounted(() => { if (props.nativeAndroid) void loadSchedules() })
     <ScheduleManager
       v-if="schedule && (workspace === 'courses' || workspace === 'settings')"
       :book="schedule" :initial-tab="workspace"
-      @close="workspace = 'calendar'" @add="openEditor()" @edit="openEditor"
-      @saved="saveBook($event).then(() => workspace = 'calendar')" @delete-book="deleteBook"
+      @close="closeWorkspace" @add="openEditor()" @edit="openEditor"
+      @saved="saveSettings" @delete-book="deleteBook"
     />
     <ScheduleEditor
       v-if="schedule && workspace === 'editor'" :key="editingCourse?.id || 'new'"
