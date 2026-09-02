@@ -6,16 +6,17 @@ import {
   SlidersHorizontal, Users, X,
 } from 'lucide-vue-next'
 import {
-  datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows,
+  datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
   visibleWeekdays, weekForDate,
 } from '@lumatile/academic-core'
 import type {
   ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleMeeting, StoredSchedule,
 } from '@lumatile/contracts'
 import { scheduleStorage } from './schedule'
+import ScheduleEditor from './ScheduleEditor.vue'
+import ScheduleManager from './ScheduleManager.vue'
 
 const props = defineProps<{ nativeAndroid: boolean }>()
-const emit = defineEmits<{ add: []; manage: []; settings: [] }>()
 
 const stored = ref<StoredSchedule[]>([])
 const schedule = ref<ScheduleBook | null>(null)
@@ -28,6 +29,8 @@ const importMode = ref<'create' | 'overwrite'>('create')
 const overwriteId = ref('')
 const busy = ref(false)
 const error = ref('')
+const workspace = ref<'calendar' | 'courses' | 'settings' | 'editor'>('calendar')
+const editingCourse = ref<ScheduleCourse | null>(null)
 let touchX = 0
 let touchY = 0
 
@@ -76,6 +79,45 @@ function meetingTime(meeting: ScheduleMeeting) {
 }
 function weekdayName(day: number) { return '一二三四五六日'[day - 1] }
 function newId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` }
+function emptyBook(): ScheduleBook {
+  const now = new Date()
+  const academicYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+  return {
+    schemaVersion: 1, id: newId(), name: '我的课表', academicYear: `${academicYear}-${academicYear + 1}`,
+    semester: '1', startDate: '2026-09-07', totalWeeks: 19, weekendMode: 'auto',
+    periods: QLU_PERIODS.map(period => ({ ...period })), noClassDates: [], courses: [], updatedAt: new Date().toISOString(),
+  }
+}
+
+function openEditor(course: ScheduleCourse | null = null) {
+  if (!schedule.value) schedule.value = emptyBook()
+  editingCourse.value = course
+  workspace.value = 'editor'
+}
+async function saveBook(next: ScheduleBook) {
+  schedule.value = next
+  await scheduleStorage.save(next, true)
+  await loadSchedules(next.id)
+}
+async function saveCourse(course: ScheduleCourse) {
+  if (!schedule.value) return
+  const courses = schedule.value.courses.some(item => item.id === course.id)
+    ? schedule.value.courses.map(item => item.id === course.id ? course : item)
+    : [...schedule.value.courses, course]
+  await saveBook({ ...schedule.value, courses, updatedAt: new Date().toISOString() })
+  workspace.value = 'courses'
+}
+async function deleteCourse(id: string) {
+  if (!schedule.value || !window.confirm('确定删除这门课程及其所有时段吗？')) return
+  await saveBook({ ...schedule.value, courses: schedule.value.courses.filter(course => course.id !== id), updatedAt: new Date().toISOString() })
+  workspace.value = 'courses'
+}
+async function deleteBook() {
+  if (!schedule.value || !window.confirm('确定删除整份课表吗？此操作不可撤销。')) return
+  await scheduleStorage.delete(schedule.value.id)
+  workspace.value = 'calendar'
+  await loadSchedules()
+}
 
 async function loadSchedules(preferredId = '') {
   stored.value = await scheduleStorage.list()
@@ -166,13 +208,13 @@ onMounted(() => { if (props.nativeAndroid) void loadSchedules() })
   <section class="schedule-page">
     <header class="schedule-header">
       <div><span class="schedule-kicker">{{ schedule?.name || 'LUMATILE SCHEDULE' }}</span><h1>{{ title }}</h1><p>{{ dateRange || '把教务课表装进口袋' }}</p></div>
-      <div class="schedule-actions"><button aria-label="添加课程" @click="emit('add')"><Plus /></button><button aria-label="更多" @click="menuOpen = !menuOpen"><MoreHorizontal /></button></div>
+      <div class="schedule-actions"><button aria-label="添加课程" @click="openEditor()"><Plus /></button><button aria-label="更多" @click="menuOpen = !menuOpen"><MoreHorizontal /></button></div>
     </header>
 
     <div v-if="error" class="schedule-alert"><AlertCircle />{{ error }}<button @click="error = ''"><X /></button></div>
 
     <template v-if="schedule">
-      <button v-if="pendingCount" class="pending-chip" @click="emit('manage')"><Clock3 />{{ pendingCount }} 个待安排时段<ChevronDown /></button>
+      <button v-if="pendingCount" class="pending-chip" @click="workspace = 'courses'"><Clock3 />{{ pendingCount }} 个待安排时段<ChevronDown /></button>
       <button v-if="week !== Math.max(1, Math.min(schedule.totalWeeks, weekForDate(schedule)))" class="today-chip" @click="currentWeek">回到本周</button>
       <div
         class="schedule-grid"
@@ -212,7 +254,7 @@ onMounted(() => { if (props.nativeAndroid) void loadSchedules() })
     <div v-else class="schedule-empty">
       <span><CalendarDays /></span><h1>还没有课表</h1><p>从教务导入 XLS 或 XLSX，也可以从同学分享的备份开始。</p>
       <button class="primary" :disabled="!nativeAndroid || busy" @click="chooseImport"><FolderOpen />{{ busy ? '正在读取…' : '导入课表' }}</button>
-      <button class="secondary" @click="emit('add')"><Plus />手工新建</button>
+      <button class="secondary" @click="openEditor()"><Plus />手工新建</button>
     </div>
 
     <Transition name="fade"><button v-if="menuOpen" class="sheet-scrim" aria-label="关闭菜单" @click="menuOpen = false" /></Transition>
@@ -220,8 +262,8 @@ onMounted(() => { if (props.nativeAndroid) void loadSchedules() })
       <div class="sheet-handle" />
       <button @click="chooseImport"><FileSpreadsheet />导入课表</button>
       <button v-if="stored.length > 1" @click="menuOpen = false; switching = true"><RefreshCw />切换课表</button>
-      <button @click="menuOpen = false; emit('manage')"><Users />管理课程 <em v-if="pendingCount">{{ pendingCount }} 待安排</em></button>
-      <button @click="menuOpen = false; emit('settings')"><SlidersHorizontal />课表设置</button>
+      <button @click="menuOpen = false; workspace = 'courses'"><Users />管理课程 <em v-if="pendingCount">{{ pendingCount }} 待安排</em></button>
+      <button @click="menuOpen = false; workspace = 'settings'"><SlidersHorizontal />课表设置</button>
       <button @click="shareSchedule"><Share2 />导出并分享</button>
     </section></Transition>
 
@@ -232,7 +274,7 @@ onMounted(() => { if (props.nativeAndroid) void loadSchedules() })
       <p><Clock3 />周{{ weekdayName(selected.meeting.weekday!) }} 第 {{ selected.meeting.startPeriod }}–{{ selected.meeting.endPeriod }} 节 <small>{{ meetingTime(selected.meeting) }}</small></p>
       <p><MapPin />{{ selected.meeting.location || '地点待定' }}</p>
       <p><Users />{{ selected.meeting.teachers.join('、') || selected.course.teachers.join('、') || '教师待定' }}</p>
-      <button class="primary" @click="selected = null; emit('manage')"><BookOpen />查看与编辑课程</button>
+      <button class="primary" @click="editingCourse = selected.course; selected = null; workspace = 'editor'"><BookOpen />查看与编辑课程</button>
     </section></Transition>
 
     <Transition name="fade"><button v-if="switching" class="sheet-scrim" aria-label="关闭切换" @click="switching = false" /></Transition>
@@ -251,6 +293,18 @@ onMounted(() => { if (props.nativeAndroid) void loadSchedules() })
       <p v-if="importMode === 'overwrite'" class="overwrite-note"><AlertCircle />目标课表中的手工修改会被完整替换。</p>
       <button class="primary" :disabled="busy" @click="confirmImport">{{ busy ? '正在保存…' : importMode === 'create' ? '创建并使用' : '覆盖并使用' }}</button>
     </section></div></Transition>
+
+    <ScheduleManager
+      v-if="schedule && (workspace === 'courses' || workspace === 'settings')"
+      :book="schedule" :initial-tab="workspace"
+      @close="workspace = 'calendar'" @add="openEditor()" @edit="openEditor"
+      @saved="saveBook($event).then(() => workspace = 'calendar')" @delete-book="deleteBook"
+    />
+    <ScheduleEditor
+      v-if="schedule && workspace === 'editor'" :key="editingCourse?.id || 'new'"
+      :book="schedule" :course="editingCourse"
+      @close="workspace = schedule.courses.length ? 'courses' : 'calendar'" @saved="saveCourse" @deleted="deleteCourse"
+    />
   </section>
 </template>
 
