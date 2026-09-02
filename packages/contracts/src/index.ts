@@ -114,3 +114,77 @@ export interface GPASummary {
   totalGradePoints: number
   averageGpa: number | null
 }
+
+export type WeekendMode = 'auto' | 'show' | 'hide'
+export type ScheduleStartPage = 'schedule' | 'toolbox' | 'last'
+
+export interface PeriodTime {
+  period: number
+  start: string
+  end: string
+}
+
+export interface NoClassDate {
+  date: string
+  reason: string
+}
+
+export interface ScheduleMeeting {
+  id: string
+  weeks: number[]
+  weekday: number | null
+  startPeriod: number | null
+  endPeriod: number | null
+  location: string
+  teachers: string[]
+  source: 'imported' | 'manual'
+}
+
+export interface ScheduleCourse {
+  id: string
+  name: string
+  code: string
+  teachingClass: string
+  teachers: string[]
+  credit: number | null
+  color: string
+  note: string
+  meetings: ScheduleMeeting[]
+}
+
+export interface ScheduleBook {
+  schemaVersion: 1
+  id: string
+  name: string
+  academicYear: string
+  semester: string
+  startDate: string
+  totalWeeks: number
+  weekendMode: WeekendMode
+  periods: PeriodTime[]
+  noClassDates: NoClassDate[]
+  courses: ScheduleCourse[]
+  updatedAt: string
+}
+
+export interface ScheduleImportPreview {
+  schedule: ScheduleBook
+  scheduledMeetings: number
+  pendingMeetings: number
+  warnings: string[]
+}
+
+export interface StoredSchedule {
+  id: string
+  name: string
+  payload: string
+  updatedAt: string
+  isActive: boolean
+}
+
+export interface ScheduleImportSource {
+  kind: 'workbook' | 'backup'
+  fileName: string
+  rows?: string[][]
+  payload?: string
+}
