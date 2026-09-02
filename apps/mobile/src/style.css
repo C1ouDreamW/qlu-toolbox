@@ -24,7 +24,7 @@
 @media(prefers-color-scheme:dark){.update-dialog{color:#e8f2fb;background:#142231}.update-version,.update-safety{color:#97abbd}.update-notes{color:#c9d8e4;background:#1b2e40}.update-progress{border-color:#324c63;background:#0f1c28}.update-progress>div,.update-progress small{color:#a9bac8}}
 
 /* Toolbox cards keep the generous, glanceable rhythm of the original home page. */
-.page>.tool-card{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:12px 14px;min-height:148px;margin-bottom:16px;padding:20px 19px;border-radius:20px}.page>.tool-card>.tool-icon{width:54px;height:54px;border-radius:16px}.page>.tool-card>.tool-icon svg{width:25px;height:25px}.page>.tool-card>span:nth-child(2){grid-column:1/-1;gap:7px;padding-top:2px}.page>.tool-card strong{font-size:17px;line-height:1.3}.page>.tool-card small{font-size:13px;line-height:1.65}.page>.tool-card em{align-self:start;margin-top:3px}
+.page>.tool-card{display:grid;grid-template-columns:54px minmax(0,1fr) auto;align-items:center;column-gap:16px;min-height:124px;margin-bottom:16px;padding:21px 19px;border-radius:20px}.page>.tool-card>.tool-icon{width:54px;height:54px;border-radius:16px}.page>.tool-card>.tool-icon svg{width:25px;height:25px}.page>.tool-card>span:nth-child(2){min-width:0;grid-column:auto;gap:0;padding:0}.page>.tool-card strong{font-size:17px;line-height:1.3}.page>.tool-card small{margin-top:6px;font-size:13px;line-height:1.6}.page>.tool-card em{align-self:center;margin:0}
 
 /* Mobile information architecture: three stable primary destinations. */
 nav.primary-nav{grid-template-columns:repeat(3,1fr)}
