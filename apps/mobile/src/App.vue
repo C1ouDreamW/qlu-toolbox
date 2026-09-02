@@ -13,8 +13,17 @@ import mobilePackage from '../package.json'
 import SchedulePage from './SchedulePage.vue'
 
 type Page = 'schedule' | 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about'
+type StartPage = 'schedule' | 'toolbox' | 'last'
 const legalNoticeVersion = '2026-07-19'
-const startPage = ref(localStorage.getItem('scheduleStartPage') || 'schedule')
+const savedStartPage = localStorage.getItem('scheduleStartPage')
+const startPage = ref<StartPage>(savedStartPage === 'toolbox' || savedStartPage === 'last' ? savedStartPage : 'schedule')
+const startPageDialogOpen = ref(false)
+const startPageOptions = [
+  { value: 'schedule' as const, label: '课表', description: '打开后直接查看本周课程', icon: CalendarDays },
+  { value: 'toolbox' as const, label: '工具箱', description: '优先进入校园工具集合', icon: Grid2X2 },
+  { value: 'last' as const, label: '上次页面', description: '继续上次停留的主要页面', icon: RotateCcw },
+]
+const selectedStartPage = computed(() => startPageOptions.find(option => option.value === startPage.value)!)
 const initialPrimary = startPage.value === 'toolbox' ? 'home' : startPage.value === 'last'
   ? (localStorage.getItem('lastPrimaryPage') as Page | null) || 'schedule' : 'schedule'
 const page = ref<Page>(initialPrimary)
@@ -190,7 +199,11 @@ async function selectPage(next: Page) {
   if (['schedule', 'home', 'settings'].includes(next)) localStorage.setItem('lastPrimaryPage', next)
 }
 
-function persistStartPage() { localStorage.setItem('scheduleStartPage', startPage.value) }
+function chooseStartPage(value: StartPage) {
+  startPage.value = value
+  localStorage.setItem('scheduleStartPage', value)
+  startPageDialogOpen.value = false
+}
 
 onMounted(async () => {
   if (!nativeAndroid) return
@@ -286,7 +299,7 @@ onBeforeUnmount(() => {
 
     <section v-else-if="page === 'settings'" class="page">
       <div class="page-title"><p class="eyebrow">PRIVACY & DATA</p><h1>设置</h1><p>管理学校登录状态和本地数据。</p></div>
-      <label class="setting-card start-page-setting"><CalendarDays /><span><strong>应用启动页</strong><small>可单独选择课表、工具箱或上次页面</small></span><select v-model="startPage" @change="persistStartPage"><option value="schedule">课表</option><option value="toolbox">工具箱</option><option value="last">上次页面</option></select></label>
+      <button class="setting-card start-page-setting" type="button" aria-haspopup="dialog" :aria-expanded="startPageDialogOpen" @click="startPageDialogOpen = true"><CalendarDays /><span><strong>应用启动页</strong><small>可单独选择课表、工具箱或上次页面</small></span><span class="start-page-current">{{ selectedStartPage.label }}<ChevronRight /></span></button>
       <button class="setting-card" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>清除 Cookie、缓存与站点数据</small></span></button>
       <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
       <button class="setting-card about-entry" @click="selectPage('about')"><Info /><span><strong>关于与声明</strong><small>查看非官方声明、职责声明和免责声明</small></span><ChevronRight /></button>
@@ -318,6 +331,23 @@ onBeforeUnmount(() => {
     </section>
 
     <nav v-if="['schedule', 'home', 'settings'].includes(page)" class="primary-nav"><button :class="{active:page==='schedule'}" @click="selectPage('schedule')"><CalendarDays />课表</button><button :class="{active:page==='home'}" @click="selectPage('home')"><Grid2X2 />工具箱</button><button :class="{active:page==='settings'}" @click="selectPage('settings')"><Settings />我的</button></nav>
+
+    <div v-if="startPageDialogOpen" class="start-page-backdrop" @click.self="startPageDialogOpen = false">
+      <section class="start-page-dialog" role="dialog" aria-modal="true" aria-labelledby="start-page-dialog-title">
+        <span class="sheet-handle" aria-hidden="true" />
+        <p class="eyebrow">OPEN LUMATILE</p>
+        <h1 id="start-page-dialog-title">打开时先去哪？</h1>
+        <p class="start-page-lead">选择最顺手的起点，之后也可以随时更改。</p>
+        <div class="start-page-options">
+          <button v-for="option in startPageOptions" :key="option.value" type="button" :class="{ active: startPage === option.value }" :aria-pressed="startPage === option.value" @click="chooseStartPage(option.value)">
+            <span class="start-page-option-icon"><component :is="option.icon" /></span>
+            <span><strong>{{ option.label }}</strong><small>{{ option.description }}</small></span>
+            <span class="start-page-check"><Check v-if="startPage === option.value" /></span>
+          </button>
+        </div>
+        <button class="start-page-cancel" type="button" @click="startPageDialogOpen = false">取消</button>
+      </section>
+    </div>
 
     <div v-if="!legalNoticeAccepted" class="legal-backdrop">
       <section class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-dialog-title">
