@@ -2,6 +2,26 @@
 
 本项目版本遵循语义化版本号。Alpha 版本仍可能调整界面、配置格式和内部实现。
 
+## [2.0.0] - 待发布
+
+这是“一格有光 / LumaTile”品牌切换和自建更新源桥接版本。
+
+### 新增
+
+- Android 与桌面端优先检查 `https://lumatile.ishua.cloud`，迁移期保留 GitHub 备用渠道。
+- 发布流程生成可直接部署的静态更新目录，包含平台清单、安装包和校验文件。
+- 新增 Docker Nginx 更新源及宿主机 Nginx 反向代理示例。
+
+### 更改
+
+- 桌面端、Android、安装包和快捷方式的用户可见品牌切换为“一格有光 / LumaTile”，复用原方格图标。
+- Android versionCode 提升至 `10`，versionName 提升至 `2.0.0`。
+
+### 兼容性与迁移
+
+- 保持 Android applicationId、正式签名证书、桌面 appId 和旧数据目录不变。
+- v2.0.0 APK 仍需上传 GitHub Release，确保 v1.2.4 客户端能够完成最后一次 GitHub 桥接升级。
+
 ## [1.2.4] - 2026-07-19
 
 ### 更改

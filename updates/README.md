@@ -1,11 +1,12 @@
-# Android update manifest
+# Android 更新清单
 
 `android.json` is generated only after a signed APK has been uploaded to the GitHub Release. Do not hand-edit hashes, sizes, package IDs, or version codes.
 
 The release workflow pushes the generated manifest to a dedicated branch and adds a pull-request link to the workflow summary. Open that link and create the pull request so that the protected `main` branch runs its required status checks. Merge it after CI passes to make the new update visible to installed apps.
 
-The migration build checks both stable locations independently:
+LumaTile 优先检查自建源，并在迁移期独立检查两个 GitHub 地址：
 
+- `https://lumatile.ishua.cloud/stable/android.json`
 - `https://raw.githubusercontent.com/C1ouDreamW/qlu-toolbox/main/updates/android.json`
 - `https://raw.githubusercontent.com/C1ouDreamW/lumatile/main/updates/android.json`
 

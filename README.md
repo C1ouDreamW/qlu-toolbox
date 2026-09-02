@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/qlu-toolbox.png" width="128" alt="QLU 工具箱 Logo">
+  <img src="assets/qlu-toolbox.png" width="128" alt="一格有光 Logo">
 </p>
 
-<h1 align="center">QLU 工具箱</h1>
+<h1 align="center">一格有光 · LumaTile</h1>
 
 <p align="center">
   本地优先的非官方校园效率工具
@@ -40,11 +40,11 @@
 
 | 平台 | 当前版本 | 发布形式 | 说明 |
 |---|---:|---|---|
-| Windows x64 | 1.1.0 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
-| macOS Apple Silicon | 1.1.0 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
-| Android 7.0 及以上 | 1.2.4（versionCode 9） | APK | 使用系统 WebView，支持系统文件保存和应用内更新检查 |
+| Windows x64 | 2.0.0 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
+| macOS Apple Silicon | 2.0.0 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
+| Android 7.0 及以上 | 2.0.0（versionCode 10） | APK | 使用系统 WebView，支持系统文件保存和应用内更新检查 |
 
-所有正式产物均发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases)。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+v2.0.0 作为桥接版本仍发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases)；后续版本由 `lumatile.ishua.cloud` 分发并保留 GitHub 备用渠道。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 桌面版
 
@@ -58,19 +58,19 @@
 - **备用浏览器**：Edge 和 Chrome 均不可用时，可在应用内按需下载与当前 Playwright 版本匹配的 Chromium。
 
 <p align="center">
-  <img src="assets/桌面端首页截图.png" width="900" alt="QLU 工具箱桌面端首页">
+  <img src="assets/桌面端首页截图.png" width="900" alt="一格有光桌面端首页">
 </p>
 
 ### 下载与安装
 
 前往 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载对应平台的文件：
 
-- Windows 推荐使用 `QLUToolbox_v*_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `QLUToolbox.exe`，不要只复制可执行文件。
-- Apple Silicon Mac 下载 `QLUToolbox_v*_arm64.dmg`，打开后将 `QLUToolbox.app` 拖入“应用程序”。当前不提供 Intel Mac 版本。
+- Windows 推荐使用 `LumaTile_v*_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `LumaTile.exe`，不要只复制可执行文件。
+- Apple Silicon Mac 下载 `LumaTile_v*_arm64.dmg`，打开后将 `LumaTile.app` 拖入“应用程序”。当前不提供 Intel Mac 版本。
 
 macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若被阻止：
 
-1. 先尝试打开一次 `QLUToolbox.app` 并关闭系统警告。
+1. 先尝试打开一次 `LumaTile.app` 并关闭系统警告。
 2. 前往“系统设置 → 隐私与安全性”。
 3. 在“安全性”区域选择“仍要打开”并确认。
 
@@ -89,10 +89,12 @@ macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若
 
 ### 更新与本地数据
 
-- 应用启动时可检查 GitHub Releases，也可在设置中手动检查；桌面版只提示更新，不自动下载安装。
+- 应用启动时优先检查自建更新源，也可在设置中手动检查；不可用时回退到 GitHub，桌面版只提示更新，不自动下载安装。
 - Windows 安装版可在关闭应用后直接运行新版安装程序覆盖升级；免安装版应完整解压新版并替换旧程序目录。
-- macOS 使用新版 DMG 中的 `QLUToolbox.app` 替换旧版本。
+- macOS 使用新版 DMG 中的 `LumaTile.app` 替换旧版本。
 - 覆盖升级不会删除设置、任务记录、浏览器档案或导出文件。
+
+为兼容旧版本，品牌切换后仍沿用 `QLUToolbox` 数据目录名称；这只是内部存储路径，不影响用户可见品牌。
 
 本地数据位置：
 
@@ -117,12 +119,12 @@ macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若
 - **安全更新**：下载 APK 后校验文件大小、SHA-256、applicationId、versionCode 和签名证书，再交给系统安装。
 
 <p align="center">
-  <img src="assets/移动端首页截图.jpg" width="320" alt="QLU 工具箱 Android 端首页">
+  <img src="assets/移动端首页截图.jpg" width="320" alt="一格有光 Android 端首页">
 </p>
 
 ### 下载与安装
 
-1. 从 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载 `QLU-Toolbox-Android-v*.apk`。
+1. v2.0.0 从 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载 `LumaTile-Android-v*.apk`，后续版本由应用内更新源提供。
 2. 在 Android 系统设置中允许当前浏览器或文件管理器“安装未知应用”。
 3. 打开 APK 完成安装；安装后可关闭该来源的安装权限。
 
@@ -146,7 +148,7 @@ Android 版不安装、启动或控制 aTrust，也不申请 VPN 控制权限。
 - 导出中的临时文件保存在应用缓存中并有有效期；永久文件仅保存到用户在系统文件选择器中指定的位置。
 - 卸载应用通常会删除应用私有数据，但不会自动删除用户已经保存到公共文档目录的 XLSX。
 
-当前 Android 版仍显示“QLU 工具箱”；后续 LumaTile 版本必须保持相同 applicationId 和正式签名，并递增 versionCode，才能覆盖安装并保留应用数据。
+LumaTile 保持迁移版的 applicationId 和正式签名，并持续递增 versionCode，因此可覆盖安装并保留应用数据。
 
 更多 Android 构建和签名说明见 [`apps/mobile/README.md`](apps/mobile/README.md)。
 
@@ -265,7 +267,7 @@ docs/                                 移动端方案、产品与发布文档
 
 ## 交流与反馈
 
-- QLU 工具箱 QQ 交流群：`438767737`
+- 一格有光 QQ 交流群：`438767737`
 - 联系邮箱：[cloud_aaa@163.com](mailto:cloud_aaa@163.com)
 - Bug 与功能建议：[GitHub Issues](https://github.com/C1ouDreamW/qlu-toolbox/issues/new/choose)
 - 安全与隐私问题：[SECURITY.md](SECURITY.md)
