@@ -259,6 +259,20 @@ function touchCancel() {
   touchAxis = 'pending'
 }
 
+function handleBack() {
+  if (importPreview.value) { importPreview.value = null; return true }
+  if (selected.value) { selected.value = null; return true }
+  if (switching.value) { switching.value = false; return true }
+  if (menuOpen.value) { menuOpen.value = false; return true }
+  if (workspace.value === 'editor') {
+    workspace.value = schedule.value?.courses.length ? 'courses' : 'calendar'
+    return true
+  }
+  if (workspace.value !== 'calendar') { closeWorkspace(); return true }
+  return false
+}
+
+defineExpose({ handleBack })
 onMounted(() => { void loadSchedules() })
 </script>
 

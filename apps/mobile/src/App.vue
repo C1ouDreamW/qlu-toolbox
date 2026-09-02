@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { App as CapacitorApp } from '@capacitor/app'
 import { AlertCircle, Archive, ArrowLeft, BookOpen, Calculator, CalendarDays, Check, ChevronRight, Code2, Download, Eraser, FileDown, FileSpreadsheet, FolderOpen, Grid2X2, Heart, Info, LockKeyhole, Play, RefreshCw, RotateCcw, Search, Settings, ShieldAlert, ShieldCheck, SquareActivity, UploadCloud, UserRoundCheck, Wifi } from 'lucide-vue-next'
 import { calculateGpa, defaultAcademicYear, semesterName } from '@lumatile/academic-core'
 import type { GPACourse, GPAWorkbook, GradeEvent, GradeTaskSnapshot, SemesterCode } from '@lumatile/contracts'
@@ -11,6 +12,7 @@ import type { AvailableUpdate, UpdateDownloadProgress } from './update/types'
 import brandIconUrl from '../../../assets/qlu-toolbox.png'
 import mobilePackage from '../package.json'
 import SchedulePage from './SchedulePage.vue'
+import { BACK_EXIT_WINDOW_MS, isSecondBackPress } from './backNavigation'
 
 type Page = 'schedule' | 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about'
 type StartPage = 'schedule' | 'toolbox' | 'last'
@@ -18,6 +20,7 @@ const legalNoticeVersion = '2026-07-19'
 const savedStartPage = localStorage.getItem('scheduleStartPage')
 const startPage = ref<StartPage>(savedStartPage === 'toolbox' || savedStartPage === 'last' ? savedStartPage : 'schedule')
 const startPageDialogOpen = ref(false)
+const exitHintVisible = ref(false)
 const startPageOptions = [
   { value: 'schedule' as const, label: '课表', description: '打开后直接查看本周课程', icon: CalendarDays },
   { value: 'toolbox' as const, label: '工具箱', description: '优先进入校园工具集合', icon: Grid2X2 },
@@ -27,6 +30,7 @@ const selectedStartPage = computed(() => startPageOptions.find(option => option.
 const initialPrimary = startPage.value === 'toolbox' ? 'home' : startPage.value === 'last'
   ? (localStorage.getItem('lastPrimaryPage') as Page | null) || 'schedule' : 'schedule'
 const page = ref<Page>(initialPrimary)
+const schedulePage = ref<InstanceType<typeof SchedulePage> | null>(null)
 const legalNoticeAccepted = ref(localStorage.getItem('legalNoticeAcceptedVersion') === legalNoticeVersion)
 const legalNoticeConfirmed = ref(false)
 const nativeAndroid = gradeExport.isNativeAndroid()
@@ -60,6 +64,9 @@ const visibleGpaCourses = computed(() => {
 })
 let listener: PluginListenerHandleLike | undefined
 let updateListener: PluginListenerHandleLike | undefined
+let backButtonListener: PluginListenerHandleLike | undefined
+let lastBackPressedAt = 0
+let exitHintTimer: ReturnType<typeof setTimeout> | undefined
 
 interface PluginListenerHandleLike { remove: () => Promise<void> }
 
@@ -194,9 +201,44 @@ function courseSemester(course: GPACourse) {
 }
 
 async function selectPage(next: Page) {
+  clearExitHint()
   page.value = next
   if (next === 'tasks') await refreshTasks()
   if (['schedule', 'home', 'settings'].includes(next)) localStorage.setItem('lastPrimaryPage', next)
+}
+
+function clearExitHint() {
+  lastBackPressedAt = 0
+  exitHintVisible.value = false
+  if (exitHintTimer) clearTimeout(exitHintTimer)
+  exitHintTimer = undefined
+}
+
+function promptExit() {
+  lastBackPressedAt = Date.now()
+  exitHintVisible.value = true
+  if (exitHintTimer) clearTimeout(exitHintTimer)
+  exitHintTimer = setTimeout(clearExitHint, BACK_EXIT_WINDOW_MS)
+}
+
+async function handleAndroidBack() {
+  if (!legalNoticeAccepted.value) return
+  if (availableUpdate.value) {
+    if (!availableUpdate.value.mandatory && !updateInstalling.value) availableUpdate.value = null
+    clearExitHint()
+    return
+  }
+  if (startPageDialogOpen.value) { startPageDialogOpen.value = false; clearExitHint(); return }
+  if (page.value === 'schedule' && schedulePage.value?.handleBack()) { clearExitHint(); return }
+  if (!['schedule', 'home', 'settings'].includes(page.value)) { await selectPage('home'); return }
+
+  const now = Date.now()
+  if (isSecondBackPress(lastBackPressedAt, now)) {
+    clearExitHint()
+    await CapacitorApp.exitApp()
+    return
+  }
+  promptExit()
 }
 
 function chooseStartPage(value: StartPage) {
@@ -207,6 +249,7 @@ function chooseStartPage(value: StartPage) {
 
 onMounted(async () => {
   if (!nativeAndroid) return
+  backButtonListener = await CapacitorApp.addListener('backButton', () => { void handleAndroidBack() })
   listener = await gradeExport.onEvent(event => void receive(event))
   updateListener = await appUpdate.onProgress(event => { updateProgress.value = event })
   task.value = await gradeExport.getActiveTask()
@@ -214,8 +257,10 @@ onMounted(async () => {
   if (legalNoticeAccepted.value) void checkForUpdate(false)
 })
 onBeforeUnmount(() => {
+  clearExitHint()
   void listener?.remove()
   void updateListener?.remove()
+  void backButtonListener?.remove()
 })
 </script>
 
@@ -223,7 +268,7 @@ onBeforeUnmount(() => {
   <main class="app-shell">
     <header v-if="page !== 'schedule'" class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>一格有光</strong></div></header>
 
-    <SchedulePage v-if="page === 'schedule'" :native-android="nativeAndroid" />
+    <SchedulePage v-if="page === 'schedule'" ref="schedulePage" :native-android="nativeAndroid" />
 
     <section v-else-if="page === 'home'" class="page">
       <div class="hero"><p class="eyebrow">LUMATILE MOBILE</p><h1>校园工具，装进口袋</h1><p>数据留在设备本地，登录始终在学校原始页面完成。</p></div>
@@ -331,6 +376,8 @@ onBeforeUnmount(() => {
     </section>
 
     <nav v-if="['schedule', 'home', 'settings'].includes(page)" class="primary-nav"><button :class="{active:page==='schedule'}" @click="selectPage('schedule')"><CalendarDays />课表</button><button :class="{active:page==='home'}" @click="selectPage('home')"><Grid2X2 />工具箱</button><button :class="{active:page==='settings'}" @click="selectPage('settings')"><Settings />我的</button></nav>
+
+    <Transition name="fade"><div v-if="exitHintVisible" class="exit-hint" role="status">再按一次返回键退出应用</div></Transition>
 
     <div v-if="startPageDialogOpen" class="start-page-backdrop" @click.self="startPageDialogOpen = false">
       <section class="start-page-dialog" role="dialog" aria-modal="true" aria-labelledby="start-page-dialog-title">

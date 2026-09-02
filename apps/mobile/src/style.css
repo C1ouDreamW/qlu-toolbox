@@ -28,6 +28,7 @@
 
 /* Mobile information architecture: three stable primary destinations. */
 nav.primary-nav{grid-template-columns:repeat(3,1fr)}
+.exit-hint{position:fixed;z-index:70;left:50%;bottom:calc(78px + env(safe-area-inset-bottom));transform:translateX(-50%);padding:10px 16px;border-radius:99px;color:#fff;background:rgba(18,38,31,.9);box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:13px;white-space:nowrap;pointer-events:none}.fade-enter-active,.fade-leave-active{transition:opacity .16s ease}.fade-enter-from,.fade-leave-to{opacity:0}
 .page-back{display:inline-flex;align-items:center;gap:7px;margin:0 0 14px;padding:8px 2px;border:0;color:#075ebd;background:transparent;font-size:13px;font-weight:750}
 .page-back svg{width:18px}
 .start-page-setting{cursor:pointer;-webkit-tap-highlight-color:transparent}.start-page-current{display:flex!important;flex:none!important;flex-direction:row!important;align-items:center;gap:2px!important;padding:8px 4px 8px 11px;border-radius:10px;color:#075ebd;background:#eef6ff;font-size:13px;font-weight:800;white-space:nowrap}.start-page-current svg{width:16px;height:16px}
