@@ -22,3 +22,10 @@
 @media(min-width:560px){.update-backdrop{align-items:center;padding:24px}.update-dialog{max-width:520px;max-height:calc(100vh - 48px);border-radius:26px}}
 
 @media(prefers-color-scheme:dark){.update-dialog{color:#e8f2fb;background:#142231}.update-version,.update-safety{color:#97abbd}.update-notes{color:#c9d8e4;background:#1b2e40}.update-progress{border-color:#324c63;background:#0f1c28}.update-progress>div,.update-progress small{color:#a9bac8}}
+
+/* Mobile information architecture: three stable primary destinations. */
+nav.primary-nav{grid-template-columns:repeat(3,1fr)}
+.page-back{display:inline-flex;align-items:center;gap:7px;margin:0 0 14px;padding:8px 2px;border:0;color:#075ebd;background:transparent;font-size:13px;font-weight:750}
+.page-back svg{width:18px}
+.start-page-setting select{max-width:105px;padding:8px;border:1px solid #c9dcec;border-radius:9px;color:#18324b;background:#f8fbfe}
+@media(prefers-color-scheme:dark){.page-back{color:#62b5ff}.start-page-setting select{color:#e8f2fb;border-color:#324c63;background:#0d1722}}

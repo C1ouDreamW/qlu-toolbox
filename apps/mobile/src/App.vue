@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { AlertCircle, Archive, BookOpen, Calculator, Check, ChevronRight, Code2, Download, Eraser, FileDown, FileSpreadsheet, FolderOpen, Heart, Home, Info, LockKeyhole, Play, RefreshCw, RotateCcw, Search, Settings, ShieldAlert, ShieldCheck, SquareActivity, UploadCloud, UserRoundCheck, Wifi } from 'lucide-vue-next'
+import { AlertCircle, Archive, ArrowLeft, BookOpen, Calculator, CalendarDays, Check, ChevronRight, Code2, Download, Eraser, FileDown, FileSpreadsheet, FolderOpen, Grid2X2, Heart, Info, LockKeyhole, Play, RefreshCw, RotateCcw, Search, Settings, ShieldAlert, ShieldCheck, SquareActivity, UploadCloud, UserRoundCheck, Wifi } from 'lucide-vue-next'
 import { calculateGpa, defaultAcademicYear, semesterName } from '@lumatile/academic-core'
 import type { GPACourse, GPAWorkbook, GradeEvent, GradeTaskSnapshot, SemesterCode } from '@lumatile/contracts'
 import { gradeExport } from './gradeExport'
@@ -10,10 +10,14 @@ import { findAvailableUpdate } from './update/updateService'
 import type { AvailableUpdate, UpdateDownloadProgress } from './update/types'
 import brandIconUrl from '../../../assets/qlu-toolbox.png'
 import mobilePackage from '../package.json'
+import SchedulePage from './SchedulePage.vue'
 
-type Page = 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about'
+type Page = 'schedule' | 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about'
 const legalNoticeVersion = '2026-07-19'
-const page = ref<Page>('home')
+const startPage = ref(localStorage.getItem('scheduleStartPage') || 'schedule')
+const initialPrimary = startPage.value === 'toolbox' ? 'home' : startPage.value === 'last'
+  ? (localStorage.getItem('lastPrimaryPage') as Page | null) || 'schedule' : 'schedule'
+const page = ref<Page>(initialPrimary)
 const legalNoticeAccepted = ref(localStorage.getItem('legalNoticeAcceptedVersion') === legalNoticeVersion)
 const legalNoticeConfirmed = ref(false)
 const nativeAndroid = gradeExport.isNativeAndroid()
@@ -183,7 +187,10 @@ function courseSemester(course: GPACourse) {
 async function selectPage(next: Page) {
   page.value = next
   if (next === 'tasks') await refreshTasks()
+  if (['schedule', 'home', 'settings'].includes(next)) localStorage.setItem('lastPrimaryPage', next)
 }
+
+function persistStartPage() { localStorage.setItem('scheduleStartPage', startPage.value) }
 
 onMounted(async () => {
   if (!nativeAndroid) return
@@ -201,9 +208,11 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="app-shell">
-    <header class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>一格有光</strong></div></header>
+    <header v-if="page !== 'schedule'" class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>一格有光</strong></div></header>
 
-    <section v-if="page === 'home'" class="page">
+    <SchedulePage v-if="page === 'schedule'" :native-android="nativeAndroid" />
+
+    <section v-else-if="page === 'home'" class="page">
       <div class="hero"><p class="eyebrow">LUMATILE MOBILE</p><h1>校园工具，装进口袋</h1><p>数据留在设备本地，登录始终在学校原始页面完成。</p></div>
       <div class="unofficial-banner"><ShieldAlert /><span><strong>非学校官方应用</strong><small>仅供个人学习与交流使用，不代表学校官方立场</small></span></div>
       <div v-if="!nativeAndroid" class="notice error">当前为网页预览，原生功能仅在 Android 安装包中可用。</div>
@@ -213,6 +222,7 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else-if="page === 'grade'" class="page">
+      <button class="page-back" @click="selectPage('home')"><ArrowLeft />返回工具箱</button>
       <div class="page-title"><p class="eyebrow">GRADE EXPORT</p><h1>分项成绩查询</h1><p>请先通过 aTrust 或校园网确保教务系统可访问。</p></div>
       <div class="card">
         <label><span>学年</span><select v-model="academicYear" :disabled="busy"><option v-for="year in years" :key="year" :value="String(year)">{{ year }}-{{ year + 1 }}</option></select></label>
@@ -232,6 +242,7 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else-if="page === 'gpa'" class="page">
+      <button class="page-back" @click="selectPage('home')"><ArrowLeft />返回工具箱</button>
       <div class="page-title"><p class="eyebrow">GPA CALCULATOR</p><h1>绩点计算器</h1><p>课程成绩只在本机读取和计算，可随时排除不参与统计的课程。</p></div>
       <div class="notice"><ShieldCheck /><span><strong>成绩不会上传</strong><small>原生层安全读取 XLSX，共享核心在设备本地计算。</small></span></div>
       <div v-if="gpaError" class="notice error"><AlertCircle /><span><strong>无法读取成绩</strong><small>{{ gpaError }}</small></span></div>
@@ -267,6 +278,7 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else-if="page === 'tasks'" class="page">
+      <button class="page-back" @click="selectPage('grade')"><ArrowLeft />返回查分</button>
       <div class="page-title"><p class="eyebrow">TASK HISTORY</p><h1>最近任务</h1><p>历史结果与文件保存状态分开记录。</p></div>
       <div v-if="!tasks.length" class="empty"><Archive /><strong>暂无任务</strong><span>完成一次成绩查询后会显示在这里。</span></div>
       <article v-for="item in tasks" :key="item.taskId" class="task-card"><div><strong>{{ item.academicYear }}-{{ Number(item.academicYear)+1 }} · {{ semesterName(item.semester) }}</strong><small>{{ item.message }}</small></div><span :class="['pill', item.outcome]">{{ item.outcome }}</span><button v-if="item.artifactState === 'temporary'" @click="retrySave(item)">保存</button><button v-if="item.artifactState === 'saved'" @click="openSaved(item)">打开</button><button v-if="item.artifact" @click="share(item)">分享</button><button v-if="item.artifact" @click="calculateFromTask(item)">计算 GPA</button></article>
@@ -274,6 +286,7 @@ onBeforeUnmount(() => {
 
     <section v-else-if="page === 'settings'" class="page">
       <div class="page-title"><p class="eyebrow">PRIVACY & DATA</p><h1>设置</h1><p>管理学校登录状态和本地数据。</p></div>
+      <label class="setting-card start-page-setting"><CalendarDays /><span><strong>应用启动页</strong><small>可单独选择课表、工具箱或上次页面</small></span><select v-model="startPage" @change="persistStartPage"><option value="schedule">课表</option><option value="toolbox">工具箱</option><option value="last">上次页面</option></select></label>
       <button class="setting-card" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>清除 Cookie、缓存与站点数据</small></span></button>
       <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
       <button class="setting-card about-entry" @click="selectPage('about')"><Info /><span><strong>关于与声明</strong><small>查看非官方声明、职责声明和免责声明</small></span><ChevronRight /></button>
@@ -281,6 +294,7 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else class="page about-page">
+      <button class="page-back" @click="selectPage('settings')"><ArrowLeft />返回设置</button>
       <div class="page-title"><p class="eyebrow">ABOUT & LEGAL</p><h1>关于一格有光</h1><p>由学生开发者维护的本地校园效率工具。</p></div>
       <div class="card about-identity">
         <span class="about-logo"><img :src="brandIconUrl" alt="一格有光 Logo" /></span>
@@ -303,7 +317,7 @@ onBeforeUnmount(() => {
       </section>
     </section>
 
-    <nav><button :class="{active:page==='home'}" @click="selectPage('home')"><Home />首页</button><button :class="{active:page==='grade'}" @click="selectPage('grade')"><FileDown />查分</button><button :class="{active:page==='gpa'}" @click="selectPage('gpa')"><Calculator />GPA</button><button :class="{active:page==='tasks'}" @click="selectPage('tasks')"><Archive />任务</button><button :class="{active:page==='settings'||page==='about'}" @click="selectPage('settings')"><Settings />设置</button></nav>
+    <nav v-if="['schedule', 'home', 'settings'].includes(page)" class="primary-nav"><button :class="{active:page==='schedule'}" @click="selectPage('schedule')"><CalendarDays />课表</button><button :class="{active:page==='home'}" @click="selectPage('home')"><Grid2X2 />工具箱</button><button :class="{active:page==='settings'}" @click="selectPage('settings')"><Settings />我的</button></nav>
 
     <div v-if="!legalNoticeAccepted" class="legal-backdrop">
       <section class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-dialog-title">
