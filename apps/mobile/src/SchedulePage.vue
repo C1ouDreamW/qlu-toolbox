@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import {
   AlertCircle, BookOpen, CalendarDays, Check, ChevronDown, Clock3, Download,
-  FileSpreadsheet, FolderOpen, MapPin, MoreHorizontal, Plus, RefreshCw, Share2,
+  FileSpreadsheet, FolderOpen, MapPin, MoreHorizontal, Plus, RefreshCw, School, Share2,
   SlidersHorizontal, Users, X,
 } from 'lucide-vue-next'
 import {
@@ -10,7 +10,7 @@ import {
   visibleWeekdays, weekForDate,
 } from '@lumatile/academic-core'
 import type {
-  ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleMeeting, StoredSchedule,
+  ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleImportSource, ScheduleMeeting, StoredSchedule,
 } from '@lumatile/contracts'
 import { scheduleStorage } from './schedule'
 import { weekDeltaForSwipe } from './scheduleSwipe'
@@ -149,22 +149,38 @@ async function chooseImport() {
   error.value = ''
   try {
     const source = await scheduleStorage.pickImport()
-    if (!source) return
-    if (source.kind === 'workbook' && source.rows) importPreview.value = parseScheduleRows({ fileName: source.fileName, rows: source.rows })
-    else if (source.kind === 'backup' && source.payload) {
-      const imported = parseScheduleBackup(source.payload)
-      const meetings = imported.courses.flatMap(course => course.meetings)
-      importPreview.value = {
-        schedule: imported,
-        scheduledMeetings: meetings.filter(item => item.weekday !== null).length,
-        pendingMeetings: meetings.filter(item => item.weekday === null).length,
-        warnings: [],
-      }
-    }
+    if (source) previewImport(source)
     importMode.value = 'create'
     overwriteId.value = stored.value.find(item => item.isActive)?.id || stored.value[0]?.id || ''
   } catch (reason) { error.value = reason instanceof Error ? reason.message : String(reason) }
   finally { busy.value = false }
+}
+
+async function importFromSchool() {
+  menuOpen.value = false
+  busy.value = true
+  error.value = ''
+  try {
+    const source = await scheduleStorage.importFromSchool()
+    if (source) previewImport(source)
+  } catch (reason) { error.value = reason instanceof Error ? reason.message : String(reason) }
+  finally { busy.value = false }
+}
+
+function previewImport(source: ScheduleImportSource) {
+  if (source.kind === 'workbook' && source.rows) importPreview.value = parseScheduleRows({ fileName: source.fileName, rows: source.rows })
+  else if (source.kind === 'backup' && source.payload) {
+    const imported = parseScheduleBackup(source.payload)
+    const meetings = imported.courses.flatMap(course => course.meetings)
+    importPreview.value = {
+      schedule: imported,
+      scheduledMeetings: meetings.filter(item => item.weekday !== null).length,
+      pendingMeetings: meetings.filter(item => item.weekday === null).length,
+      warnings: [],
+    }
+  }
+  importMode.value = 'create'
+  overwriteId.value = stored.value.find(item => item.isActive)?.id || stored.value[0]?.id || ''
 }
 
 async function confirmImport() {
@@ -322,14 +338,16 @@ onMounted(() => { void loadSchedules() })
 
     <div v-else class="schedule-empty">
       <span><CalendarDays /></span><h1>还没有课表</h1><p>从教务导入 XLS 或 XLSX，也可以从同学分享的备份开始。</p>
-      <button class="primary" :disabled="!nativeAndroid || busy" @click="chooseImport"><FolderOpen />{{ busy ? '正在读取…' : '导入课表' }}</button>
+      <button class="primary" :disabled="!nativeAndroid || busy" @click="importFromSchool"><School />{{ busy ? '正在读取…' : '从教务导入' }}</button>
+      <button class="secondary" :disabled="!nativeAndroid || busy" @click="chooseImport"><FolderOpen />从文件导入</button>
       <button class="secondary" @click="openEditor()"><Plus />手工新建</button>
     </div>
 
     <Transition name="fade"><button v-if="menuOpen" class="sheet-scrim" aria-label="关闭菜单" @click="menuOpen = false" /></Transition>
     <Transition name="sheet"><section v-if="menuOpen" class="schedule-menu">
       <div class="sheet-handle" />
-      <button @click="chooseImport"><FileSpreadsheet />导入课表</button>
+      <button @click="importFromSchool"><School />从教务导入</button>
+      <button @click="chooseImport"><FileSpreadsheet />从文件导入</button>
       <button v-if="stored.length > 1" @click="menuOpen = false; switching = true"><RefreshCw />切换课表</button>
       <button @click="menuOpen = false; workspace = 'courses'"><Users />管理课程 <em v-if="pendingCount">{{ pendingCount }} 待安排</em></button>
       <button @click="menuOpen = false; workspace = 'settings'"><SlidersHorizontal />课表设置</button>

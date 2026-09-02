@@ -87,6 +87,40 @@ class SchedulePlugin : Plugin() {
         }, "pickImportResult")
     }
 
+    @PluginMethod
+    fun importFromSchool(call: PluginCall) {
+        startActivityForResult(call, Intent(context, ScheduleImportActivity::class.java), "schoolImportResult")
+    }
+
+    @ActivityCallback
+    private fun schoolImportResult(call: PluginCall?, result: ActivityResult) {
+        if (call == null) return
+        val path = result.data?.getStringExtra(ScheduleImportActivity.EXTRA_FILE_PATH)
+        if (result.resultCode != Activity.RESULT_OK || path.isNullOrBlank()) {
+            call.resolve(JSObject().apply { put("source", JSONObject.NULL) })
+            return
+        }
+        executor.execute {
+            val file = File(path)
+            try {
+                val bytes = file.readBytes()
+                val rows = when {
+                    bytes.startsWith(XLS_MAGIC) -> readXlsRows(bytes)
+                    bytes.startsWith(XLSX_MAGIC) -> WorkbookValidator.readRows(file)
+                    else -> throw IOException("教务系统返回的不是受支持的 Excel 文件")
+                }
+                val source = JSObject().apply {
+                    put("kind", "workbook")
+                    put("fileName", result.data?.getStringExtra(ScheduleImportActivity.EXTRA_FILE_NAME) ?: "教务课表.xls")
+                    put("rows", JSArray(rows.map(::JSArray)))
+                }
+                activity.runOnUiThread { call.resolve(JSObject().apply { put("source", source) }) }
+            } catch (error: Exception) {
+                activity.runOnUiThread { call.reject(error.message ?: "无法读取教务课表") }
+            } finally { file.delete() }
+        }
+    }
+
     @ActivityCallback
     private fun pickImportResult(call: PluginCall?, result: ActivityResult) {
         if (call == null) return

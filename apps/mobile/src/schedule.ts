@@ -7,6 +7,7 @@ interface NativeSchedulePlugin {
   activate(options: { id: string }): Promise<{ ok: boolean }>
   delete(options: { id: string }): Promise<{ ok: boolean }>
   pickImport(): Promise<{ source: ScheduleImportSource | null }>
+  importFromSchool(): Promise<{ source: ScheduleImportSource | null }>
   share(options: { fileName: string; payload: string }): Promise<void>
 }
 
@@ -50,6 +51,7 @@ export const scheduleStorage = {
     return { ok: true }
   },
   pickImport: async () => Capacitor.isNativePlatform() ? (await nativePlugin.pickImport()).source : null,
+  importFromSchool: async () => Capacitor.isNativePlatform() ? (await nativePlugin.importFromSchool()).source : null,
   share: (schedule: ScheduleBook) => Capacitor.isNativePlatform() ? nativePlugin.share({
     fileName: `${schedule.name.replace(/[^\p{L}\p{N}._-]/gu, '_')}.lumatile-schedule.json`,
     payload: JSON.stringify(schedule),
