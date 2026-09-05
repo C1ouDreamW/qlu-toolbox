@@ -49,6 +49,7 @@ class Bridge:
         self.schedules = ScheduleStore(self.paths)
         self.worker: subprocess.Popen[str] | None = None
         self.worker_task_id: str | None = None
+        self.worker_kind: str = ""
         self.lock = threading.Lock()
         self.write_lock = threading.Lock()
         self.browser_lock = threading.Lock()
@@ -86,6 +87,8 @@ class Bridge:
             "gradeCommand": self.grade_command,
             "parseGradeWorkbook": self.parse_grade_workbook,
             "parseScheduleSource": self.parse_schedule_source,
+            "startScheduleImport": self.start_schedule_import,
+            "scheduleCommand": self.schedule_command,
             "listSchedules": self.list_schedules,
             "saveSchedule": self.save_schedule,
             "activateSchedule": self.activate_schedule,
@@ -383,7 +386,36 @@ class Bridge:
                 bufsize=1,
             )
             self.worker_task_id = task_id
-            threading.Thread(target=self._read_worker, args=(self.worker, task_id), daemon=True).start()
+            self.worker_kind = "grade-export"
+            threading.Thread(target=self._read_worker, args=(self.worker, task_id, "gradeExport"), daemon=True).start()
+            return {"taskId": task_id}
+
+    def start_schedule_import(self, _params: dict[str, Any]) -> dict[str, str]:
+        with self.lock:
+            if self.worker is not None and self.worker.poll() is None:
+                raise RuntimeError("已有任务正在运行")
+            task_id = self.tasks.create(
+                SCHEDULE_MANIFEST.id, SCHEDULE_MANIFEST.name, SCHEDULE_MANIFEST.version,
+                "从教务系统导入课表",
+            )
+            command = self._worker_command() + [
+                "--worker", "schedule-import",
+                "--browser", self.settings.preferred_browser,
+                "--keep-login", "yes" if self.settings.keep_login_state else "no",
+            ]
+            self.worker = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+            )
+            self.worker_task_id = task_id
+            self.worker_kind = "schedule-import"
+            threading.Thread(target=self._read_worker, args=(self.worker, task_id, "scheduleImport"), daemon=True).start()
             return {"taskId": task_id}
 
     @staticmethod
@@ -393,6 +425,12 @@ class Bridge:
         return [sys.executable, str(Path(__file__).resolve().parents[1] / "main.py")]
 
     def grade_command(self, params: dict[str, Any]) -> bool:
+        command = str(params.get("command", ""))
+        if command not in {"continue", "cancel", "browser-ready"}:
+            raise ValueError("不支持的任务命令")
+        return self._send_worker_command(command)
+
+    def schedule_command(self, params: dict[str, Any]) -> bool:
         command = str(params.get("command", ""))
         if command not in {"continue", "cancel", "browser-ready"}:
             raise ValueError("不支持的任务命令")
@@ -413,7 +451,7 @@ class Bridge:
         if worker.poll() is None:
             worker.kill()
 
-    def _read_worker(self, worker: subprocess.Popen[str], task_id: str) -> None:
+    def _read_worker(self, worker: subprocess.Popen[str], task_id: str, event_name: str) -> None:
         terminal = False
         assert worker.stdout is not None
         for line in worker.stdout:
@@ -431,7 +469,7 @@ class Bridge:
             elif kind == "cancelled":
                 self.tasks.cancel(task_id)
                 terminal = True
-            self.emit({"channel": "event", "name": "gradeExport", "taskId": task_id, "event": event})
+            self.emit({"channel": "event", "name": event_name, "taskId": task_id, "event": event})
         exit_code = worker.wait()
         if not terminal:
             stderr = worker.stderr.read().strip() if worker.stderr else ""

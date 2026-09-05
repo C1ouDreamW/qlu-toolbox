@@ -1,7 +1,8 @@
 import { computed, reactive, watch } from 'vue'
 import type {
   BootstrapData, BrowserComponentEvent, BrowserComponentStatus,
-  GradeEvent, PageName, Settings, StoredSchedule, TaskRecord,
+  GradeEvent, PageName, ScheduleImportEvent, ScheduleImportSource,
+  Settings, StoredSchedule, TaskRecord,
 } from './types'
 
 const state = reactive({
@@ -25,6 +26,14 @@ const state = reactive({
     progress: 0,
     message: '',
     error: '',
+  },
+  scheduleImport: {
+    running: false,
+    taskId: '',
+    stage: '',
+    status: '',
+    failed: false,
+    result: null as ScheduleImportSource | null,
   },
 })
 
@@ -81,6 +90,39 @@ async function initialize() {
           state.browser.installing = false
           state.browser.error = event.message || '浏览器组件下载未完成'
           if (event.status && state.boot) state.boot.browserComponent = event.status
+        }
+        return
+      }
+      if (name === 'scheduleImport') {
+        const event = (payload as { event: ScheduleImportEvent }).event
+        if (event.type === 'status' || event.type === 'log') {
+          state.scheduleImport.stage = event.stage || state.scheduleImport.stage
+          state.scheduleImport.status = event.message || state.scheduleImport.status
+        } else if (event.type === 'browser_required') {
+          state.browser.required = true
+          state.browser.installing = false
+          state.browser.progress = 0
+          state.browser.message = '下载完成后将自动继续当前任务。'
+          state.browser.error = ''
+          state.scheduleImport.status = event.message || state.scheduleImport.status
+        } else if (event.type === 'success') {
+          state.scheduleImport.running = false
+          state.scheduleImport.result = {
+            kind: event.kind || 'workbook',
+            fileName: event.fileName || '教务课表.xls',
+            rows: event.rows || [],
+          }
+          notify('已获取教务课表，请确认导入预览', 'success')
+          void refreshTasks()
+        } else if (event.type === 'cancelled') {
+          state.scheduleImport.running = false
+          notify('课表导入已取消', 'info')
+          void refreshTasks()
+        } else if (event.type === 'error') {
+          state.scheduleImport.running = false
+          state.scheduleImport.failed = true
+          notify(event.message || '课表导入失败', 'error')
+          void refreshTasks()
         }
         return
       }
@@ -160,6 +202,20 @@ async function declineBrowserComponent() {
   state.browser.required = false
 }
 
+async function startScheduleImport() {
+  const response = await window.qlu.invoke<{ taskId: string }>('startScheduleImport')
+  state.scheduleImport.running = true
+  state.scheduleImport.taskId = response.taskId
+  state.scheduleImport.stage = 'browser'
+  state.scheduleImport.status = '正在启动浏览器…'
+  state.scheduleImport.failed = false
+  state.scheduleImport.result = null
+}
+
+function cancelScheduleImport() {
+  return window.qlu.invoke('scheduleCommand', { command: 'cancel' })
+}
+
 watch(() => state.page, (page) => {
   if (page === 'tasks' || page === 'home') void refreshTasks()
   if (page === 'schedule') void refreshSchedules()
@@ -176,5 +232,7 @@ export const appStore = {
   installBrowserComponent,
   cancelBrowserComponentInstall,
   declineBrowserComponent,
+  startScheduleImport,
+  cancelScheduleImport,
   navigate(page: PageName) { state.page = page },
 }

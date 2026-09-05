@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Download, FilePlus2,
-  FolderOpen, MoreHorizontal, Pencil, Plus, Repeat, SlidersHorizontal, Trash2,
+  FolderOpen, Loader2, MoreHorizontal, Pencil, Plus, Repeat, SlidersHorizontal, Trash2,
 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
@@ -302,6 +302,23 @@ function importFromFile() {
   })
 }
 
+const importState = appStore.state.scheduleImport
+
+function importFromSchool() {
+  menu.value = null
+  void run(async () => {
+    await appStore.startScheduleImport()
+  })
+}
+
+function cancelSchoolImport() { void appStore.cancelScheduleImport() }
+
+watch(() => importState.result, (source) => {
+  if (!source) return
+  openImportPreview(source)
+  importState.result = null
+})
+
 async function confirmImport() {
   const preview = importPreview.value
   if (!preview) return
@@ -387,6 +404,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <div class="menu-anchor">
               <button class="secondary-button" :disabled="busy" @click="toggleMenu('import')">导入 <ChevronDown :size="14" /></button>
               <div v-if="menu === 'import'" class="menu-pop">
+                <button :disabled="busy" @click="importFromSchool"><Download :size="15" /> 从教务导入…</button>
                 <button :disabled="busy" @click="importFromFile"><FolderOpen :size="15" /> 从文件导入…</button>
               </div>
             </div>
@@ -403,6 +421,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </div>
         </div>
       </header>
+
+      <div v-if="importState.running" class="school-import-status">
+        <Loader2 class="spin" :size="15" />
+        <span>{{ importState.status || '正在导入课表…' }}</span>
+        <button class="text-button" @click="cancelSchoolImport">取消</button>
+      </div>
 
       <div class="timetable-scroll">
         <div class="timetable" :style="{ '--day-count': days.length }">

@@ -73,6 +73,12 @@ export interface GradeEvent {
   downloadSizeMiB?: number; installedSizeMiB?: number
 }
 
+export interface ScheduleImportEvent {
+  type: 'status' | 'log' | 'success' | 'error' | 'cancelled' | 'browser_required'
+  stage?: string; message?: string; code?: string
+  kind?: 'workbook'; fileName?: string; rows?: string[][]
+}
+
 export interface BrowserComponentEvent {
   type: 'progress' | 'success' | 'error' | 'cancelled'
   progress?: number
