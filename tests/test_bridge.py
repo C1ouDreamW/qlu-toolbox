@@ -53,10 +53,10 @@ class BridgeIntegrationTests(unittest.TestCase):
             process.stdin.flush()
             bootstrap = json.loads(process.stdout.readline())
             self.assertEqual(bootstrap["channel"], "response")
-            self.assertEqual(bootstrap["result"]["tool"]["id"], "grade-export")
+            self.assertEqual(bootstrap["result"]["tool"]["id"], "schedule")
             self.assertEqual(
                 [tool["id"] for tool in bootstrap["result"]["tools"]],
-                ["grade-export", "gpa-calculator"],
+                ["schedule", "grade-export", "gpa-calculator"],
             )
 
             process.stdin.write(json.dumps({"id": "2", "method": "saveSettings", "params": {"theme": "dark"}}) + "\n")

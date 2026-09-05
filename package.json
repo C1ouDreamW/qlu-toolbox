@@ -26,6 +26,8 @@
     "mobile:sync": "npm run cap:sync --workspace @lumatile/mobile"
   },
   "dependencies": {
+    "@lumatile/academic-core": "0.1.0",
+    "@lumatile/contracts": "0.1.0",
     "lucide-vue-next": "^0.525.0",
     "vue": "^3.5.17"
   },

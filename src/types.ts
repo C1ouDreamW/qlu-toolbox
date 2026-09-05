@@ -1,5 +1,12 @@
-export type PageName = 'home' | 'tools' | 'tasks' | 'settings' | 'about' | 'grade' | 'gpa'
+export type PageName = 'home' | 'tools' | 'tasks' | 'settings' | 'about' | 'grade' | 'gpa' | 'schedule'
 export type Theme = 'light' | 'dark' | 'system'
+
+import type { StoredSchedule } from '@lumatile/contracts'
+
+export type {
+  NoClassDate, PeriodTime, ScheduleBook, ScheduleCourse, ScheduleImportPreview,
+  ScheduleImportSource, ScheduleMeeting, StoredSchedule, WeekendMode,
+} from '@lumatile/contracts'
 
 export interface Settings {
   schema_version: number
@@ -50,12 +57,13 @@ export interface BootstrapData {
   version: string
   settings: Settings
   tasks: TaskRecord[]
+  schedules: StoredSchedule[]
   defaultAcademicYear: string
   semesters: Record<string, string>
   tool: ToolManifest
   tools: ToolManifest[]
   browserComponent: BrowserComponentStatus
-  paths: Record<'settings' | 'tasks' | 'logs' | 'profiles' | 'browsers' | 'data', string>
+  paths: Record<'settings' | 'tasks' | 'schedules' | 'logs' | 'profiles' | 'browsers' | 'data', string>
   metadata: Record<'author' | 'email' | 'github' | 'repository' | 'issues' | 'releases', string>
 }
 

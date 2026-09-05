@@ -34,6 +34,7 @@ from qlu_toolbox.modules.grade_export import MANIFEST
 from qlu_toolbox.modules.grade_export.domain import SEMESTERS, default_academic_year, validate_academic_year
 from qlu_toolbox.modules.gpa_calculator import MANIFEST as GPA_MANIFEST
 from qlu_toolbox.modules.gpa_calculator.domain import parse_grade_xlsx
+from qlu_toolbox.modules.schedule import MANIFEST as SCHEDULE_MANIFEST
 from qlu_toolbox.modules.schedule_io import parse_schedule_source
 
 
@@ -102,8 +103,8 @@ class Bridge:
             "schedules": self.schedules.list_schedules(),
             "defaultAcademicYear": default_academic_year(),
             "semesters": SEMESTERS,
-            "tool": asdict(MANIFEST),
-            "tools": [asdict(MANIFEST), asdict(GPA_MANIFEST)],
+            "tool": asdict(SCHEDULE_MANIFEST),
+            "tools": [asdict(SCHEDULE_MANIFEST), asdict(MANIFEST), asdict(GPA_MANIFEST)],
             "browserComponent": self.get_browser_component_status({}),
             "paths": {
                 "settings": str(self.settings_store.path),

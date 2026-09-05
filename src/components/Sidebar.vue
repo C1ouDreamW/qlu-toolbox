@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Home, LayoutGrid, ListChecks, Settings, Info, ChevronRight } from 'lucide-vue-next'
+import { CalendarDays, Home, LayoutGrid, ListChecks, Settings, Info, ChevronRight } from 'lucide-vue-next'
 import { logoUrl } from '@/assets'
 import type { PageName } from '@/types'
 
 defineProps<{ current: PageName; version: string }>()
 const emit = defineEmits<{ navigate: [page: PageName] }>()
 const items = [
+  { id: 'schedule' as const, label: '课表', icon: CalendarDays },
   { id: 'home' as const, label: '首页', icon: Home },
   { id: 'tools' as const, label: '全部工具', icon: LayoutGrid },
   { id: 'tasks' as const, label: '任务记录', icon: ListChecks },

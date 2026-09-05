@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Search, FileSpreadsheet, Calculator, ArrowUpRight, ShieldCheck, Sparkles } from 'lucide-vue-next'
+import { Search, FileSpreadsheet, Calculator, CalendarDays, ArrowUpRight, ShieldCheck, Sparkles } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import type { BootstrapData, PageName, ToolManifest } from '@/types'
 
@@ -10,7 +10,8 @@ const query = ref('')
 const tools = computed(() => (props.data.tools || [props.data.tool]).filter(tool =>
   !query.value || `${tool.name}${tool.description}`.toLowerCase().includes(query.value.toLowerCase()),
 ))
-const pageFor = (tool: ToolManifest): PageName => tool.id === 'gpa-calculator' ? 'gpa' : 'grade'
+const pageFor = (tool: ToolManifest): PageName =>
+  tool.id === 'gpa-calculator' ? 'gpa' : tool.id === 'schedule' ? 'schedule' : 'grade'
 </script>
 
 <template>
@@ -21,7 +22,11 @@ const pageFor = (tool: ToolManifest): PageName => tool.id === 'gpa-calculator' ?
     <div class="tool-grid">
       <article v-for="tool in tools" :key="tool.id" class="tool-card featured" @click="emit('navigate', pageFor(tool))">
         <div class="tool-card-top">
-          <div class="tool-icon large excel"><Calculator v-if="tool.id === 'gpa-calculator'" :size="25" /><FileSpreadsheet v-else :size="25" /></div>
+          <div class="tool-icon large excel">
+            <CalendarDays v-if="tool.id === 'schedule'" :size="25" />
+            <Calculator v-else-if="tool.id === 'gpa-calculator'" :size="25" />
+            <FileSpreadsheet v-else :size="25" />
+          </div>
           <span class="tool-version">v{{ tool.version }}</span>
         </div>
         <span class="category">{{ tool.category }}</span><h2>{{ tool.name }}</h2><p>{{ tool.description }}</p>

@@ -1,7 +1,7 @@
 import { computed, reactive, watch } from 'vue'
 import type {
   BootstrapData, BrowserComponentEvent, BrowserComponentStatus,
-  GradeEvent, PageName, Settings, TaskRecord,
+  GradeEvent, PageName, Settings, StoredSchedule, TaskRecord,
 } from './types'
 
 const state = reactive({
@@ -43,6 +43,11 @@ function applyTheme(theme: Settings['theme']) {
 async function refreshTasks() {
   if (!state.boot) return
   state.boot.tasks = await window.qlu.invoke<TaskRecord[]>('listTasks', { limit: 200 })
+}
+
+async function refreshSchedules() {
+  if (!state.boot) return
+  state.boot.schedules = await window.qlu.invoke<StoredSchedule[]>('listSchedules')
 }
 
 async function saveSettings(patch: Partial<Settings>) {
@@ -155,7 +160,10 @@ async function declineBrowserComponent() {
   state.browser.required = false
 }
 
-watch(() => state.page, (page) => { if (page === 'tasks' || page === 'home') void refreshTasks() })
+watch(() => state.page, (page) => {
+  if (page === 'tasks' || page === 'home') void refreshTasks()
+  if (page === 'schedule') void refreshSchedules()
+})
 
 export const appStore = {
   state,
@@ -163,6 +171,7 @@ export const appStore = {
   initialize,
   notify,
   refreshTasks,
+  refreshSchedules,
   saveSettings,
   installBrowserComponent,
   cancelBrowserComponentInstall,
