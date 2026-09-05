@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { CalendarDays, ChevronLeft, ChevronRight, Check, FilePlus2, Repeat, Trash2 } from 'lucide-vue-next'
+import {
+  BookOpen, CalendarDays, ChevronLeft, ChevronRight, Check, FilePlus2, Pencil,
+  Plus, Repeat, SlidersHorizontal, Trash2,
+} from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
+import ScheduleCourseEditor from '@/pages/schedule/ScheduleCourseEditor.vue'
+import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
 import {
   datesForWeek, isNoClassDate, QLU_PERIODS, visibleWeekdays, weekForDate,
@@ -21,8 +26,16 @@ const selected = ref<ScheduleCourse | null>(null)
 const switching = ref(false)
 const confirmDelete = ref(false)
 const busy = ref(false)
+const editorOpen = ref(false)
+const editingCourse = ref<ScheduleCourse | null>(null)
+const returnToManager = ref(false)
+const managerOpen = ref(false)
+const managerTab = ref<'courses' | 'settings'>('courses')
 
 const rows = computed(() => props.data.schedules || [])
+const pendingCount = computed(() => schedule.value?.courses.reduce(
+  (sum, course) => sum + course.meetings.filter(meeting => meeting.weekday === null).length, 0,
+) || 0)
 const dates = computed(() => schedule.value ? datesForWeek(schedule.value, week.value) : [])
 const days = computed(() => schedule.value ? visibleWeekdays(schedule.value, week.value) : [])
 const todayWeekday = new Date().getDay() === 0 ? 7 : new Date().getDay()
@@ -117,7 +130,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey || event.metaKey || event.altKey) return
   const target = event.target as HTMLElement | null
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
-  if (selected.value || switching.value || confirmDelete.value) return
+  if (selected.value || switching.value || confirmDelete.value || editorOpen.value || managerOpen.value) return
   if (event.key === 'ArrowLeft') changeWeek(-1)
   else if (event.key === 'ArrowRight') changeWeek(1)
 }
@@ -180,6 +193,71 @@ function saveBook(book: ScheduleBook, makeActive = false) {
 
 function createBlank() { void saveBook(emptyBook(), true) }
 
+function openAddCourse() {
+  returnToManager.value = false
+  editingCourse.value = null
+  editorOpen.value = true
+}
+
+function openManager(tab: 'courses' | 'settings') {
+  managerTab.value = tab
+  managerOpen.value = true
+}
+
+function editFromDetail() {
+  if (!selected.value) return
+  returnToManager.value = false
+  editingCourse.value = selected.value
+  selected.value = null
+  editorOpen.value = true
+}
+
+async function upsertCourse(course: ScheduleCourse) {
+  if (!schedule.value) return
+  const book: ScheduleBook = {
+    ...schedule.value,
+    courses: schedule.value.courses.some(item => item.id === course.id)
+      ? schedule.value.courses.map(item => item.id === course.id ? course : item)
+      : [...schedule.value.courses, course],
+    updatedAt: new Date().toISOString(),
+  }
+  await saveBook(book, true)
+}
+
+async function onCourseSaved(course: ScheduleCourse) {
+  await upsertCourse(course)
+  editorOpen.value = false
+  if (returnToManager.value) managerOpen.value = true
+  appStore.notify('课程已保存', 'success')
+}
+
+async function onCourseDeleted(courseId: string) {
+  if (!schedule.value) return
+  const book: ScheduleBook = {
+    ...schedule.value,
+    courses: schedule.value.courses.filter(item => item.id !== courseId),
+    updatedAt: new Date().toISOString(),
+  }
+  await saveBook(book, true)
+  editorOpen.value = false
+  if (returnToManager.value) managerOpen.value = true
+  appStore.notify('课程已删除', 'success')
+}
+
+function onEditorCancel() {
+  editorOpen.value = false
+  if (returnToManager.value) managerOpen.value = true
+}
+
+async function onBookSaved(book: ScheduleBook) {
+  await saveBook(book, true)
+}
+
+function requestDeleteBook() {
+  managerOpen.value = false
+  confirmDelete.value = true
+}
+
 function activate(row: StoredSchedule) {
   void run(async () => {
     await window.qlu.invoke('activateSchedule', { id: row.id })
@@ -225,7 +303,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <button v-if="!isCurrentWeek" class="text-button back-to-current" @click="backToCurrentWeek">回到本周</button>
           </div>
           <div class="schedule-actions">
-            <button class="secondary-button" :disabled="busy" @click="switching = true"><Repeat :size="15" /> 切换课表</button>
+            <button class="primary-button" :disabled="busy" @click="openAddCourse"><Plus :size="15" /> 添加课程</button>
+            <button class="secondary-button" :disabled="busy" @click="openManager('courses')"><BookOpen :size="15" /> 课程管理<span v-if="pendingCount" class="pending-badge">{{ pendingCount }}</span></button>
+            <button class="secondary-button" :disabled="busy" @click="openManager('settings')"><SlidersHorizontal :size="15" /> 课表设置</button>
+            <button class="secondary-button" :disabled="busy" @click="switching = true"><Repeat :size="15" /> 切换</button>
             <button class="icon-button danger-ghost schedule-delete" aria-label="删除当前课表" @click="confirmDelete = true"><Trash2 :size="15" /></button>
           </div>
         </div>
@@ -301,7 +382,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </div>
         <p v-if="selected.note" class="course-detail-line"><strong>备注</strong>{{ selected.note }}</p>
       </div>
+      <div class="modal-actions course-detail-actions">
+        <button class="secondary-button" @click="editFromDetail"><Pencil :size="15" /> 编辑课程</button>
+      </div>
     </BaseModal>
+
+    <ScheduleCourseEditor
+      v-if="schedule && editorOpen"
+      :key="editingCourse?.id || 'new'"
+      :book="schedule" :course="editingCourse"
+      @cancel="onEditorCancel" @saved="onCourseSaved" @deleted="onCourseDeleted"
+    />
+
+    <ScheduleManager
+      v-if="schedule && managerOpen"
+      :book="schedule" :initial-tab="managerTab"
+      @cancel="managerOpen = false" @add="openAddCourse"
+      @edit="(course: ScheduleCourse) => { returnToManager = true; editingCourse = course; managerOpen = false; editorOpen = true }"
+      @saved="onBookSaved" @delete-book="requestDeleteBook"
+    />
 
     <BaseModal v-if="switching" title="切换课表" dismissible @close="switching = false">
       <div class="switch-list">

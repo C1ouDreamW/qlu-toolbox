@@ -218,3 +218,63 @@
 .switch-main small{color:var(--faint);font-size:11px}
 .switch-badge{display:inline-flex;align-items:center;gap:4px;color:var(--primary);font-size:11px;font-weight:700}
 .switch-actions{justify-content:center}
+.modal-backdrop.modal-wide .modal{width:min(780px,calc(100vw - 60px));text-align:left;max-height:calc(100vh - 120px);display:flex;flex-direction:column}
+.modal-backdrop.modal-wide .modal>h2{flex:0 0 auto}
+.modal-backdrop.modal-wide .modal>*:not(h2){overflow-y:auto}
+.modal-wide .modal-actions{flex:0 0 auto;overflow:visible}
+.pending-badge{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--amber);color:#fff;font-size:10px;font-weight:700}
+.course-detail-actions{justify-content:center}
+.form-error{margin:0 0 12px;padding:10px 13px;border-radius:10px;color:var(--red);background:var(--red-soft);font-size:var(--font-caption)}
+.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.editor-field{display:grid;gap:5px;font-size:var(--font-caption);color:var(--muted)}
+.editor-field.span-2{grid-column:span 2}
+.editor-field input,.editor-field select,.editor-field textarea{width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--text)}
+.editor-field textarea{height:auto;padding:8px 10px;resize:vertical;font:inherit}
+.editor-field input:focus,.editor-field select:focus,.editor-field textarea:focus{outline:none;border-color:var(--primary)}
+.color-row{display:flex;align-items:center;gap:9px;margin:14px 0 4px}
+.color-row>span{margin-right:auto;color:var(--muted);font-size:var(--font-caption)}
+.color-row button{width:22px;height:22px;padding:0;border:2px solid transparent;border-radius:50%}
+.color-row button.active{border-color:var(--surface);box-shadow:0 0 0 2px var(--text)}
+.meeting-block{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.meeting-block>header{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;color:var(--faint);font-size:var(--font-caption);font-weight:700}
+.meeting-tools{display:flex;gap:4px}
+.meeting-tools button{display:grid;place-items:center;width:28px;height:26px;border:0;border-radius:7px;color:var(--muted);background:transparent}
+.meeting-tools button:hover{background:var(--surface-2);color:var(--text)}
+.add-meeting{margin:12px 0 0}
+.editor-actions .danger-ghost{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px}
+.editor-actions .primary-button{display:inline-flex;align-items:center;gap:6px}
+.manager-tabs{display:flex;gap:4px;margin-bottom:14px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);width:fit-content}
+.manager-tabs button{height:30px;padding:0 18px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-weight:600}
+.manager-tabs button.active{background:var(--surface);color:var(--primary);box-shadow:var(--shadow-sm)}
+.manager-courses{display:grid;gap:8px}
+.manager-course-row{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);text-align:left;color:var(--text)}
+.manager-course-row:hover{border-color:var(--line-strong)}
+.manager-course-row i{flex:0 0 5px;width:5px;height:34px;border-radius:9px}
+.manager-course-main{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}
+.manager-course-main small{color:var(--faint);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.manager-course-row em{padding:3px 8px;border-radius:999px;color:var(--amber);background:color-mix(in srgb,var(--amber) 14%,var(--surface));font-size:10px;font-style:normal;font-weight:700}
+.manager-course-row>svg{color:var(--faint)}
+.manager-empty{padding:26px;border:1px dashed var(--line-strong);border-radius:12px;text-align:center;color:var(--faint);font-size:var(--font-caption)}
+.manager-settings{display:grid;gap:18px}
+.settings-group h2{display:flex;align-items:center;gap:6px;margin:0 0 8px;color:var(--faint);font-size:var(--font-caption);font-weight:700}
+.settings-card{overflow:hidden;border:1px solid var(--line);border-radius:12px}
+.settings-card label{display:grid;grid-template-columns:110px 1fr;align-items:center;min-height:44px;border-bottom:1px solid var(--line);padding:0 13px;color:var(--muted);font-size:var(--font-caption);font-weight:600}
+.settings-card label:last-child{border-bottom:0}
+.settings-card input,.settings-card select{min-width:0;height:34px;padding:0;border:0;background:transparent;color:var(--text);text-align:right}
+.settings-card input:focus,.settings-card select:focus{outline:none}
+.settings-card input[type="date"]{text-align:right}
+.off-adder{display:grid;grid-template-columns:1.2fr 1fr 38px;gap:7px}
+.off-adder input{height:36px;padding:0 9px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--text)}
+.off-adder button{display:grid;place-items:center;border:0;border-radius:9px;color:var(--primary);background:var(--primary-soft)}
+.setting-hint{margin:8px 0 0;color:var(--faint);font-size:var(--font-caption)}
+.off-row{display:flex;align-items:center;margin-top:8px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}
+.off-info{display:flex;flex:1;flex-direction:column;gap:1px}
+.off-info small{color:var(--faint)}
+.off-row button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:8px;color:var(--red);background:var(--red-soft)}
+.period-list{overflow:hidden;border:1px solid var(--line);border-radius:12px}
+.period-list label{display:grid;grid-template-columns:64px minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid var(--line);color:var(--muted);font-size:var(--font-caption)}
+.period-list label:last-child{border-bottom:0}
+.period-list strong{font-weight:600;color:var(--muted)}
+.period-list input{width:100%;min-width:0;height:30px;padding:0 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text)}
+.manager-actions{justify-content:flex-end}
+.manager-actions .danger-ghost,.manager-actions .primary-button{width:auto;flex:0 0 auto;display:inline-flex;align-items:center;gap:6px}
