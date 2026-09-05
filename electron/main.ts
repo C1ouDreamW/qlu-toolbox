@@ -1,4 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
+import { randomUUID } from 'node:crypto'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PythonBridge } from './bridge.js'
@@ -7,6 +9,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const bridge = new PythonBridge()
 let mainWindow: BrowserWindow | null = null
 const UPDATE_MANIFEST_URL = 'https://lumatile.ishua.cloud/stable/desktop.json'
+const ANNOUNCEMENT_URL = 'https://lumatile.ishua.cloud/stable/announcement.json'
+const STATS_BEACON_URL = 'https://lumatile.ishua.cloud/beacon/desktop'
 
 function isNewerVersion(candidate: string, current: string) {
   const numeric = (value: string) => value.replace(/^v/, '').split('-')[0].split('.').map(Number)
@@ -59,6 +63,60 @@ async function checkGithubUpdate(currentVersion: string) {
   const url = String(latest.html_url || '')
   if (!isTrustedUpdateUrl(url)) throw new Error('GitHub 更新地址无效')
   return { version: String(latest.tag_name), name: String(latest.name || ''), notes: String(latest.body || ''), url }
+}
+
+async function loadInstallId(): Promise<string> {
+  const file = path.join(app.getPath('userData'), 'stats-client.json')
+  try {
+    const raw = JSON.parse(await readFile(file, 'utf8')) as { installId?: unknown }
+    if (typeof raw.installId === 'string' && raw.installId) return raw.installId
+  } catch { /* 首次生成 */ }
+  const installId = randomUUID()
+  try {
+    await writeFile(file, JSON.stringify({ installId }, null, 2), 'utf8')
+  } catch { /* 写入失败则本轮使用一次性随机 id */ }
+  return installId
+}
+
+async function sendStatsBeacon() {
+  try {
+    const url = new URL(STATS_BEACON_URL)
+    url.searchParams.set('v', app.getVersion())
+    url.searchParams.set('os', process.platform)
+    url.searchParams.set('arch', process.arch)
+    url.searchParams.set('id', await loadInstallId())
+    await fetch(url, {
+      headers: { 'User-Agent': 'LumaTile-Stats' },
+      signal: AbortSignal.timeout(5_000),
+    })
+  } catch { /* 统计上报失败静默，不影响使用 */ }
+}
+
+async function fetchAnnouncement() {
+  try {
+    const response = await fetch(ANNOUNCEMENT_URL, {
+      headers: { Accept: 'application/json', 'User-Agent': 'LumaTile-Announcement' },
+      signal: AbortSignal.timeout(5_000),
+    })
+    if (!response.ok) return null
+    const item = await response.json() as Record<string, unknown>
+    if (item.schemaVersion !== 1 || typeof item.id !== 'string' || typeof item.title !== 'string' ||
+        typeof item.body !== 'string') return null
+    if (typeof item.expiresAt === 'string' && Number.isFinite(Date.parse(item.expiresAt)) &&
+        Date.parse(item.expiresAt) < Date.now()) return null
+    let url: string | undefined
+    if (typeof item.url === 'string') {
+      try { url = new URL(item.url).protocol === 'https:' ? item.url : undefined } catch { url = undefined }
+    }
+    return {
+      id: item.id,
+      title: item.title,
+      body: item.body,
+      level: item.level === 'warning' ? 'warning' as const : 'info' as const,
+      url,
+      expiresAt: typeof item.expiresAt === 'string' ? item.expiresAt : undefined,
+    }
+  } catch { /* 公告拉取失败静默 */ }
 }
 
 function createWindow() {
@@ -120,6 +178,8 @@ function registerIpc() {
     try { return await checkSelfHostedUpdate(currentVersion) }
     catch { return checkGithubUpdate(currentVersion) }
   })
+  ipcMain.handle('system:send-stats-beacon', () => sendStatsBeacon())
+  ipcMain.handle('system:fetch-announcement', () => fetchAnnouncement())
   ipcMain.on('window:action', (_event, action: string) => {
     if (action === 'minimize') mainWindow?.minimize()
     else if (action === 'maximize') mainWindow?.isMaximized() ? mainWindow.unmaximize() : mainWindow?.maximize()

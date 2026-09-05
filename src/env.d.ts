@@ -13,8 +13,19 @@ interface Window {
     copyText?(value: string): Promise<void>
     openExternal(url: string): Promise<void>
     checkUpdate(currentVersion: string): Promise<UpdateInfo | null>
+    sendStatsBeacon(): Promise<void>
+    fetchAnnouncement(): Promise<Announcement | null>
     windowAction(action: 'minimize' | 'maximize' | 'close'): void
   }
 }
 
 interface UpdateInfo { version: string; name: string; notes: string; url: string }
+
+interface Announcement {
+  id: string
+  title: string
+  body: string
+  level: 'info' | 'warning'
+  url?: string
+  expiresAt?: string
+}

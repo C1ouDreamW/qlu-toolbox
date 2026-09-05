@@ -15,9 +15,10 @@ import GradeExportPage from '@/pages/GradeExportPage.vue'
 import GPACalculatorPage from '@/pages/GPACalculatorPage.vue'
 import { appStore } from '@/store'
 import { logoUrl } from '@/assets'
-import type { PageName } from '@/types'
+import type { Announcement, PageName } from '@/types'
 
 const update = ref<UpdateInfo | null>(null)
+const announcement = ref<Announcement | null>(null)
 const disclaimerConfirmed = ref(false)
 const api = window.qlu
 const reloadApp = () => window.location.reload()
@@ -39,9 +40,28 @@ async function checkUpdate(manual = false) {
   } finally { checkingUpdate.value = false }
 }
 
+async function showAnnouncement() {
+  const item = await window.qlu.fetchAnnouncement()
+  if (!item) return
+  try {
+    if (localStorage.getItem('lastAnnouncementId') === item.id) return
+  } catch { /* localStorage 不可用时照常展示 */ }
+  announcement.value = item
+}
+
+function dismissAnnouncement() {
+  if (announcement.value) {
+    try { localStorage.setItem('lastAnnouncementId', announcement.value.id) } catch { /* 忽略 */ }
+  }
+  announcement.value = null
+}
+
 onMounted(async () => {
   await appStore.initialize()
-  if (boot.value?.settings.check_updates && boot.value.settings.welcome_accepted) void checkUpdate()
+  if (!boot.value?.settings.welcome_accepted) return
+  if (boot.value.settings.check_updates) void checkUpdate()
+  if (boot.value.settings.anonymous_stats) void window.qlu.sendStatsBeacon()
+  void showAnnouncement()
 })
 </script>
 
@@ -64,6 +84,7 @@ onMounted(async () => {
       <button class="primary-button wide" :disabled="!disclaimerConfirmed" @click="acceptWelcome">确认并开始使用</button>
     </BaseModal>
     <BaseModal v-if="update" title="发现新版本" dismissible @close="update = null"><span class="update-version">{{ update.version }}</span><p class="modal-lead">{{ update.name || '一格有光更新' }}</p><p class="update-notes">{{ update.notes || '本次发布暂无详细说明。' }}</p><div class="modal-actions"><button class="secondary-button" @click="update = null">稍后再说</button><button class="primary-button" @click="api.openExternal(update!.url)">查看新版本</button></div></BaseModal>
+    <BaseModal v-if="announcement" :title="announcement.level === 'warning' ? '重要通知' : '公告'" dismissible @close="dismissAnnouncement"><span class="update-version">{{ announcement.title }}</span><p class="modal-lead">{{ announcement.body }}</p><div class="modal-actions"><button v-if="announcement.url" class="secondary-button" @click="api.openExternal(announcement.url!)">查看详情</button><button class="primary-button" @click="dismissAnnouncement">知道了</button></div></BaseModal>
     <BaseModal v-if="browser.required" :title="browser.error ? '浏览器组件下载未完成' : browser.installing ? '正在准备备用浏览器' : '需要备用浏览器组件'">
       <div class="browser-download-mark" :data-state="browser.error ? 'error' : browser.installing ? 'loading' : 'ready'">
         <XCircle v-if="browser.error" :size="28" />

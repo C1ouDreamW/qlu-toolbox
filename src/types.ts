@@ -9,6 +9,16 @@ export interface Settings {
   keep_login_state: boolean
   theme: Theme
   check_updates: boolean
+  anonymous_stats: boolean
+}
+
+export interface Announcement {
+  id: string
+  title: string
+  body: string
+  level: 'info' | 'warning'
+  url?: string
+  expiresAt?: string
 }
 
 export interface TaskRecord {

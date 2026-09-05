@@ -16,5 +16,7 @@ contextBridge.exposeInMainWorld('qlu', {
   copyText: (value: string) => ipcRenderer.invoke('system:copy-text', value),
   openExternal: (url: string) => ipcRenderer.invoke('system:open-external', url),
   checkUpdate: (currentVersion: string) => ipcRenderer.invoke('system:check-update', currentVersion),
+  sendStatsBeacon: () => ipcRenderer.invoke('system:send-stats-beacon'),
+  fetchAnnouncement: () => ipcRenderer.invoke('system:fetch-announcement'),
   windowAction: (action: 'minimize' | 'maximize' | 'close') => ipcRenderer.send('window:action', action),
 })
