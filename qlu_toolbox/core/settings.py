@@ -16,6 +16,7 @@ class AppSettings:
     keep_login_state: bool = True
     theme: str = "light"
     check_updates: bool = True
+    anonymous_stats: bool = True
 
     def normalized(self) -> "AppSettings":
         if not self.default_output_dir:
