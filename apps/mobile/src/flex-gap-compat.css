@@ -1,0 +1,86 @@
+/*
+ * flex gap 兜底（WebView < 84 不支持 flex 容器的 gap，见 flexGapCompat.ts）。
+ * 仅当 <html> 带 no-flexgap 类时生效；规则顺序与 style.css 及各 SFC 内的
+ * 原规则保持一致以延续层叠关系。每条规则用相邻兄弟 margin 复刻原 gap。
+ * 注意：flex-wrap 且使用 gap 的容器（.component-list）用负 margin 方案；
+ * space-between 容器（.update-progress>div）的 gap 无视觉作用，不需兜底；
+ * .about-values 及其 article 在 ≥560px 会切到 grid（grid gap 在旧 WebView 可用），
+ * 需按断点豁免。
+ */
+
+/* style.css */
+html.no-flexgap .brand>*+*{margin-left:8px}
+html.no-flexgap .setting-card>*+*{margin-left:14px}
+html.no-flexgap .tool-card span:nth-child(2)>*+*,html.no-flexgap .setting-card span>*+*{margin-top:5px}
+html.no-flexgap .privacy>*+*{margin-left:20px}
+html.no-flexgap .privacy span>*+*{margin-left:5px}
+html.no-flexgap .card label>*+*{margin-top:8px}
+html.no-flexgap .toggle>span>*+*{margin-top:4px}
+html.no-flexgap .notice>*+*{margin-left:12px}
+html.no-flexgap .notice span>*+*{margin-top:4px}
+html.no-flexgap .status>*+*{margin-left:13px}
+html.no-flexgap .status>span>*+*{margin-top:5px}
+html.no-flexgap .primary>*+*,html.no-flexgap .secondary>*+*{margin-left:8px}
+html.no-flexgap .empty>*+*{margin-top:9px}
+html.no-flexgap .task-card div>*+*{margin-top:6px}
+html.no-flexgap nav button>*+*{margin-top:4px}
+html.no-flexgap .gpa-import>*+*{margin-top:9px}
+html.no-flexgap .gpa-filebar>span>*+*{margin-top:4px}
+html.no-flexgap .gpa-summary article>*+*{margin-top:5px}
+html.no-flexgap .gpa-controls>button>*+*,html.no-flexgap .gpa-controls label>*+*{margin-left:7px}
+html.no-flexgap .gpa-course-list>*+*{margin-top:12px}
+html.no-flexgap .course-main>*+*{margin-top:4px}
+html.no-flexgap .course-metrics span>*+*{margin-top:3px}
+html.no-flexgap .component-list{margin:-3px}
+html.no-flexgap .component-list>*{margin:3px}
+html.no-flexgap .course-issue>*+*{margin-left:6px}
+html.no-flexgap .unofficial-banner>*+*{margin-left:12px}
+html.no-flexgap .unofficial-banner>span>*+*{margin-top:4px}
+html.no-flexgap .settings-footnote>*+*{margin-left:6px}
+html.no-flexgap .about-identity>*+*{margin-left:14px}
+html.no-flexgap .about-identity>span:last-child>*+*{margin-top:4px}
+html.no-flexgap .about-values>*+*{margin-top:11px}
+html.no-flexgap .legal-title>*+*{margin-left:9px}
+html.no-flexgap .contact-section>div>*+*{margin-left:12px}
+html.no-flexgap .contact-section span>*+*{margin-top:5px}
+html.no-flexgap .legal-notice-list>*+*{margin-top:9px}
+html.no-flexgap .legal-notice-list span>*+*{margin-top:3px}
+html.no-flexgap .legal-confirm>*+*{margin-left:10px}
+html.no-flexgap .update-progress>*+*{margin-top:7px}
+html.no-flexgap .page-back>*+*{margin-left:7px}
+html.no-flexgap .start-page-current>*+*{margin-left:2px}
+html.no-flexgap .start-page-options>*+*{margin-top:10px}
+html.no-flexgap .start-page-options>button>span:nth-child(2)>*+*{margin-top:4px}
+
+@media(min-width:560px){
+  html.no-flexgap .about-values>*+*{margin-top:0}
+  html.no-flexgap .about-values article>*+*{margin-top:13px}
+}
+
+/* ScheduleManager.vue */
+html.no-flexgap .course-row>span>*+*{margin-top:4px}
+html.no-flexgap .manager-empty>*+*{margin-top:8px}
+html.no-flexgap .settings-group h2>*+*{margin-left:7px}
+html.no-flexgap .off-row span>*+*{margin-top:3px}
+html.no-flexgap .delete-book>*+*{margin-left:7px}
+
+/* SchedulePage.vue */
+html.no-flexgap .schedule-actions>*+*{margin-left:4px}
+html.no-flexgap .schedule-alert>*+*{margin-left:8px}
+html.no-flexgap .pending-chip>*+*,html.no-flexgap .today-chip>*+*{margin-left:6px}
+html.no-flexgap .day-head>*+*{margin-top:2px}
+html.no-flexgap .no-class-column>*+*{margin-top:4px}
+html.no-flexgap .schedule-menu button>*+*,html.no-flexgap .switch-sheet button>*+*{margin-left:13px}
+html.no-flexgap .course-detail p>*+*{margin-left:11px}
+html.no-flexgap .switch-sheet button span>*+*{margin-top:4px}
+html.no-flexgap .import-stats span>*+*{margin-left:3px}
+html.no-flexgap .overwrite-note>*+*{margin-left:7px}
+html.no-flexgap .schedule-header p>*+*{margin-left:5px}
+html.no-flexgap .schedule-title-row>*+*{margin-left:9px}
+html.no-flexgap .import-menu button>*+*{margin-left:11px}
+html.no-flexgap .import-menu span>*+*{margin-top:2px}
+
+/* ScheduleEditor.vue */
+html.no-flexgap .color-row>*+*{margin-left:9px}
+html.no-flexgap .meeting-editor>header div>*+*{margin-left:4px}
+html.no-flexgap .add-period>*+*,html.no-flexgap .delete-course>*+*{margin-left:7px}
