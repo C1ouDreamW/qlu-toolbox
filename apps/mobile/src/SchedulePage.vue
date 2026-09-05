@@ -90,7 +90,7 @@ function emptyBook(): ScheduleBook {
   const academicYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
   return {
     schemaVersion: 1, id: newId(), name: '我的课表', academicYear: `${academicYear}-${academicYear + 1}`,
-    semester: '1', startDate: '2026-09-07', totalWeeks: 19, weekendMode: 'auto',
+    semester: '1', startDate: '2026-09-07', totalWeeks: 19, weekendMode: 'show',
     periods: QLU_PERIODS.map(period => ({ ...period })), noClassDates: [], courses: [], updatedAt: new Date().toISOString(),
   }
 }
@@ -132,7 +132,7 @@ function closeWorkspace() {
   requestAnimationFrame(() => window.scrollTo({ top: 0 }))
 }
 async function saveSettings(next: ScheduleBook) {
-  if (await saveBook(next)) closeWorkspace()
+  await saveBook(next)
 }
 
 async function loadSchedules(preferredId = '') {

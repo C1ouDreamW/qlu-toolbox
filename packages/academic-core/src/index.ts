@@ -312,7 +312,7 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
     academicYear,
     semester,
     ...defaults,
-    weekendMode: 'auto',
+    weekendMode: 'show',
     periods: QLU_PERIODS.map(period => ({ ...period })),
     noClassDates: [],
     courses,

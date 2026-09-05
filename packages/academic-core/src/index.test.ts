@@ -62,7 +62,7 @@ describe('QLU schedule workbook rows', () => {
   it('parses scheduled and pending meetings without retaining identity text', () => {
     const preview = parseScheduleRows({ fileName: '脱敏课表.xls', rows }, new Date('2026-09-02T08:00:00Z'))
     expect(preview.schedule).toMatchObject({
-      academicYear: '2026-2027', semester: '1', startDate: '2026-09-07', totalWeeks: 19,
+      academicYear: '2026-2027', semester: '1', startDate: '2026-09-07', totalWeeks: 19, weekendMode: 'show',
     })
     expect(preview.schedule.name).not.toContain('某同学')
     expect(preview.scheduledMeetings).toBe(1)
@@ -73,12 +73,14 @@ describe('QLU schedule workbook rows', () => {
     expect(preview.schedule.courses.find(course => course.name === '软件工程综合设计')).toBeTruthy()
   })
 
-  it('calculates weeks, dates, no-class days and automatic weekends', () => {
+  it('calculates weeks, dates, no-class days and configurable weekends', () => {
     const schedule = parseScheduleRows({ fileName: '脱敏课表.xls', rows }).schedule
     schedule.noClassDates = [{ date: '2026-09-08', reason: '专业活动' }]
     expect(weekForDate(schedule, new Date(2026, 8, 7))).toBe(1)
     expect(datesForWeek(schedule, 2)[0]).toEqual(new Date(2026, 8, 14))
     expect(isNoClassDate(schedule, new Date(2026, 8, 8))?.reason).toBe('专业活动')
+    expect(visibleWeekdays(schedule, 1)).toEqual([1, 2, 3, 4, 5, 6, 7])
+    schedule.weekendMode = 'auto'
     expect(visibleWeekdays(schedule, 1)).toEqual([1, 2, 3, 4, 5])
     schedule.courses[0].meetings.push({
       id: 'weekend', weeks: [1], weekday: 6, startPeriod: 1, endPeriod: 2,
