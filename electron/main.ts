@@ -159,12 +159,26 @@ function registerIpc() {
     })
     return result.canceled ? null : result.filePaths[0]
   })
-  ipcMain.handle('system:select-file', async (_event, defaultPath?: string) => {
+  ipcMain.handle('system:select-file', async (_event, options?: string | {
+    title?: string; defaultPath?: string; filterName?: string; extensions?: string[]
+  }) => {
+    const opts = typeof options === 'string' ? { defaultPath: options } : options ?? {}
     const result = await dialog.showOpenDialog(mainWindow!, {
-      title: '选择分项成绩文件', defaultPath, properties: ['openFile'],
-      filters: [{ name: 'Excel 工作簿', extensions: ['xlsx'] }],
+      title: opts.title || '选择文件',
+      defaultPath: opts.defaultPath,
+      properties: ['openFile'],
+      filters: [{ name: opts.filterName || '所有文件', extensions: opts.extensions || ['*'] }],
     })
     return result.canceled ? null : result.filePaths[0]
+  })
+  ipcMain.handle('system:save-text-file', async (_event, options: { defaultName?: string; title?: string; contents: string }) => {
+    const result = await dialog.showSaveDialog(mainWindow!, {
+      title: options.title || '保存文件',
+      defaultPath: options.defaultName,
+    })
+    if (result.canceled || !result.filePath) return null
+    await writeFile(result.filePath, options.contents, 'utf8')
+    return result.filePath
   })
   ipcMain.handle('system:open-path', async (_event, target: string) => shell.openPath(target))
   ipcMain.handle('system:show-item', (_event, target: string) => shell.showItemInFolder(target))

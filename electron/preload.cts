@@ -9,7 +9,10 @@ contextBridge.exposeInMainWorld('qlu', {
     return () => ipcRenderer.removeListener('bridge:event', listener)
   },
   selectDirectory: (defaultPath?: string) => ipcRenderer.invoke('system:select-directory', defaultPath),
-  selectFile: (defaultPath?: string) => ipcRenderer.invoke('system:select-file', defaultPath),
+  selectFile: (options?: string | { title?: string; defaultPath?: string; filterName?: string; extensions?: string[] }) =>
+    ipcRenderer.invoke('system:select-file', options),
+  saveTextFile: (options: { defaultName?: string; title?: string; contents: string }) =>
+    ipcRenderer.invoke('system:save-text-file', options),
   getFilePath: (file: File) => webUtils.getPathForFile(file),
   openPath: (target: string) => ipcRenderer.invoke('system:open-path', target),
   showItem: (target: string) => ipcRenderer.invoke('system:show-item', target),

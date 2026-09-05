@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
-  BookOpen, CalendarDays, ChevronLeft, ChevronRight, Check, FilePlus2, Pencil,
-  Plus, Repeat, SlidersHorizontal, Trash2,
+  BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Download, FilePlus2,
+  FolderOpen, MoreHorizontal, Pencil, Plus, Repeat, SlidersHorizontal, Trash2,
 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
@@ -10,9 +10,13 @@ import ScheduleCourseEditor from '@/pages/schedule/ScheduleCourseEditor.vue'
 import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
 import {
-  datesForWeek, isNoClassDate, QLU_PERIODS, visibleWeekdays, weekForDate,
+  datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
+  visibleWeekdays, weekForDate,
 } from '@lumatile/academic-core'
-import type { ScheduleBook, ScheduleCourse, ScheduleMeeting, StoredSchedule } from '@/types'
+import type {
+  ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleImportSource,
+  ScheduleMeeting, StoredSchedule,
+} from '@/types'
 import type { BootstrapData, PageName } from '@/types'
 
 const props = defineProps<{ data: BootstrapData }>()
@@ -31,6 +35,10 @@ const editingCourse = ref<ScheduleCourse | null>(null)
 const returnToManager = ref(false)
 const managerOpen = ref(false)
 const managerTab = ref<'courses' | 'settings'>('courses')
+const menu = ref<'import' | 'more' | null>(null)
+const importPreview = ref<ScheduleImportPreview | null>(null)
+const importMode = ref<'create' | 'overwrite'>('create')
+const overwriteId = ref('')
 
 const rows = computed(() => props.data.schedules || [])
 const pendingCount = computed(() => schedule.value?.courses.reduce(
@@ -130,7 +138,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey || event.metaKey || event.altKey) return
   const target = event.target as HTMLElement | null
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
-  if (selected.value || switching.value || confirmDelete.value || editorOpen.value || managerOpen.value) return
+  if (selected.value || switching.value || confirmDelete.value || editorOpen.value || managerOpen.value || importPreview.value) return
   if (event.key === 'ArrowLeft') changeWeek(-1)
   else if (event.key === 'ArrowRight') changeWeek(1)
 }
@@ -255,7 +263,79 @@ async function onBookSaved(book: ScheduleBook) {
 
 function requestDeleteBook() {
   managerOpen.value = false
+  menu.value = null
   confirmDelete.value = true
+}
+
+function toggleMenu(target: 'import' | 'more') {
+  menu.value = menu.value === target ? null : target
+}
+
+function openImportPreview(source: ScheduleImportSource) {
+  if (source.kind === 'backup') {
+    const book = parseScheduleBackup(source.payload || '')
+    const meetings = book.courses.flatMap(course => course.meetings)
+    importPreview.value = {
+      schedule: book,
+      scheduledMeetings: meetings.filter(meeting => meeting.weekday !== null).length,
+      pendingMeetings: meetings.filter(meeting => meeting.weekday === null).length,
+      warnings: [],
+    }
+  } else {
+    importPreview.value = parseScheduleRows({ fileName: source.fileName, rows: source.rows || [] })
+  }
+  importMode.value = 'create'
+  overwriteId.value = ''
+}
+
+function importFromFile() {
+  menu.value = null
+  void run(async () => {
+    const filePath = await window.qlu.selectFile({
+      title: '选择课表文件',
+      filterName: '课表文件（xls/xlsx/备份 JSON）',
+      extensions: ['xls', 'xlsx', 'json'],
+    })
+    if (!filePath) return
+    const source = await window.qlu.invoke<ScheduleImportSource>('parseScheduleSource', { filePath })
+    openImportPreview(source)
+  })
+}
+
+async function confirmImport() {
+  const preview = importPreview.value
+  if (!preview) return
+  if (importMode.value === 'overwrite' && !rows.value.some(row => row.id === overwriteId.value)) {
+    appStore.notify('请选择要覆盖的课表', 'error')
+    return
+  }
+  const target = importMode.value === 'overwrite' ? rows.value.find(row => row.id === overwriteId.value) : null
+  const book: ScheduleBook = {
+    ...preview.schedule,
+    id: target ? target.id : newId(),
+    name: target ? target.name : preview.schedule.name,
+    updatedAt: new Date().toISOString(),
+  }
+  await saveBook(book, true)
+  importPreview.value = null
+  appStore.notify(target ? `已覆盖「${book.name}」` : `已导入「${book.name}」`, 'success')
+}
+
+function exportBackup() {
+  menu.value = null
+  if (!schedule.value) return
+  const safe = schedule.value.name.replace(/[^\p{L}\p{N}._-]/gu, '_')
+  void run(async () => {
+    const path = await window.qlu.saveTextFile({
+      defaultName: `${safe}.lumatile-schedule.json`,
+      title: '导出课表备份',
+      contents: JSON.stringify(schedule.value),
+    })
+    if (path) {
+      appStore.notify('课表备份已导出', 'success')
+      void window.qlu.showItem(path)
+    }
+  })
 }
 
 function activate(row: StoredSchedule) {
@@ -304,10 +384,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </div>
           <div class="schedule-actions">
             <button class="primary-button" :disabled="busy" @click="openAddCourse"><Plus :size="15" /> 添加课程</button>
+            <div class="menu-anchor">
+              <button class="secondary-button" :disabled="busy" @click="toggleMenu('import')">导入 <ChevronDown :size="14" /></button>
+              <div v-if="menu === 'import'" class="menu-pop">
+                <button :disabled="busy" @click="importFromFile"><FolderOpen :size="15" /> 从文件导入…</button>
+              </div>
+            </div>
             <button class="secondary-button" :disabled="busy" @click="openManager('courses')"><BookOpen :size="15" /> 课程管理<span v-if="pendingCount" class="pending-badge">{{ pendingCount }}</span></button>
             <button class="secondary-button" :disabled="busy" @click="openManager('settings')"><SlidersHorizontal :size="15" /> 课表设置</button>
-            <button class="secondary-button" :disabled="busy" @click="switching = true"><Repeat :size="15" /> 切换</button>
-            <button class="icon-button danger-ghost schedule-delete" aria-label="删除当前课表" @click="confirmDelete = true"><Trash2 :size="15" /></button>
+            <div class="menu-anchor">
+              <button class="secondary-button schedule-more" :disabled="busy" aria-label="更多操作" @click="toggleMenu('more')"><MoreHorizontal :size="16" /></button>
+              <div v-if="menu === 'more'" class="menu-pop">
+                <button :disabled="busy" @click="switching = true; menu = null"><Repeat :size="15" /> 切换课表…</button>
+                <button :disabled="busy" @click="exportBackup"><Download :size="15" /> 导出备份…</button>
+                <button class="menu-danger" :disabled="busy" @click="requestDeleteBook"><Trash2 :size="15" /> 删除课表…</button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -362,8 +454,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       <section class="empty-card schedule-empty">
         <div class="empty-icon"><CalendarDays :size="28" /></div>
         <h3>还没有课表</h3>
-        <p>先创建一份空白课表开始使用；教务导入与文件导入稍后可在课表内完成。</p>
-        <button class="primary-button" :disabled="busy" @click="createBlank"><FilePlus2 :size="16" /> 新建空白课表</button>
+        <p>新建一份空白课表手工维护，或导入教务导出的课表文件和同学分享的备份。</p>
+        <div class="empty-actions">
+          <button class="primary-button" :disabled="busy" @click="createBlank"><FilePlus2 :size="16" /> 新建空白课表</button>
+          <button class="secondary-button" :disabled="busy" @click="importFromFile"><FolderOpen :size="16" /> 从文件导入…</button>
+        </div>
       </section>
     </template>
 
@@ -425,5 +520,43 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <button class="danger-ghost" :disabled="busy" @click="removeBook"><Trash2 :size="15" /> 确认删除</button>
       </div>
     </BaseModal>
+
+    <BaseModal v-if="importPreview" class="modal-wide" title="导入预览" dismissible @close="importPreview = null">
+      <div class="import-preview">
+        <div class="import-summary">
+          <div class="import-stat"><strong>{{ importPreview.scheduledMeetings }}</strong><span>已排课程时段</span></div>
+          <div class="import-stat" :class="{ warn: importPreview.pendingMeetings > 0 }"><strong>{{ importPreview.pendingMeetings }}</strong><span>待安排时段</span></div>
+          <div class="import-stat"><strong>{{ importPreview.schedule.courses.length }}</strong><span>门课程</span></div>
+        </div>
+        <p class="import-name">「{{ importPreview.schedule.name }}」 · {{ importPreview.schedule.academicYear }} 第 {{ importPreview.schedule.semester === '2' ? '二' : '一' }} 学期</p>
+        <p v-if="importPreview.warnings.length" class="import-warnings">
+          {{ importPreview.warnings.length }} 个单元格未能识别（已在导入结果外忽略）：
+          <span>{{ importPreview.warnings.slice(0, 3).join('；') }}</span>
+        </p>
+
+        <div class="import-mode" role="tablist">
+          <button type="button" :class="{ active: importMode === 'create' }" @click="importMode = 'create'">创建新课表</button>
+          <button type="button" :class="{ active: importMode === 'overwrite' }" @click="importMode = 'overwrite'">覆盖已有课表</button>
+        </div>
+
+        <div class="editor-grid">
+          <label class="editor-field"><span>开学日期</span><input v-model="importPreview.schedule.startDate" type="date" /></label>
+          <label class="editor-field"><span>学期周数</span><input v-model.number="importPreview.schedule.totalWeeks" type="number" min="1" max="30" /></label>
+          <label v-if="importMode === 'overwrite'" class="editor-field span-2"><span>覆盖目标</span>
+            <select v-model="overwriteId">
+              <option value="" disabled>选择要覆盖的课表</option>
+              <option v-for="row in rows" :key="row.id" :value="row.id">{{ row.name }}</option>
+            </select>
+          </label>
+        </div>
+        <p v-if="importMode === 'overwrite'" class="import-overwrite-hint">覆盖会替换目标课表中的全部课程与设置，且无法撤销。</p>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary-button" @click="importPreview = null">取消</button>
+        <button class="primary-button" :disabled="busy || (importMode === 'overwrite' && !overwriteId)" @click="confirmImport">确认导入</button>
+      </div>
+    </BaseModal>
+
+    <div v-if="menu" class="menu-backdrop" @click="menu = null" />
   </div>
 </template>

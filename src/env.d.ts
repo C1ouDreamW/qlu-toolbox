@@ -6,7 +6,8 @@ interface Window {
     invoke<T>(method: string, params?: Record<string, unknown>): Promise<T>
     onEvent(callback: (name: string, payload: unknown) => void): () => void
     selectDirectory(defaultPath?: string): Promise<string | null>
-    selectFile(defaultPath?: string): Promise<string | null>
+    selectFile(options?: string | { title?: string; defaultPath?: string; filterName?: string; extensions?: string[] }): Promise<string | null>
+    saveTextFile(options: { defaultName?: string; title?: string; contents: string }): Promise<string | null>
     getFilePath(file: File): string
     openPath(target: string): Promise<string>
     showItem(target: string): Promise<void>
