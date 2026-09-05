@@ -17,6 +17,12 @@
 - 桌面端、Android、安装包和快捷方式的用户可见品牌切换为“一格有光 / LumaTile”，复用原方格图标。
 - Android versionCode 提升至 `10`，versionName 提升至 `2.0.0`。
 
+### 修复
+
+- 修复 Android 15+ 设备上顶部栏被状态栏遮挡的问题：系统栏 insets 改由 `MainActivity` 原生统一接管（Android 15+ 给 WebView 补安全区 padding，传给网页的 safe-area insets 恒为 0），不再依赖设备 WebView 版本对 `env(safe-area-inset-*)` 的支持差异。
+- 修复系统字体缩放导致 WebView 文字整体放大、课表格与顶栏布局被撑变形的问题（锁定 `textZoom` 为 100）。
+- 修复旧版 System WebView（Chromium 84 之前，国产 ROM 出厂 WebView 常见）上卡片图标与文字贴在一起的问题：新增 flex 容器 `gap` 的运行时检测与 margin 兜底样式，仅在旧 WebView 上启用；同时将 `inset:0` 简写展开为四边定位。
+
 ### 兼容性与迁移
 
 - 保持 Android applicationId、正式签名证书、桌面 appId 和旧数据目录不变。
