@@ -83,3 +83,48 @@ class BridgeIntegrationTests(unittest.TestCase):
             process.stdout.close()
             if process.stderr is not None:
                 process.stderr.close()
+
+    def test_bridge_schedule_round_trip(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {
+                **os.environ,
+                "APPDATA": str(root / "roaming"),
+                "LOCALAPPDATA": str(root / "local"),
+                "PYTHONUTF8": "1",
+            }
+            process = subprocess.Popen(
+                [sys.executable, "main.py", "--bridge"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                env=environment,
+            )
+            assert process.stdin is not None and process.stdout is not None
+
+            def call(request_id: str, method: str, params: dict) -> dict:
+                process.stdin.write(json.dumps({"id": request_id, "method": method, "params": params}) + "\n")
+                process.stdin.flush()
+                return json.loads(process.stdout.readline())
+
+            payload = json.dumps({
+                "schemaVersion": 1, "id": "schedule-1", "name": "课表",
+                "courses": [{"id": "course-1", "name": "高等数学"}],
+            }, ensure_ascii=False)
+            saved = call("1", "saveSchedule", {"id": "schedule-1", "name": "2026 课表", "payload": payload, "makeActive": False})
+            self.assertEqual(saved["result"]["id"], "schedule-1")
+            self.assertTrue(saved["result"]["isActive"])
+
+            listed = call("2", "listSchedules", {})
+            self.assertEqual([row["id"] for row in listed["result"]], ["schedule-1"])
+
+            error = call("3", "activateSchedule", {"id": "missing"})
+            self.assertIn("课表不存在", error["error"])
+
+            process.stdin.close()
+            process.wait(timeout=5)
+            process.stdout.close()
+            if process.stderr is not None:
+                process.stderr.close()

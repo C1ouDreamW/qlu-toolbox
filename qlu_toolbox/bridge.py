@@ -27,6 +27,7 @@ from qlu_toolbox.core.metadata import (
     REPOSITORY_URL,
 )
 from qlu_toolbox.core.paths import AppPaths
+from qlu_toolbox.core.schedules import ScheduleStore
 from qlu_toolbox.core.settings import AppSettings, SettingsStore
 from qlu_toolbox.core.tasks import TaskStore
 from qlu_toolbox.modules.grade_export import MANIFEST
@@ -43,6 +44,7 @@ class Bridge:
         self.settings_store = SettingsStore(self.paths)
         self.settings = self.settings_store.load()
         self.tasks = TaskStore(self.paths.data_dir / "tasks.sqlite3")
+        self.schedules = ScheduleStore(self.paths)
         self.worker: subprocess.Popen[str] | None = None
         self.worker_task_id: str | None = None
         self.lock = threading.Lock()
@@ -81,6 +83,10 @@ class Bridge:
             "startGradeExport": self.start_grade_export,
             "gradeCommand": self.grade_command,
             "parseGradeWorkbook": self.parse_grade_workbook,
+            "listSchedules": self.list_schedules,
+            "saveSchedule": self.save_schedule,
+            "activateSchedule": self.activate_schedule,
+            "deleteSchedule": self.delete_schedule,
         }
         if method not in handlers:
             raise ValueError(f"未知操作：{method}")
@@ -91,6 +97,7 @@ class Bridge:
             "version": __version__,
             "settings": asdict(self.settings),
             "tasks": [asdict(item) for item in self.tasks.list_recent()],
+            "schedules": self.schedules.list_schedules(),
             "defaultAcademicYear": default_academic_year(),
             "semesters": SEMESTERS,
             "tool": asdict(MANIFEST),
@@ -99,6 +106,7 @@ class Bridge:
             "paths": {
                 "settings": str(self.settings_store.path),
                 "tasks": str(self.paths.data_dir / "tasks.sqlite3"),
+                "schedules": str(self.schedules.path),
                 "logs": str(self.paths.log_dir),
                 "profiles": str(self.paths.profile_dir),
                 "browsers": str(self.paths.browser_dir),
@@ -128,6 +136,23 @@ class Bridge:
         if not file_path:
             raise ValueError("请选择 XLSX 成绩文件")
         return parse_grade_xlsx(file_path)
+
+    def list_schedules(self, _params: dict[str, Any]) -> list[dict[str, object]]:
+        return self.schedules.list_schedules()
+
+    def save_schedule(self, params: dict[str, Any]) -> dict[str, object]:
+        return self.schedules.save(
+            schedule_id=str(params.get("id", "")),
+            name=str(params.get("name", "")),
+            payload=str(params.get("payload", "")),
+            make_active=bool(params.get("makeActive", False)),
+        )
+
+    def activate_schedule(self, params: dict[str, Any]) -> bool:
+        return self.schedules.activate(str(params.get("id", "")))
+
+    def delete_schedule(self, params: dict[str, Any]) -> bool:
+        return self.schedules.delete(str(params.get("id", "")))
 
     def list_tasks(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         limit = max(1, min(int(params.get("limit", 100)), 1000))
