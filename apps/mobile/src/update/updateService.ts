@@ -1,4 +1,4 @@
-import type { AvailableUpdate, CurrentAppVersion, UpdateManifest } from './types'
+import type { Announcement, AvailableUpdate, CurrentAppVersion, UpdateManifest } from './types'
 import { UPDATE_APPLICATION_ID } from './types'
 
 export const UPDATE_MANIFEST_URLS = [
@@ -7,7 +7,41 @@ export const UPDATE_MANIFEST_URLS = [
   'https://raw.githubusercontent.com/C1ouDreamW/lumatile/main/updates/android.json',
 ] as const
 
+export const ANNOUNCEMENT_URL = 'https://lumatile.ishua.cloud/stable/announcement.json'
+
 const REQUEST_TIMEOUT_MS = 10_000
+
+/** 拉取服务器公告；无公告（404/过期/网络失败）一律返回 null，调用方无需报错。 */
+export async function fetchAnnouncement(): Promise<Announcement | null> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    const response = await fetch(ANNOUNCEMENT_URL, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    })
+    if (!response.ok) return null
+    const item = await response.json() as Record<string, unknown>
+    if (item.schemaVersion !== 1 || typeof item.id !== 'string' || !item.id.trim() ||
+        typeof item.title !== 'string' || !item.title.trim() || typeof item.body !== 'string') return null
+    if (typeof item.expiresAt === 'string' && Number.isFinite(Date.parse(item.expiresAt)) &&
+        Date.parse(item.expiresAt) < Date.now()) return null
+    let url: string | undefined
+    if (typeof item.url === 'string') {
+      try { url = new URL(item.url).protocol === 'https:' ? item.url : undefined } catch { url = undefined }
+    }
+    return {
+      id: item.id,
+      title: item.title,
+      body: item.body,
+      level: item.level === 'warning' ? 'warning' : 'info',
+      url,
+      expiresAt: typeof item.expiresAt === 'string' ? item.expiresAt : undefined,
+    }
+  } catch { return null }
+  finally { window.clearTimeout(timeout) }
+}
 
 export async function findAvailableUpdate(current: CurrentAppVersion): Promise<AvailableUpdate | null> {
   if (current.applicationId !== UPDATE_APPLICATION_ID) {

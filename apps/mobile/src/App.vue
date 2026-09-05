@@ -6,9 +6,10 @@ import { calculateGpa, defaultAcademicYear, semesterName } from '@lumatile/acade
 import type { GPACourse, GPAWorkbook, GradeEvent, GradeTaskSnapshot, SemesterCode } from '@lumatile/contracts'
 import { gradeExport } from './gradeExport'
 import { parseGradeWorkbook } from './gpaWorker'
+import { sendStatsBeacon } from './stats'
 import { appUpdate } from './update/appUpdate'
-import { findAvailableUpdate } from './update/updateService'
-import type { AvailableUpdate, UpdateDownloadProgress } from './update/types'
+import { fetchAnnouncement, findAvailableUpdate } from './update/updateService'
+import type { Announcement, AvailableUpdate, UpdateDownloadProgress } from './update/types'
 import brandIconUrl from '../../../assets/qlu-toolbox.png'
 import mobilePackage from '../package.json'
 import SchedulePage from './SchedulePage.vue'
@@ -51,6 +52,9 @@ const updateChecking = ref(false)
 const updateInstalling = ref(false)
 const updateMessage = ref('')
 const updateProgress = ref<UpdateDownloadProgress | null>(null)
+const announcement = ref<Announcement | null>(null)
+const autoUpdateCheck = ref(localStorage.getItem('autoUpdateCheck') !== 'false')
+const anonymousStats = ref(localStorage.getItem('anonymousStats') !== 'false')
 const busy = computed(() => task.value?.outcome === 'running')
 const message = computed(() => task.value?.message || '选择范围后即可开始查询')
 const gpaSummary = computed(() => calculateGpa(gpaWorkbook.value?.courses ?? []))
@@ -113,7 +117,36 @@ function acceptLegalNotice() {
   if (!legalNoticeConfirmed.value) return
   window.localStorage.setItem('legalNoticeAcceptedVersion', legalNoticeVersion)
   legalNoticeAccepted.value = true
-  void checkForUpdate(false)
+  void runStartupTasks()
+}
+
+async function runStartupTasks() {
+  if (autoUpdateCheck.value) void checkForUpdate(false)
+  if (nativeAndroid && anonymousStats.value) void sendStatsBeacon(mobilePackage.version)
+  void showAnnouncement()
+}
+
+async function showAnnouncement() {
+  const item = await fetchAnnouncement()
+  if (!item || localStorage.getItem('lastAnnouncementId') === item.id) return
+  announcement.value = item
+}
+
+function dismissAnnouncement() {
+  if (announcement.value) localStorage.setItem('lastAnnouncementId', announcement.value.id)
+  announcement.value = null
+}
+
+function toggleAutoUpdateCheck() {
+  autoUpdateCheck.value = !autoUpdateCheck.value
+  localStorage.setItem('autoUpdateCheck', String(autoUpdateCheck.value))
+  if (autoUpdateCheck.value) void checkForUpdate(false)
+}
+
+function toggleAnonymousStats() {
+  anonymousStats.value = !anonymousStats.value
+  localStorage.setItem('anonymousStats', String(anonymousStats.value))
+  if (anonymousStats.value && nativeAndroid) void sendStatsBeacon(mobilePackage.version)
 }
 
 async function checkForUpdate(manual = true) {
@@ -228,6 +261,7 @@ async function handleAndroidBack() {
     clearExitHint()
     return
   }
+  if (announcement.value) { dismissAnnouncement(); clearExitHint(); return }
   if (startPageDialogOpen.value) { startPageDialogOpen.value = false; clearExitHint(); return }
   if (page.value === 'schedule' && schedulePage.value?.handleBack()) { clearExitHint(); return }
   if (!['schedule', 'home', 'settings'].includes(page.value)) { await selectPage('home'); return }
@@ -254,7 +288,7 @@ onMounted(async () => {
   updateListener = await appUpdate.onProgress(event => { updateProgress.value = event })
   task.value = await gradeExport.getActiveTask()
   await refreshTasks()
-  if (legalNoticeAccepted.value) void checkForUpdate(false)
+  if (legalNoticeAccepted.value) void runStartupTasks()
 })
 onBeforeUnmount(() => {
   clearExitHint()
@@ -347,6 +381,8 @@ onBeforeUnmount(() => {
       <button class="setting-card start-page-setting" type="button" aria-haspopup="dialog" :aria-expanded="startPageDialogOpen" @click="startPageDialogOpen = true"><CalendarDays /><span><strong>应用启动页</strong><small>可单独选择课表、工具箱或上次页面</small></span><span class="start-page-current">{{ selectedStartPage.label }}<ChevronRight /></span></button>
       <button class="setting-card" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>清除 Cookie、缓存与站点数据</small></span></button>
       <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
+      <button class="setting-card" type="button" :aria-pressed="autoUpdateCheck" @click="toggleAutoUpdateCheck"><RefreshCw /><span><strong>自动检查更新</strong><small>启动时访问公开更新源，获取新版本提醒</small></span><span class="start-page-current">{{ autoUpdateCheck ? '已开启' : '已关闭' }}</span></button>
+      <button class="setting-card" type="button" :aria-pressed="anonymousStats" @click="toggleAnonymousStats"><ShieldCheck /><span><strong>匿名使用统计</strong><small>发送随机安装编号、软件版本和系统类型；不含任何个人信息</small></span><span class="start-page-current">{{ anonymousStats ? '已开启' : '已关闭' }}</span></button>
       <button class="setting-card about-entry" @click="selectPage('about')"><Info /><span><strong>关于与声明</strong><small>查看非官方声明、职责声明和免责声明</small></span><ChevronRight /></button>
       <div class="settings-footnote"><ShieldAlert />非学校官方 · 仅供学习交流</div>
     </section>
@@ -410,6 +446,19 @@ onBeforeUnmount(() => {
         </div>
         <label class="legal-confirm"><input v-model="legalNoticeConfirmed" type="checkbox" /><span>我已阅读、理解并同意上述声明与使用须知</span></label>
         <button class="primary" :disabled="!legalNoticeConfirmed" @click="acceptLegalNotice"><Check />确认并开始使用</button>
+      </section>
+    </div>
+
+    <div v-if="announcement" class="update-backdrop" @click.self="dismissAnnouncement">
+      <section class="update-dialog" role="dialog" aria-modal="true" aria-labelledby="announcement-dialog-title">
+        <span class="update-icon"><Info /></span>
+        <p class="eyebrow">{{ announcement.level === 'warning' ? 'IMPORTANT NOTICE' : 'ANNOUNCEMENT' }}</p>
+        <h1 id="announcement-dialog-title">{{ announcement.title }}</h1>
+        <p class="update-notes">{{ announcement.body }}</p>
+        <div class="update-actions">
+          <button class="primary" @click="dismissAnnouncement">知道了</button>
+        </div>
+        <small class="update-safety">公告由更新源服务器发布，不包含个人数据；可在“我的”页面管理相关开关。</small>
       </section>
     </div>
 

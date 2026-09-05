@@ -32,3 +32,12 @@ export interface UpdateDownloadProgress {
   percent?: number
   message?: string
 }
+
+export interface Announcement {
+  id: string
+  title: string
+  body: string
+  level: 'info' | 'warning'
+  url?: string
+  expiresAt?: string
+}
