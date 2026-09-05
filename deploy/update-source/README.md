@@ -2,6 +2,8 @@
 
 更新源是纯静态文件服务：宿主机 Nginx 负责 `lumatile.ishua.cloud` 的 HTTPS，Docker 容器只监听 `127.0.0.1:18080`。
 
+除静态文件外，容器配置还提供 `/beacon/desktop` 与 `/beacon/android` 两个 204 匿名统计心跳路由（只依赖访问日志计数），公告与统计页方案见 `../stats/README.md`。
+
 ## 首次部署
 
 1. 将本目录复制到服务器，例如 `/opt/lumatile-update`。
