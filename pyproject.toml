@@ -9,6 +9,7 @@ authors = [
 ]
 dependencies = [
     "playwright==1.55.0",
+    "xlrd==2.0.2",
 ]
 
 [dependency-groups]

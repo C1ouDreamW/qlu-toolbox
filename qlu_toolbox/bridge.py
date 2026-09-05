@@ -34,6 +34,7 @@ from qlu_toolbox.modules.grade_export import MANIFEST
 from qlu_toolbox.modules.grade_export.domain import SEMESTERS, default_academic_year, validate_academic_year
 from qlu_toolbox.modules.gpa_calculator import MANIFEST as GPA_MANIFEST
 from qlu_toolbox.modules.gpa_calculator.domain import parse_grade_xlsx
+from qlu_toolbox.modules.schedule_io import parse_schedule_source
 
 
 class Bridge:
@@ -83,6 +84,7 @@ class Bridge:
             "startGradeExport": self.start_grade_export,
             "gradeCommand": self.grade_command,
             "parseGradeWorkbook": self.parse_grade_workbook,
+            "parseScheduleSource": self.parse_schedule_source,
             "listSchedules": self.list_schedules,
             "saveSchedule": self.save_schedule,
             "activateSchedule": self.activate_schedule,
@@ -136,6 +138,13 @@ class Bridge:
         if not file_path:
             raise ValueError("请选择 XLSX 成绩文件")
         return parse_grade_xlsx(file_path)
+
+    @staticmethod
+    def parse_schedule_source(params: dict[str, Any]) -> dict[str, object]:
+        file_path = str(params.get("filePath", "")).strip()
+        if not file_path:
+            raise ValueError("请选择课表文件")
+        return parse_schedule_source(file_path)
 
     def list_schedules(self, _params: dict[str, Any]) -> list[dict[str, object]]:
         return self.schedules.list_schedules()
