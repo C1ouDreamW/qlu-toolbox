@@ -53,7 +53,7 @@ class ScheduleImportActivity : AppCompatActivity() {
     private var temporaryFile: File? = null
 
     private val accessTimeout = Runnable {
-        if (!pageLoaded) fail("无法访问教务系统，请检查 aTrust、校园网或服务器状态。")
+        if (!pageLoaded) fail(SCHOOL_NETWORK_MESSAGE)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,7 +67,7 @@ class ScheduleImportActivity : AppCompatActivity() {
             }
         })
         configureWebView()
-        status("正在连接教务系统…")
+        status("正在连接教务系统…请保持校园网或学校 VPN 已连接")
         handler.postDelayed(accessTimeout, ACCESS_TIMEOUT_MS)
         webView.loadUrl(BASE_URL)
     }
@@ -146,7 +146,7 @@ class ScheduleImportActivity : AppCompatActivity() {
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-            if (request.isForMainFrame) fail(if (error.errorCode == ERROR_FAILED_SSL_HANDSHAKE) "安全连接失败，已拒绝绕过证书校验。" else "无法访问教务系统，请检查网络环境。")
+            if (request.isForMainFrame) fail(if (error.errorCode == ERROR_FAILED_SSL_HANDSHAKE) "安全连接失败，已拒绝绕过证书校验。" else SCHOOL_NETWORK_MESSAGE)
         }
         override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
             if (request.isForMainFrame && response.statusCode >= 400) fail("教务系统返回 HTTP ${response.statusCode}，请稍后重试。")
@@ -305,6 +305,7 @@ class ScheduleImportActivity : AppCompatActivity() {
         private const val CHUNK_SIZE = 128 * 1024
         private const val ACCESS_TIMEOUT_MS = 60_000L
         private const val POLL_MS = 250L
+        private const val SCHOOL_NETWORK_MESSAGE = "无法连接教务系统，请连接校园网或使用学校 VPN 后重试。"
         private val XLS_MAGIC = byteArrayOf(0xD0.toByte(), 0xCF.toByte(), 0x11, 0xE0.toByte())
         private val XLSX_MAGIC = byteArrayOf('P'.code.toByte(), 'K'.code.toByte(), 3, 4)
     }
