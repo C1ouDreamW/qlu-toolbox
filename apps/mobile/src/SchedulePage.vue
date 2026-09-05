@@ -32,6 +32,7 @@ const overwriteId = ref('')
 const busy = ref(false)
 const error = ref('')
 const workspace = ref<'calendar' | 'courses' | 'settings' | 'editor'>('calendar')
+const editorReturnWorkspace = ref<'calendar' | 'courses' | 'settings'>('calendar')
 const editingCourse = ref<ScheduleCourse | null>(null)
 const scheduleTrack = ref<HTMLElement | null>(null)
 let touchX = 0
@@ -107,9 +108,11 @@ function emptyBook(): ScheduleBook {
 
 function openEditor(course: ScheduleCourse | null = null) {
   if (!schedule.value) schedule.value = emptyBook()
+  editorReturnWorkspace.value = workspace.value === 'editor' ? 'calendar' : workspace.value
   editingCourse.value = course
   workspace.value = 'editor'
 }
+function closeEditor() { workspace.value = editorReturnWorkspace.value }
 async function saveBook(next: ScheduleBook) {
   try {
     await scheduleStorage.save(next, true)
@@ -125,11 +128,11 @@ async function saveCourse(course: ScheduleCourse) {
   const courses = schedule.value.courses.some(item => item.id === course.id)
     ? schedule.value.courses.map(item => item.id === course.id ? course : item)
     : [...schedule.value.courses, course]
-  if (await saveBook({ ...schedule.value, courses, updatedAt: new Date().toISOString() })) workspace.value = 'courses'
+  if (await saveBook({ ...schedule.value, courses, updatedAt: new Date().toISOString() })) closeEditor()
 }
 async function deleteCourse(id: string) {
   if (!schedule.value || !window.confirm('确定删除这门课程及其所有时段吗？')) return
-  if (await saveBook({ ...schedule.value, courses: schedule.value.courses.filter(course => course.id !== id), updatedAt: new Date().toISOString() })) workspace.value = 'courses'
+  if (await saveBook({ ...schedule.value, courses: schedule.value.courses.filter(course => course.id !== id), updatedAt: new Date().toISOString() })) closeEditor()
 }
 async function deleteBook() {
   if (!schedule.value || !window.confirm('确定删除整份课表吗？此操作不可撤销。')) return
@@ -310,7 +313,7 @@ function handleBack() {
   if (importMenuOpen.value) { importMenuOpen.value = false; return true }
   if (menuOpen.value) { menuOpen.value = false; return true }
   if (workspace.value === 'editor') {
-    workspace.value = schedule.value?.courses.length ? 'courses' : 'calendar'
+    closeEditor()
     return true
   }
   if (workspace.value !== 'calendar') { closeWorkspace(); return true }
@@ -396,7 +399,7 @@ onMounted(() => { void loadSchedules() })
       <p><Clock3 />周{{ weekdayName(selected.meeting.weekday!) }} 第 {{ selected.meeting.startPeriod }}–{{ selected.meeting.endPeriod }} 节 <small>{{ meetingTime(selected.meeting) }}</small></p>
       <p><MapPin />{{ selected.meeting.location || '地点待定' }}</p>
       <p><Users />{{ selected.meeting.teachers.join('、') || selected.course.teachers.join('、') || '教师待定' }}</p>
-      <button class="primary" @click="editingCourse = selected.course; selected = null; workspace = 'editor'"><BookOpen />查看与编辑课程</button>
+      <button class="primary" @click="openEditor(selected.course); selected = null"><BookOpen />查看与编辑课程</button>
     </section></Transition>
 
     <Transition name="fade"><button v-if="switching" class="sheet-scrim" aria-label="关闭切换" @click="switching = false" /></Transition>
@@ -425,7 +428,7 @@ onMounted(() => { void loadSchedules() })
     <ScheduleEditor
       v-if="schedule && workspace === 'editor'" :key="editingCourse?.id || 'new'"
       :book="schedule" :course="editingCourse"
-      @close="workspace = schedule.courses.length ? 'courses' : 'calendar'" @saved="saveCourse" @deleted="deleteCourse"
+      @close="closeEditor" @saved="saveCourse" @deleted="deleteCourse"
     />
   </section>
 </template>
