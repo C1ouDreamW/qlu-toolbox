@@ -239,10 +239,14 @@ function currentWeek() {
 }
 function currentTrackIndex() { return week.value === 1 ? 0 : 1 }
 function resetTrack(instant = true) {
-  if (!scheduleTrack.value) return
-  if (instant) scheduleTrack.value.classList.add('dragging')
-  scheduleTrack.value.style.transform = `translate3d(${-currentTrackIndex() * scheduleTrack.value.parentElement!.clientWidth}px,0,0)`
-  if (instant) requestAnimationFrame(() => scheduleTrack.value?.classList.remove('dragging'))
+  const track = scheduleTrack.value
+  if (!track) return
+  if (instant) track.classList.add('dragging')
+  track.style.transform = `translate3d(${-currentTrackIndex() * track.parentElement!.clientWidth}px,0,0)`
+  if (instant) {
+    void track.offsetWidth
+    track.classList.remove('dragging')
+  }
 }
 function touchStart(event: PointerEvent) {
   if (settling || (event.pointerType === 'mouse' && event.button !== 0)) return
