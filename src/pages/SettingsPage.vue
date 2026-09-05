@@ -45,9 +45,9 @@ async function clear(kind: 'clearProfiles'|'clearLogs') {
   await window.qlu.invoke(kind)
   appStore.notify(`${label}已清除`, 'success')
 }
-function openDataLocation(key: 'settings' | 'tasks' | 'logs' | 'profiles' | 'browsers') {
+function openDataLocation(key: 'settings' | 'tasks' | 'schedules' | 'logs' | 'profiles' | 'browsers') {
   const target = props.data.paths[key]
-  return key === 'settings' || key === 'tasks' ? api.showItem(target) : api.openPath(target)
+  return key === 'settings' || key === 'tasks' || key === 'schedules' ? api.showItem(target) : api.openPath(target)
 }
 async function removeBrowser() {
   removingBrowser.value = true
@@ -102,7 +102,7 @@ async function removeBrowser() {
     <section class="settings-section">
       <div class="settings-title"><Database :size="20" /><div><h2>数据与隐私</h2><p>查看和管理保存在本机的数据</p></div></div>
       <div class="settings-card data-card">
-        <div v-for="item in [{k:'settings',n:'设置文件'},{k:'tasks',n:'任务记录'},{k:'logs',n:'运行日志'},{k:'profiles',n:'浏览器登录状态'}]" :key="item.k" class="data-row"><div><strong>{{ item.n }}</strong><span>{{ data.paths[item.k as keyof typeof data.paths] }}</span></div><button class="icon-button" title="打开位置" @click="openDataLocation(item.k as 'settings' | 'tasks' | 'logs' | 'profiles')"><ExternalLink :size="16" /></button></div>
+        <div v-for="item in [{k:'settings',n:'设置文件'},{k:'schedules',n:'课表数据'},{k:'tasks',n:'任务记录'},{k:'logs',n:'运行日志'},{k:'profiles',n:'浏览器登录状态'}]" :key="item.k" class="data-row"><div><strong>{{ item.n }}</strong><span>{{ data.paths[item.k as keyof typeof data.paths] }}</span></div><button class="icon-button" title="打开位置" @click="openDataLocation(item.k as 'settings' | 'tasks' | 'schedules' | 'logs' | 'profiles')"><ExternalLink :size="16" /></button></div>
         <div class="danger-zone"><button class="danger-ghost" @click="clear('clearProfiles')"><Shield :size="16" /> 清除登录状态</button><button class="danger-ghost" @click="clear('clearLogs')"><Trash2 :size="16" /> 清除日志缓存</button></div>
       </div>
     </section>
