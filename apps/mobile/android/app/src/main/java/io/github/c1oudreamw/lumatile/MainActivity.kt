@@ -15,6 +15,7 @@ class MainActivity : BridgeActivity() {
         registerPlugin(SchedulePlugin::class.java)
         super.onCreate(savedInstanceState)
         installSystemBarInsets()
+        lockWebViewTextZoom()
     }
 
     /**
@@ -47,5 +48,10 @@ class MainActivity : BridgeActivity() {
                 )
                 .build()
         }
+    }
+
+    /** 系统字体缩放会按比例放大 WebView 文字，把固定行高的课表格和顶栏布局撑变形。 */
+    private fun lockWebViewTextZoom() {
+        bridge?.webView?.settings?.textZoom = 100
     }
 }
