@@ -321,7 +321,7 @@ onMounted(() => { void loadSchedules() })
   <section class="schedule-page">
     <header class="schedule-header">
       <div><div class="schedule-title-row"><h1>{{ title }}</h1><button v-if="schedule && week !== Math.max(1, Math.min(schedule.totalWeeks, weekForDate(schedule)))" class="current-week-button" @click="currentWeek">回到本周</button></div><p><span class="schedule-kicker">{{ schedule?.name || 'LUMATILE SCHEDULE' }}</span><i v-if="dateRange">·</i><span>{{ dateRange || '把教务课表装进口袋' }}</span></p></div>
-      <div class="schedule-actions"><button aria-label="添加课程" @click="openEditor()"><Plus /></button><button aria-label="更多" @click="menuOpen = !menuOpen"><MoreHorizontal /></button></div>
+      <div class="schedule-actions"><button aria-label="添加课程" @click="openEditor()"><Plus /></button><button aria-label="从教务导入" :disabled="!nativeAndroid || busy" @click="importFromSchool"><School /></button><button aria-label="更多" @click="menuOpen = !menuOpen"><MoreHorizontal /></button></div>
     </header>
 
     <div v-if="error" class="schedule-alert"><AlertCircle />{{ error }}<button @click="error = ''"><X /></button></div>
@@ -372,7 +372,6 @@ onMounted(() => { void loadSchedules() })
     <Transition name="fade"><button v-if="menuOpen" class="sheet-scrim" aria-label="关闭菜单" @click="menuOpen = false" /></Transition>
     <Transition name="sheet"><section v-if="menuOpen" class="schedule-menu">
       <div class="sheet-handle" />
-      <button @click="importFromSchool"><School />从教务导入</button>
       <button @click="chooseImport"><FileSpreadsheet />从文件导入</button>
       <button v-if="stored.length > 1" @click="menuOpen = false; switching = true"><RefreshCw />切换课表</button>
       <button @click="menuOpen = false; workspace = 'courses'"><Users />管理课程 <em v-if="pendingCount">{{ pendingCount }} 待安排</em></button>
