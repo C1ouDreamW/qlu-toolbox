@@ -17,6 +17,7 @@ export interface Settings {
   theme: Theme
   check_updates: boolean
   anonymous_stats: boolean
+  start_page: 'schedule' | 'home' | 'last'
 }
 
 export interface Announcement {

@@ -28,7 +28,21 @@ const boot = appStore.boot
 const pageComponent = computed(() => ({ schedule: SchedulePage, home: HomePage, tools: ToolsPage, tasks: TasksPage, settings: SettingsPage, about: AboutPage, grade: GradeExportPage, gpa: GPACalculatorPage }[appStore.state.page]))
 const browser = appStore.state.browser
 
-function navigate(page: PageName) { appStore.navigate(page) }
+function navigate(page: PageName) {
+  appStore.navigate(page)
+  try { localStorage.setItem('lastPage', page) } catch { /* localStorage 不可用时忽略 */ }
+}
+
+function applyStartPage() {
+  const start = boot.value?.settings.start_page || 'home'
+  if (start === 'schedule') { appStore.navigate('schedule'); return }
+  if (start === 'last') {
+    let last: PageName | null = null
+    try { last = localStorage.getItem('lastPage') as PageName | null } catch { last = null }
+    if (last) appStore.navigate(last)
+  }
+}
+
 async function acceptWelcome() { await appStore.saveSettings({ welcome_accepted: true }) }
 async function checkUpdate(manual = false) {
   if (!boot.value || checkingUpdate.value) return
@@ -60,6 +74,7 @@ function dismissAnnouncement() {
 onMounted(async () => {
   await appStore.initialize()
   if (!boot.value?.settings.welcome_accepted) return
+  applyStartPage()
   if (boot.value.settings.check_updates) void checkUpdate()
   if (boot.value.settings.anonymous_stats) void window.qlu.sendStatsBeacon()
   void showAnnouncement()

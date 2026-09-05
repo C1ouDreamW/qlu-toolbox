@@ -17,6 +17,7 @@ class AppSettings:
     theme: str = "light"
     check_updates: bool = True
     anonymous_stats: bool = True
+    start_page: str = "home"
 
     def normalized(self) -> "AppSettings":
         if not self.default_output_dir:
@@ -25,6 +26,8 @@ class AppSettings:
             self.preferred_browser = "auto"
         if self.theme not in {"light", "dark", "system"}:
             self.theme = "light"
+        if self.start_page not in {"schedule", "home", "last"}:
+            self.start_page = "home"
         return self
 
 

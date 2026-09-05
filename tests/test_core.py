@@ -76,6 +76,23 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(loaded.preferred_browser, "edge")
             self.assertEqual(loaded.default_output_dir, str(root))
 
+    def test_start_page_is_normalized_and_persisted(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            paths = AppPaths(
+                root / "config",
+                root / "data",
+                root / "logs",
+                root / "profiles",
+                root / "browsers",
+            )
+            paths.ensure()
+            store = SettingsStore(paths)
+            normalized = AppSettings(start_page="nonsense").normalized()
+            self.assertEqual(normalized.start_page, "home")
+            store.save(AppSettings(start_page="schedule"))
+            self.assertEqual(store.load().start_page, "schedule")
+
     def test_broken_settings_are_backed_up(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
