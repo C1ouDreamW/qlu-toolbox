@@ -50,6 +50,7 @@ nuitka-crash-report*.xml
 # 本地参考资料与工具配置
 /references/
 /.agents/
+/.zcode/
 /.idea/
 /.vscode/
 .DS_Store
