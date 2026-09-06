@@ -1,8 +1,8 @@
-FROM python:3.12-alpine
+FROM python:3.12-slim
 
 WORKDIR /app
 COPY server.py .
-RUN addgroup -g 10001 -S lumatile && adduser -u 10001 -S lumatile -G lumatile && mkdir /data && chown lumatile:lumatile /data
-USER lumatile
+RUN mkdir /data && chown 10001:10001 /data
+USER 10001:10001
 EXPOSE 8080
 CMD ["python", "server.py"]
