@@ -82,7 +82,8 @@ def _wait_for_capture(
         except Exception:
             pass
 
-    page.on("download", on_download)
+    context = page.context
+    context.on("download", on_download)
     try:
         while time.monotonic() < deadline:
             _check_cancelled(cancel_event)
@@ -113,7 +114,7 @@ def _wait_for_capture(
             time.sleep(POLL_INTERVAL_SECONDS)
     finally:
         try:
-            page.remove_listener("download", on_download)
+            context.remove_listener("download", on_download)
         except Exception:
             pass
     raise ScheduleImportError("等待导出超时，请重新开始导入")

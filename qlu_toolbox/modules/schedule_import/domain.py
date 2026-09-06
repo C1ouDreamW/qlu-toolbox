@@ -55,7 +55,8 @@ def is_export_action(url: str) -> bool:
 
 
 def build_interceptor_script() -> str:
-    """劫持学校“输出EXCEL”表单提交，在同源环境抓取 Excel 并计算 SHA-256。"""
+    """劫持学校“输出EXCEL”导出：程序化 .submit()/requestSubmit()、原生提交按钮
+    触发的 submit 事件，三条路径全部转为同源 fetch 抓取并计算 SHA-256。"""
     return """
     (() => {
       const existing = window.__LUMATILE_SCHEDULE_IMPORT__;
@@ -63,18 +64,16 @@ def build_interceptor_script() -> str:
         return { installed: true, started: Boolean(existing.started), result: existing.result };
       }
       const state = window.__LUMATILE_SCHEDULE_IMPORT__ = { installed: true, started: false, result: null, base64: null };
-      const originalSubmit = HTMLFormElement.prototype.submit;
-      HTMLFormElement.prototype.submit = function () {
-        const url = new URL(this.action || location.href, location.href);
-        if (url.origin !== location.origin || !url.pathname.endsWith('%(marker)s')) return originalSubmit.call(this);
-        if (state.started) return;
+      const MARKER = '%(marker)s';
+      const isExport = (url) => url.origin === location.origin && url.pathname.endsWith(MARKER);
+      const start = (url, body) => {
         state.started = true;
         (async () => {
           try {
             const response = await fetch(url.toString(), {
               method: 'POST',
               credentials: 'same-origin',
-              body: new URLSearchParams(new FormData(this)),
+              body,
             });
             if (!response.ok) return JSON.stringify({ ok: false, message: '教务系统导出失败（HTTP ' + response.status + '）' });
             const bytes = new Uint8Array(await response.arrayBuffer());
@@ -92,6 +91,28 @@ def build_interceptor_script() -> str:
           }
         })().then(result => { state.result = result; });
       };
+      const intercept = function (original, args) {
+        const url = new URL(this.action || location.href, location.href);
+        if (!isExport(url)) return original.apply(this, args);
+        if (state.started) return;
+        start(url, new URLSearchParams(new FormData(this)));
+      };
+      const originalSubmit = HTMLFormElement.prototype.submit;
+      HTMLFormElement.prototype.submit = function (...args) { return intercept.call(this, originalSubmit, args); };
+      const originalRequestSubmit = HTMLFormElement.prototype.requestSubmit;
+      if (originalRequestSubmit) {
+        HTMLFormElement.prototype.requestSubmit = function (...args) { return intercept.call(this, originalRequestSubmit, args); };
+      }
+      document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        const url = new URL(form.action || location.href, location.href);
+        if (!isExport(url)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (state.started) return;
+        start(url, new URLSearchParams(new FormData(form)));
+      }, true);
       return { installed: true, started: false, result: null };
     })()
     """ % {"marker": EXPORT_FORM_PATH_MARKER, "maxBytes": MAX_EXPORT_BYTES}

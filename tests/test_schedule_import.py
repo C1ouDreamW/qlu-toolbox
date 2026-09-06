@@ -55,6 +55,9 @@ class ScheduleImportDomainTests(unittest.TestCase):
         self.assertIn(str(MAX_EXPORT_BYTES), script)
         self.assertIn("crypto.subtle.digest('SHA-256'", script)
         self.assertIn("HTMLFormElement.prototype.submit", script)
+        self.assertIn("requestSubmit", script)
+        self.assertIn("addEventListener('submit'", script)
+        self.assertIn("preventDefault()", script)
         self.assertIn("credentials: 'same-origin'", script)
 
     def test_verified_capture_accepts_matching_content(self):
@@ -108,6 +111,7 @@ class FakePage:
     def __init__(self, frames):
         self.frames = frames
         self.listeners = {}
+        self.context = self
 
     def on(self, event, handler):
         self.listeners[event] = handler
