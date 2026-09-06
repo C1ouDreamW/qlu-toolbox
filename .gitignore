@@ -72,3 +72,6 @@ keystore.properties
 *.xls
 /*.zip
 /*.sha256
+
+# 本地临时文件
+/temp/
