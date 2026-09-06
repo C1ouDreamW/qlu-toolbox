@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  面向齐鲁工业大学学生的非官方工具，提供分项成绩导出和 GPA 计算。<br>
+  面向齐鲁工业大学学生的非官方工具，提供分项成绩导出、GPA 计算和学分修读情况核对。<br>
   用户在独立浏览器或受限 WebView 中手动登录，成绩解析与计算均在本机完成。
 </p>
 
@@ -40,8 +40,8 @@
 
 | 平台 | 当前版本 | 发布形式 | 说明 |
 |---|---:|---|---|
-| Windows x64 | 1.1.0 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
-| macOS Apple Silicon | 1.1.0 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
+| Windows x64 | 1.3.0 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
+| macOS Apple Silicon | 1.3.0 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
 | Android 7.0 及以上 | 1.2.4（versionCode 9） | APK | 使用系统 WebView，支持系统文件保存和应用内更新检查 |
 
 所有正式产物均发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases)。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
@@ -53,6 +53,7 @@
 - **分项成绩导出**：选择学年、学期和保存目录，在浏览器中手动登录后自动查询并导出 Excel。
 - **结果校验**：保存前识别 XLS/XLSX，并核对工作簿中的实际学期，降低误保存其他学期数据的风险。
 - **GPA 计算器**：读取分项成绩 XLSX，展示课程成绩分项，支持逐课勾选并计算总学分、总成绩点和加权平均 GPA。
+- **学分修读情况**：登录教务系统后读取培养方案修读要求、全部学期成绩和最新学年选课名单，对照综合素质选修课要求统计已修、在修和差额，高亮未修读完的项目并给出推荐选课方向。
 - **任务记录**：保存成功、失败、取消和异常中断的任务状态。
 - **本地设置**：管理默认目录、浏览器偏好、主题、更新检查和登录状态。
 - **备用浏览器**：Edge 和 Chrome 均不可用时，可在应用内按需下载与当前 Playwright 版本匹配的 Chromium。
@@ -100,6 +101,7 @@ macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若
 |---|---|---|
 | 设置 | `%APPDATA%\QLUToolbox\settings.json` | `~/Library/Application Support/QLUToolbox/settings.json` |
 | 任务、日志和浏览器数据 | `%LOCALAPPDATA%\QLUToolbox` | `~/Library/Application Support/QLUToolbox` |
+| 学分要求模板与培养方案快照 | `%LOCALAPPDATA%\QLUToolbox\credit-report` | `~/Library/Application Support/QLUToolbox/credit-report` |
 | 导出文件 | 用户选择的目录，默认通常为“下载” | 用户选择的目录，默认通常为“下载” |
 
 浏览器档案可能包含 Cookie 等敏感会话数据，请勿上传或分享。完整路径可在“设置 → 数据管理”中查看。
@@ -241,6 +243,7 @@ qlu_toolbox/bridge.py                 设置、任务、浏览器组件和 Worke
 qlu_toolbox/core/                     路径、设置、任务数据库和工具定义
 qlu_toolbox/modules/grade_export/     桌面分项成绩导出领域与 Playwright Worker
 qlu_toolbox/modules/gpa_calculator/   桌面 XLSX 解析与 GPA 规则
+qlu_toolbox/modules/credit_report/    学分修读情况：培养方案解析、归类规则与统计引擎
 apps/mobile/src/                      Android 端 Vue、Capacitor 和 Web Worker 代码
 apps/mobile/android/                  Kotlin Activity、原生插件、Room 和 Gradle 工程
 packages/contracts/                   移动端共享 TypeScript 数据契约
