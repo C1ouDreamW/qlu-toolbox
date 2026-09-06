@@ -29,6 +29,14 @@ from qlu_toolbox.core.metadata import (
 from qlu_toolbox.core.paths import AppPaths
 from qlu_toolbox.core.settings import AppSettings, SettingsStore
 from qlu_toolbox.core.tasks import TaskStore
+from qlu_toolbox.modules.credit_report import MANIFEST as CREDIT_MANIFEST
+from qlu_toolbox.modules.credit_report.domain import (
+    PLAN_SNAPSHOT_NAME,
+    SNAPSHOT_DIR_NAME,
+    load_rules,
+    rules_path,
+    save_rules,
+)
 from qlu_toolbox.modules.grade_export import MANIFEST
 from qlu_toolbox.modules.grade_export.domain import SEMESTERS, default_academic_year, validate_academic_year
 from qlu_toolbox.modules.gpa_calculator import MANIFEST as GPA_MANIFEST
@@ -81,6 +89,12 @@ class Bridge:
             "startGradeExport": self.start_grade_export,
             "gradeCommand": self.grade_command,
             "parseGradeWorkbook": self.parse_grade_workbook,
+            "startCreditReport": self.start_credit_report,
+            "creditCommand": self.grade_command,
+            "getCreditRules": self.get_credit_rules,
+            "saveCreditRules": self.save_credit_rules,
+            "resetCreditRules": self.reset_credit_rules,
+            "getCreditPlanDraft": self.get_credit_plan_draft,
         }
         if method not in handlers:
             raise ValueError(f"未知操作：{method}")
@@ -94,7 +108,7 @@ class Bridge:
             "defaultAcademicYear": default_academic_year(),
             "semesters": SEMESTERS,
             "tool": asdict(MANIFEST),
-            "tools": [asdict(MANIFEST), asdict(GPA_MANIFEST)],
+            "tools": [asdict(MANIFEST), asdict(GPA_MANIFEST), asdict(CREDIT_MANIFEST)],
             "browserComponent": self.get_browser_component_status({}),
             "paths": {
                 "settings": str(self.settings_store.path),
@@ -319,7 +333,7 @@ class Bridge:
     def start_grade_export(self, params: dict[str, Any]) -> dict[str, str]:
         with self.lock:
             if self.worker is not None and self.worker.poll() is None:
-                raise RuntimeError("已有导出任务正在运行")
+                raise RuntimeError("已有任务正在运行")
             academic_year = validate_academic_year(str(params.get("academicYear", "")))
             semester = str(params.get("semester", ""))
             if semester not in SEMESTERS.values():
@@ -351,6 +365,58 @@ class Bridge:
             threading.Thread(target=self._read_worker, args=(self.worker, task_id), daemon=True).start()
             return {"taskId": task_id}
 
+    def start_credit_report(self, params: dict[str, Any]) -> dict[str, str]:
+        with self.lock:
+            if self.worker is not None and self.worker.poll() is None:
+                raise RuntimeError("已有任务正在运行")
+            task_id = self.tasks.create(
+                CREDIT_MANIFEST.id, CREDIT_MANIFEST.name, CREDIT_MANIFEST.version, "学分修读情况统计"
+            )
+            command = self._worker_command() + [
+                "--worker", "credit-report",
+                "--browser", self.settings.preferred_browser,
+                "--keep-login", "yes" if self.settings.keep_login_state else "no",
+            ]
+            self.worker = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+            )
+            self.worker_task_id = task_id
+            threading.Thread(
+                target=self._read_worker, args=(self.worker, task_id, "creditReport"), daemon=True
+            ).start()
+            return {"taskId": task_id}
+
+    def get_credit_rules(self, _params: dict[str, Any]) -> dict[str, Any]:
+        return load_rules(self.paths)
+
+    def save_credit_rules(self, params: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(params, dict) or not params:
+            raise ValueError("缺少规则内容")
+        return save_rules(self.paths, params)
+
+    def reset_credit_rules(self, _params: dict[str, Any]) -> dict[str, Any]:
+        path = rules_path(self.paths)
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return load_rules(self.paths)
+
+    def get_credit_plan_draft(self, _params: dict[str, Any]) -> dict[str, Any]:
+        path = self.paths.data_dir / SNAPSHOT_DIR_NAME / PLAN_SNAPSHOT_NAME
+        try:
+            content = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, ValueError):
+            return {"exists": False, "path": str(path), "snapshot": {}}
+        return {"exists": True, "path": str(path), "snapshot": content}
+
     @staticmethod
     def _worker_command() -> list[str]:
         if getattr(sys, "frozen", False) or "__compiled__" in globals():
@@ -378,7 +444,7 @@ class Bridge:
         if worker.poll() is None:
             worker.kill()
 
-    def _read_worker(self, worker: subprocess.Popen[str], task_id: str) -> None:
+    def _read_worker(self, worker: subprocess.Popen[str], task_id: str, event_name: str = "gradeExport") -> None:
         terminal = False
         assert worker.stdout is not None
         for line in worker.stdout:
@@ -391,19 +457,19 @@ class Bridge:
                 self.tasks.complete(task_id, str(event.get("path", "")))
                 terminal = True
             elif kind == "error":
-                self.tasks.fail(task_id, str(event.get("message", "导出失败")))
+                self.tasks.fail(task_id, str(event.get("message", "任务失败")))
                 terminal = True
             elif kind == "cancelled":
                 self.tasks.cancel(task_id)
                 terminal = True
-            self.emit({"channel": "event", "name": "gradeExport", "taskId": task_id, "event": event})
+            self.emit({"channel": "event", "name": event_name, "taskId": task_id, "event": event})
         exit_code = worker.wait()
         if not terminal:
             stderr = worker.stderr.read().strip() if worker.stderr else ""
             message = stderr or f"后台任务异常结束（退出码 {exit_code}）"
             self.tasks.fail(task_id, message)
             self.emit({
-                "channel": "event", "name": "gradeExport", "taskId": task_id,
+                "channel": "event", "name": event_name, "taskId": task_id,
                 "event": {"type": "error", "code": "WORKER_EXIT", "message": message},
             })
         with self.lock:

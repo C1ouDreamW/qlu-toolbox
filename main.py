@@ -14,7 +14,7 @@ def configure_streams() -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="QLU 工具箱")
     parser.add_argument("--bridge", action="store_true")
-    parser.add_argument("--worker", choices=("grade-export",))
+    parser.add_argument("--worker", choices=("grade-export", "credit-report"))
     parser.add_argument("--year")
     parser.add_argument("--semester")
     parser.add_argument("--output")
@@ -45,6 +45,14 @@ def main() -> int:
             arguments.year,
             arguments.semester,
             arguments.output,
+            arguments.browser,
+            arguments.keep_login == "yes",
+            arguments.event_file,
+        )
+    if arguments.worker == "credit-report":
+        from qlu_toolbox.modules.credit_report.worker import worker_main
+
+        return worker_main(
             arguments.browser,
             arguments.keep_login == "yes",
             arguments.event_file,

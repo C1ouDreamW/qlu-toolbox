@@ -13,6 +13,7 @@ import SettingsPage from '@/pages/SettingsPage.vue'
 import AboutPage from '@/pages/AboutPage.vue'
 import GradeExportPage from '@/pages/GradeExportPage.vue'
 import GPACalculatorPage from '@/pages/GPACalculatorPage.vue'
+import CreditReportPage from '@/pages/CreditReportPage.vue'
 import { appStore } from '@/store'
 import { logoUrl } from '@/assets'
 import type { PageName } from '@/types'
@@ -23,7 +24,7 @@ const api = window.qlu
 const reloadApp = () => window.location.reload()
 const checkingUpdate = ref(false)
 const boot = appStore.boot
-const pageComponent = computed(() => ({ home: HomePage, tools: ToolsPage, tasks: TasksPage, settings: SettingsPage, about: AboutPage, grade: GradeExportPage, gpa: GPACalculatorPage }[appStore.state.page]))
+const pageComponent = computed(() => ({ home: HomePage, tools: ToolsPage, tasks: TasksPage, settings: SettingsPage, about: AboutPage, grade: GradeExportPage, gpa: GPACalculatorPage, credit: CreditReportPage }[appStore.state.page]))
 const browser = appStore.state.browser
 
 function navigate(page: PageName) { appStore.navigate(page) }
