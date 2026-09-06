@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import shutil
 import tempfile
 import threading
@@ -84,6 +85,7 @@ def _wait_for_capture(
 
     context = page.context
     context.on("download", on_download)
+    last_click = ""
     try:
         while time.monotonic() < deadline:
             _check_cancelled(cancel_event)
@@ -95,7 +97,16 @@ def _wait_for_capture(
                     state = frame.evaluate(script)
                 except Exception:
                     continue
+                click = str((state or {}).get("lastClick") or "")
+                if click and click != last_click:
+                    last_click = click
+                    _event(emit, "log", message=f"已检测到页面点击「{click}」，正在等待导出响应…")
                 result = (state or {}).get("result")
+                if isinstance(result, str):
+                    try:
+                        result = json.loads(result)
+                    except json.JSONDecodeError:
+                        result = None
                 if isinstance(result, dict):
                     if not result.get("ok"):
                         raise ScheduleImportError(str(result.get("message") or "教务系统没有返回课表文件"))

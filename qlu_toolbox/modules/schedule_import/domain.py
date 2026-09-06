@@ -61,9 +61,11 @@ def build_interceptor_script() -> str:
     (() => {
       const existing = window.__LUMATILE_SCHEDULE_IMPORT__;
       if (existing?.installed) {
-        return { installed: true, started: Boolean(existing.started), result: existing.result };
+        return { installed: true, started: Boolean(existing.started), result: existing.result, lastClick: existing.lastClick || '' };
       }
-      const state = window.__LUMATILE_SCHEDULE_IMPORT__ = { installed: true, started: false, result: null, base64: null };
+      const state = window.__LUMATILE_SCHEDULE_IMPORT__ = {
+        installed: true, started: false, result: null, base64: null, lastClick: '', clickCount: 0,
+      };
       const MARKER = '%(marker)s';
       const isExport = (url) => url.origin === location.origin && url.pathname.endsWith(MARKER);
       const start = (url, body) => {
@@ -89,7 +91,10 @@ def build_interceptor_script() -> str:
           } catch (error) {
             return JSON.stringify({ ok: false, message: String(error?.message || error) });
           }
-        })().then(result => { state.result = result; });
+        })().then(text => {
+          try { state.result = JSON.parse(text); }
+          catch (error) { state.result = { ok: false, message: String(text) }; }
+        });
       };
       const intercept = function (original, args) {
         const url = new URL(this.action || location.href, location.href);
@@ -113,7 +118,49 @@ def build_interceptor_script() -> str:
         if (state.started) return;
         start(url, new URLSearchParams(new FormData(form)));
       }, true);
-      return { installed: true, started: false, result: null };
+      // 页面自身脚本发起的 AJAX 导出：劫持 fetch/XHR，用同参数重发并接管响应。
+      const captureFromUrl = (value, base, body) => {
+        try {
+          const url = new URL(value, base);
+          if (!isExport(url)) return;
+          if (state.started) return;
+          start(url, body || new URLSearchParams(url.search));
+        } catch (error) { /* 忽略无法解析的地址 */ }
+      };
+      const originalFetch = window.fetch;
+      window.fetch = function (input, init) {
+        try {
+          if (init && init.method && init.method.toUpperCase() !== 'GET') {
+            captureFromUrl(typeof input === 'string' || input instanceof URL ? input.toString() : input.url, location.href, init.body);
+          }
+        } catch (error) { /* 忽略 */ }
+        return originalFetch.apply(this, arguments);
+      };
+      const originalOpen = XMLHttpRequest.prototype.open;
+      const originalSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function (method, url) {
+        this.__qluExportUrl = url;
+        this.__qluExportMethod = method;
+        return originalOpen.apply(this, arguments);
+      };
+      XMLHttpRequest.prototype.send = function (body) {
+        try {
+          if (this.__qluExportMethod && this.__qluExportMethod.toUpperCase() !== 'GET') {
+            captureFromUrl(this.__qluExportUrl, location.href, body);
+          }
+        } catch (error) { /* 忽略 */ }
+        return originalSend.apply(this, arguments);
+      };
+      // 可观测性：记录导出相关按钮的点击，轮询端会作为日志回传。
+      document.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target.closest('button,a,input,[role="button"]') : null;
+        if (!target) return;
+        const text = (target.textContent || target.value || target.title || target.getAttribute('aria-label') || '').trim();
+        if (!/输出|导出|excel|打印/i.test(text)) return;
+        state.clickCount += 1;
+        state.lastClick = text.slice(0, 24) || '未命名按钮';
+      }, true);
+      return { installed: true, started: false, result: null, lastClick: '' };
     })()
     """ % {"marker": EXPORT_FORM_PATH_MARKER, "maxBytes": MAX_EXPORT_BYTES}
 
