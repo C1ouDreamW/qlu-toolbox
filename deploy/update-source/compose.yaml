@@ -11,7 +11,7 @@ services:
       - feedback
 
   feedback:
-    build: ../feedback
+    build: ${FEEDBACK_BUILD_CONTEXT:-../feedback}
     restart: unless-stopped
     environment:
       FEEDBACK_DB_PATH: /data/feedback.db

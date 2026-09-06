@@ -8,6 +8,7 @@
 
 1. 将本目录复制到服务器，例如 `/opt/lumatile-update`。
 2. 将发布工作流生成的 `update-source` 内容放入 `data/`。
+   如果服务器使用扁平目录、反馈服务位于本目录的 `feedback/`，请在 `.env` 中设置 `FEEDBACK_BUILD_CONTEXT=./feedback`。
 3. 运行 `docker compose up -d`。
 4. 将 `host-nginx.conf.example` 合并到宿主机 Nginx，并为域名签发证书。
 5. 验证：`curl https://lumatile.ishua.cloud/healthz`、两个 `/stable/*.json` 和 `/api/feedback`。
