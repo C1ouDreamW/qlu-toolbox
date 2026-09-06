@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { App as CapacitorApp } from '@capacitor/app'
-import { AlertCircle, Archive, ArrowLeft, BookOpen, Calculator, CalendarDays, Check, ChevronRight, Code2, Download, Eraser, FileDown, FileSpreadsheet, FolderOpen, Grid2X2, Heart, Info, LockKeyhole, Play, RefreshCw, RotateCcw, Search, Settings, ShieldAlert, ShieldCheck, SquareActivity, UploadCloud, UserRoundCheck, Wifi } from 'lucide-vue-next'
+import { AlertCircle, Archive, ArrowLeft, BookOpen, Calculator, CalendarDays, Check, ChevronRight, Code2, Download, Eraser, FileDown, FileSpreadsheet, FolderOpen, Grid2X2, Heart, Info, LockKeyhole, MessageSquareText, Play, RefreshCw, RotateCcw, Search, Settings, ShieldAlert, ShieldCheck, SquareActivity, UploadCloud, UserRoundCheck, Wifi } from 'lucide-vue-next'
 import { calculateGpa, defaultAcademicYear, semesterName } from '@lumatile/academic-core'
 import type { GPACourse, GPAWorkbook, GradeEvent, GradeTaskSnapshot, SemesterCode } from '@lumatile/contracts'
 import { gradeExport } from './gradeExport'
@@ -13,6 +13,7 @@ import type { Announcement, AvailableUpdate, UpdateDownloadProgress } from './up
 import brandIconUrl from '../../../assets/qlu-toolbox.png'
 import mobilePackage from '../package.json'
 import SchedulePage from './SchedulePage.vue'
+import FeedbackSheet from './FeedbackSheet.vue'
 import { BACK_EXIT_WINDOW_MS, isSecondBackPress } from './backNavigation'
 
 type Page = 'schedule' | 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about'
@@ -21,6 +22,7 @@ const legalNoticeVersion = '2026-07-19'
 const savedStartPage = localStorage.getItem('scheduleStartPage')
 const startPage = ref<StartPage>(savedStartPage === 'toolbox' || savedStartPage === 'last' ? savedStartPage : 'schedule')
 const startPageDialogOpen = ref(false)
+const feedbackOpen = ref(false)
 const exitHintVisible = ref(false)
 const startPageOptions = [
   { value: 'schedule' as const, label: '课表', description: '打开后直接查看本周课程', icon: CalendarDays },
@@ -256,6 +258,7 @@ function promptExit() {
 
 async function handleAndroidBack() {
   if (!legalNoticeAccepted.value) return
+  if (feedbackOpen.value) { feedbackOpen.value = false; clearExitHint(); return }
   if (availableUpdate.value) {
     if (!availableUpdate.value.mandatory && !updateInstalling.value) availableUpdate.value = null
     clearExitHint()
@@ -383,6 +386,7 @@ onBeforeUnmount(() => {
       <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
       <button class="setting-card" type="button" :aria-pressed="autoUpdateCheck" @click="toggleAutoUpdateCheck"><RefreshCw /><span><strong>自动检查更新</strong><small>启动时访问公开更新源，获取新版本提醒</small></span><span class="start-page-current">{{ autoUpdateCheck ? '已开启' : '已关闭' }}</span></button>
       <button class="setting-card" type="button" :aria-pressed="anonymousStats" @click="toggleAnonymousStats"><ShieldCheck /><span><strong>匿名使用统计</strong><small>发送随机安装编号、软件版本和系统类型；不含任何个人信息</small></span><span class="start-page-current">{{ anonymousStats ? '已开启' : '已关闭' }}</span></button>
+      <button class="setting-card feedback-entry" @click="feedbackOpen = true"><MessageSquareText /><span><strong>反馈与建议</strong><small>遇到问题或有个想法？一句话告诉我们</small></span><ChevronRight /></button>
       <button class="setting-card about-entry" @click="selectPage('about')"><Info /><span><strong>关于与声明</strong><small>查看非官方声明、职责声明和免责声明</small></span><ChevronRight /></button>
       <div class="settings-footnote"><ShieldAlert />非学校官方 · 仅供学习交流</div>
     </section>
@@ -414,6 +418,8 @@ onBeforeUnmount(() => {
     <nav v-if="['schedule', 'home', 'settings'].includes(page)" class="primary-nav"><button :class="{active:page==='schedule'}" @click="selectPage('schedule')"><CalendarDays />课表</button><button :class="{active:page==='home'}" @click="selectPage('home')"><Grid2X2 />工具箱</button><button :class="{active:page==='settings'}" @click="selectPage('settings')"><Settings />我的</button></nav>
 
     <Transition name="fade"><div v-if="exitHintVisible" class="exit-hint" role="status">再按一次返回键退出应用</div></Transition>
+
+    <FeedbackSheet v-if="feedbackOpen" :version="mobilePackage.version" @close="feedbackOpen = false" />
 
     <div v-if="startPageDialogOpen" class="start-page-backdrop" @click.self="startPageDialogOpen = false">
       <section class="start-page-dialog" role="dialog" aria-modal="true" aria-labelledby="start-page-dialog-title">
