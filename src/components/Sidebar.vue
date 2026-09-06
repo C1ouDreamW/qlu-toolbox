@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { CalendarDays, Home, LayoutGrid, ListChecks, Settings, Info, ChevronRight } from 'lucide-vue-next'
+import { CalendarDays, Home, LayoutGrid, ListChecks, Settings, Info, ChevronRight, MessageSquareText } from 'lucide-vue-next'
 import { logoUrl } from '@/assets'
 import type { PageName } from '@/types'
 
 defineProps<{ current: PageName; version: string }>()
-const emit = defineEmits<{ navigate: [page: PageName] }>()
+const emit = defineEmits<{ navigate: [page: PageName]; feedback: [] }>()
 const items = [
   { id: 'schedule' as const, label: '课表', icon: CalendarDays },
   { id: 'home' as const, label: '首页', icon: Home },
@@ -27,6 +27,7 @@ const items = [
       </button>
     </nav>
     <div class="sidebar-spacer" />
+    <button class="sidebar-feedback" @click="emit('feedback')"><MessageSquareText :size="17" /><span>反馈与建议</span></button>
     <div class="privacy-note"><div class="pulse-dot" /><div><strong>完全本地运行</strong><span>账号与成绩不会上传</span></div></div>
     <div class="sidebar-footer"><span>非学校官方软件</span><span>v{{ version }}</span></div>
   </aside>

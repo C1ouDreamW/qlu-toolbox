@@ -6,6 +6,7 @@ import { logoUrl } from '@/assets'
 import { appStore } from '@/store'
 
 defineProps<{ data: BootstrapData }>()
+const emit = defineEmits<{ feedback: [] }>()
 const api = window.qlu
 const qqGroupNumber = '438767737'
 
@@ -63,7 +64,7 @@ async function copyQQGroupNumber() {
           <button @click="api.openExternal(data.metadata.repository)"><Github :size="18" /><span><strong>GitHub</strong><small>查看项目源码</small></span><ExternalLink :size="13" /></button>
           <button class="about-contact-card" type="button" title="点击复制群号" :aria-label="`复制 QQ 群号 ${qqGroupNumber}`" @click="copyQQGroupNumber"><span class="qq-symbol">Q</span><span><strong>加入 QQ 群</strong><small>{{ qqGroupNumber }}</small></span><Copy :size="13" /></button>
           <button @click="api.openExternal(`mailto:${data.metadata.email}`)"><Mail :size="18" /><span><strong>联系作者</strong><small>cloud_aaa@163.com</small></span></button>
-          <button @click="api.openExternal(data.metadata.issues)"><Bug :size="18" /><span><strong>反馈问题</strong><small>提交 Bug 或建议</small></span></button>
+          <button @click="emit('feedback')"><Bug :size="18" /><span><strong>反馈问题</strong><small>在应用内告诉我们</small></span></button>
         </div>
       </div>
     </section>

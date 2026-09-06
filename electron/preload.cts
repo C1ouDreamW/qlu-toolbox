@@ -21,5 +21,7 @@ contextBridge.exposeInMainWorld('qlu', {
   checkUpdate: (currentVersion: string) => ipcRenderer.invoke('system:check-update', currentVersion),
   sendStatsBeacon: () => ipcRenderer.invoke('system:send-stats-beacon'),
   fetchAnnouncement: () => ipcRenderer.invoke('system:fetch-announcement'),
+  submitFeedback: (payload: { type: 'bug' | 'suggestion'; content: string; contact: string }) =>
+    ipcRenderer.invoke('system:submit-feedback', payload),
   windowAction: (action: 'minimize' | 'maximize' | 'close') => ipcRenderer.send('window:action', action),
 })

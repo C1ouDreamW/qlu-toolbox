@@ -6,6 +6,7 @@ import {
 import TitleBar from '@/components/TitleBar.vue'
 import Sidebar from '@/components/Sidebar.vue'
 import BaseModal from '@/components/BaseModal.vue'
+import FeedbackModal from '@/components/FeedbackModal.vue'
 import HomePage from '@/pages/HomePage.vue'
 import ToolsPage from '@/pages/ToolsPage.vue'
 import TasksPage from '@/pages/TasksPage.vue'
@@ -24,6 +25,7 @@ const disclaimerConfirmed = ref(false)
 const api = window.qlu
 const reloadApp = () => window.location.reload()
 const checkingUpdate = ref(false)
+const feedbackOpen = ref(false)
 const boot = appStore.boot
 const pageComponent = computed(() => ({ schedule: SchedulePage, home: HomePage, tools: ToolsPage, tasks: TasksPage, settings: SettingsPage, about: AboutPage, grade: GradeExportPage, gpa: GPACalculatorPage }[appStore.state.page]))
 const browser = appStore.state.browser
@@ -87,8 +89,8 @@ onMounted(async () => {
     <div v-if="appStore.state.loading" class="launch-screen"><div class="launch-logo"><img :src="logoUrl" alt="一格有光 Logo" /></div><div class="spinner" /><p>正在准备你的工作台…</p></div>
     <div v-else-if="appStore.state.error" class="fatal-screen"><AlertCircle :size="38" /><h2>无法启动本地服务</h2><p>{{ appStore.state.error }}</p><button class="primary-button" @click="reloadApp">重新尝试</button></div>
     <div v-else-if="boot" class="workspace">
-      <Sidebar :current="appStore.state.page" :version="boot.version" @navigate="navigate" />
-      <main class="content"><component :is="pageComponent" :key="appStore.state.page" :data="boot" @navigate="navigate" @check-update="checkUpdate(true)" /></main>
+      <Sidebar :current="appStore.state.page" :version="boot.version" @navigate="navigate" @feedback="feedbackOpen = true" />
+      <main class="content"><component :is="pageComponent" :key="appStore.state.page" :data="boot" @navigate="navigate" @check-update="checkUpdate(true)" @feedback="feedbackOpen = true" /></main>
     </div>
 
     <Transition name="toast"><div v-if="appStore.state.toast" class="toast" :data-tone="appStore.state.toast.tone"><CheckCircle2 v-if="appStore.state.toast.tone === 'success'" :size="19" /><AlertCircle v-else-if="appStore.state.toast.tone === 'error'" :size="19" /><Info v-else :size="19" /><span>{{ appStore.state.toast.message }}</span></div></Transition>
@@ -101,6 +103,7 @@ onMounted(async () => {
     </BaseModal>
     <BaseModal v-if="update" title="发现新版本" dismissible @close="update = null"><span class="update-version">{{ update.version }}</span><p class="modal-lead">{{ update.name || '一格有光更新' }}</p><p class="update-notes">{{ update.notes || '本次发布暂无详细说明。' }}</p><div class="modal-actions"><button class="secondary-button" @click="update = null">稍后再说</button><button class="primary-button" @click="api.openExternal(update!.url)">查看新版本</button></div></BaseModal>
     <BaseModal v-if="announcement" :title="announcement.level === 'warning' ? '重要通知' : '公告'" dismissible @close="dismissAnnouncement"><span class="update-version">{{ announcement.title }}</span><p class="modal-lead">{{ announcement.body }}</p><div class="modal-actions"><button v-if="announcement.url" class="secondary-button" @click="api.openExternal(announcement.url!)">查看详情</button><button class="primary-button" @click="dismissAnnouncement">知道了</button></div></BaseModal>
+    <FeedbackModal v-if="boot && feedbackOpen" :version="boot.version" @close="feedbackOpen = false" />
     <BaseModal v-if="browser.required" :title="browser.error ? '浏览器组件下载未完成' : browser.installing ? '正在准备备用浏览器' : '需要备用浏览器组件'">
       <div class="browser-download-mark" :data-state="browser.error ? 'error' : browser.installing ? 'loading' : 'ready'">
         <XCircle v-if="browser.error" :size="28" />

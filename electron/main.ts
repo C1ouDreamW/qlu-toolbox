@@ -1,6 +1,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
+import { release } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PythonBridge } from './bridge.js'
@@ -11,6 +12,7 @@ let mainWindow: BrowserWindow | null = null
 const UPDATE_MANIFEST_URL = 'https://lumatile.ishua.cloud/stable/desktop.json'
 const ANNOUNCEMENT_URL = 'https://lumatile.ishua.cloud/stable/announcement.json'
 const STATS_BEACON_URL = 'https://lumatile.ishua.cloud/beacon/desktop'
+const FEEDBACK_URL = 'https://lumatile.ishua.cloud/api/feedback'
 
 function isNewerVersion(candidate: string, current: string) {
   const numeric = (value: string) => value.replace(/^v/, '').split('-')[0].split('.').map(Number)
@@ -119,6 +121,28 @@ async function fetchAnnouncement() {
   } catch { /* 公告拉取失败静默 */ }
 }
 
+async function submitFeedback(payload: { type?: unknown; content?: unknown; contact?: unknown }) {
+  const type = payload.type
+  const content = typeof payload.content === 'string' ? payload.content.trim() : ''
+  const contact = typeof payload.contact === 'string' ? payload.contact.trim() : ''
+  if (!['bug', 'suggestion'].includes(String(type)) || content.length < 2 || content.length > 2000 || contact.length > 120) {
+    throw new Error('请检查反馈内容后重试')
+  }
+  const response = await fetch(FEEDBACK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'LumaTile-Feedback' },
+    body: JSON.stringify({
+      type, content, contact, platform: 'desktop', appVersion: app.getVersion(),
+      systemVersion: `${process.platform} ${release()} · ${process.arch}`,
+    }),
+    signal: AbortSignal.timeout(10_000),
+  })
+  const result = await response.json().catch(() => ({})) as { id?: unknown; error?: unknown }
+  if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : `反馈服务返回 ${response.status}`)
+  if (typeof result.id !== 'string') throw new Error('反馈服务响应无效')
+  return { id: result.id }
+}
+
 function createWindow() {
   const isMac = process.platform === 'darwin'
   mainWindow = new BrowserWindow({
@@ -194,6 +218,7 @@ function registerIpc() {
   })
   ipcMain.handle('system:send-stats-beacon', () => sendStatsBeacon())
   ipcMain.handle('system:fetch-announcement', () => fetchAnnouncement())
+  ipcMain.handle('system:submit-feedback', (_event, payload) => submitFeedback(payload ?? {}))
   ipcMain.on('window:action', (_event, action: string) => {
     if (action === 'minimize') mainWindow?.minimize()
     else if (action === 'maximize') mainWindow?.isMaximized() ? mainWindow.unmaximize() : mainWindow?.maximize()
