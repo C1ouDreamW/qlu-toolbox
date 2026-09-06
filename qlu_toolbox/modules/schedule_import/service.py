@@ -37,8 +37,8 @@ class _LaunchOptions(NamedTuple):
     keep_login_state: bool
 
 
-def _event(emit: EventSink, kind: str, **payload: object) -> None:
-    emit({"type": kind, **payload})
+def _event(emit: EventSink, event_type: str, **payload: object) -> None:
+    emit({"type": event_type, **payload})
 
 
 def _check_cancelled(cancel_event: threading.Event) -> None:

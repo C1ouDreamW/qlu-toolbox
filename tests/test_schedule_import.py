@@ -142,6 +142,13 @@ class EmitSink:
         self.events.append(event)
 
 
+class EventTests(unittest.TestCase):
+    def test_success_event_can_include_workbook_kind(self):
+        emit = EmitSink()
+        capture_service._event(emit, "success", kind="workbook")
+        self.assertEqual(emit.events, [{"type": "success", "kind": "workbook"}])
+
+
 class WaitForCaptureTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
