@@ -11,6 +11,7 @@ from typing import Callable, NamedTuple
 from qlu_toolbox.core.browser_component import configure_browser_environment
 from qlu_toolbox.core.paths import AppPaths
 from qlu_toolbox.modules.grade_export.domain import BASE_URL as SCHOOL_BASE_URL
+from qlu_toolbox.modules.grade_export.domain import workbook_extension
 from qlu_toolbox.modules.grade_export.service import _launch_context, _wait_for_login
 from qlu_toolbox.modules.schedule_io import parse_schedule_source
 
@@ -26,6 +27,7 @@ from .domain import (
 )
 
 LOGIN_TIMEOUT_SECONDS = 15 * 60
+POLL_INTERVAL_SECONDS = 0.5
 EventSink = Callable[[dict[str, object]], None]
 
 
@@ -56,36 +58,64 @@ def _friendly_error(exc: Exception) -> tuple[str, str]:
 
 def _wait_for_capture(
     page,
+    work_root: Path,
     emit: EventSink,
     cancel_event: threading.Event,
-) -> tuple[dict[str, object], bytes]:
-    """反复注入拦截脚本并轮询状态，直到学校“输出EXCEL”表单被抓取。"""
+) -> tuple[bytes, str]:
+    """等待学校“输出EXCEL”触发导出。
+
+    双通道：向所有 frame 注入表单拦截脚本（覆盖导出表单在子 iframe 的情况），
+    同时监听浏览器下载事件作为兜底（覆盖按钮走原生提交、拦截脚本无法劫持的
+    情况——这类提交会被 Playwright 静默保存后丢弃）。返回 (内容, 扩展名)，
+    下载兜底路径扩展名为空，由调用方按魔数识别。
+    """
     deadline = time.monotonic() + CAPTURE_TIMEOUT_SECONDS
     reminder_deadline = time.monotonic() + 30
     script = build_interceptor_script()
-    while time.monotonic() < deadline:
-        _check_cancelled(cancel_event)
+    downloaded: list[Path] = []
+
+    def on_download(download) -> None:
         try:
-            state = page.evaluate(script)
+            target = work_root / "教务课表-网页下载"
+            download.save_as(str(target))
+            downloaded.append(target)
         except Exception:
-            state = None
-        result = (state or {}).get("result")
-        if isinstance(result, dict):
-            if not result.get("ok"):
-                raise ScheduleImportError(str(result.get("message") or "教务系统没有返回课表文件"))
-            _event(emit, "status", stage="validate", message="正在校验并解析课表文件…")
-            base64_payload = page.evaluate("() => window.__LUMATILE_SCHEDULE_IMPORT__.base64 || ''")
-            content = base64.b64decode(base64_payload or "")
-            return result, content
-        if time.monotonic() > reminder_deadline:
-            reminder_deadline = time.monotonic() + 60
-            _event(
-                emit,
-                "status",
-                stage="capture",
-                message="请在浏览器中选择学年、学期并点击学校页面的“输出EXCEL”按钮。",
-            )
-        time.sleep(0.5)
+            pass
+
+    page.on("download", on_download)
+    try:
+        while time.monotonic() < deadline:
+            _check_cancelled(cancel_event)
+            if downloaded:
+                _event(emit, "status", stage="validate", message="已捕获浏览器下载的课表文件，正在校验…")
+                return downloaded[0].read_bytes(), ""
+            for frame in page.frames:
+                try:
+                    state = frame.evaluate(script)
+                except Exception:
+                    continue
+                result = (state or {}).get("result")
+                if isinstance(result, dict):
+                    if not result.get("ok"):
+                        raise ScheduleImportError(str(result.get("message") or "教务系统没有返回课表文件"))
+                    _event(emit, "status", stage="validate", message="正在校验并解析课表文件…")
+                    payload = frame.evaluate("() => window.__LUMATILE_SCHEDULE_IMPORT__.base64 || ''")
+                    content = base64.b64decode(payload or "")
+                    return content, verified_capture(result, content)
+            if time.monotonic() > reminder_deadline:
+                reminder_deadline = time.monotonic() + 60
+                _event(
+                    emit,
+                    "status",
+                    stage="capture",
+                    message="请在浏览器中选择学年、学期并点击学校页面的“输出EXCEL”按钮。",
+                )
+            time.sleep(POLL_INTERVAL_SECONDS)
+    finally:
+        try:
+            page.remove_listener("download", on_download)
+        except Exception:
+            pass
     raise ScheduleImportError("等待导出超时，请重新开始导入")
 
 
@@ -159,8 +189,12 @@ def run_import(
                 stage="capture",
                 message="请在浏览器中选择学年、学期并点击学校页面的“输出EXCEL”按钮。",
             )
-            result, content = _wait_for_capture(login_page, emit, cancel_event)
-            extension = verified_capture(result, content)
+            content, extension = _wait_for_capture(login_page, work_root, emit, cancel_event)
+            if not extension:
+                try:
+                    extension = workbook_extension(content)
+                except RuntimeError as exc:
+                    raise ScheduleImportError(str(exc)) from exc
 
             workbook_path = work_root / f"教务课表{extension}"
             workbook_path.write_bytes(content)
