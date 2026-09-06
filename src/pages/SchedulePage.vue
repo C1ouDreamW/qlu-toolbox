@@ -480,8 +480,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <h3>还没有课表</h3>
         <p>新建一份空白课表手工维护，或导入教务导出的课表文件和同学分享的备份。</p>
         <div class="empty-actions">
-          <button class="primary-button" :disabled="busy" @click="createBlank"><FilePlus2 :size="16" /> 新建空白课表</button>
+          <button class="primary-button" :disabled="busy" @click="importFromSchool"><Download :size="16" /> 从教务导入</button>
           <button class="secondary-button" :disabled="busy" @click="importFromFile"><FolderOpen :size="16" /> 从文件导入…</button>
+          <button class="secondary-button" :disabled="busy" @click="createBlank"><FilePlus2 :size="16" /> 新建空白课表</button>
         </div>
       </section>
     </template>
