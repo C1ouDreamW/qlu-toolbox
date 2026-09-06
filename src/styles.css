@@ -261,11 +261,11 @@
 .manager-settings{display:grid;gap:18px}
 .settings-group h2{display:flex;align-items:center;gap:6px;margin:0 0 8px;color:var(--faint);font-size:var(--font-caption);font-weight:700}
 .settings-card{overflow:hidden;border:1px solid var(--line);border-radius:12px}
-.settings-card label{display:grid;grid-template-columns:110px 1fr;align-items:center;min-height:44px;border-bottom:1px solid var(--line);padding:0 13px;color:var(--muted);font-size:var(--font-caption);font-weight:600}
-.settings-card label:last-child{border-bottom:0}
-.settings-card input,.settings-card select{min-width:0;height:34px;padding:0;border:0;background:transparent;color:var(--text);text-align:right}
-.settings-card input:focus,.settings-card select:focus{outline:none}
-.settings-card input[type="date"]{text-align:right}
+.manager-settings .settings-card label{display:grid;grid-template-columns:110px 1fr;align-items:center;min-height:44px;border-bottom:1px solid var(--line);padding:0 13px;color:var(--muted);font-size:var(--font-caption);font-weight:600}
+.manager-settings .settings-card label:last-child{border-bottom:0}
+.manager-settings .settings-card input,.manager-settings .settings-card select{min-width:0;height:34px;padding:0;border:0;background:transparent;color:var(--text);text-align:right}
+.manager-settings .settings-card input:focus,.manager-settings .settings-card select:focus{outline:none}
+.manager-settings .settings-card input[type="date"]{text-align:right}
 .off-adder{display:grid;grid-template-columns:1.2fr 1fr 38px;gap:7px}
 .off-adder input{height:36px;padding:0 9px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--text)}
 .off-adder button{display:grid;place-items:center;border:0;border-radius:9px;color:var(--primary);background:var(--primary-soft)}
