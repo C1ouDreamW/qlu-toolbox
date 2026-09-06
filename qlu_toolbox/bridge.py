@@ -392,8 +392,16 @@ class Bridge:
 
     def start_schedule_import(self, _params: dict[str, Any]) -> dict[str, str]:
         with self.lock:
-            if self.worker is not None and self.worker.poll() is None:
-                raise RuntimeError("已有任务正在运行")
+            worker = self.worker
+            if worker is not None and worker.poll() is None:
+                if self.worker_kind != "schedule-import":
+                    raise RuntimeError("已有任务正在运行")
+                # 同类重试：取消上一次课表导入并等它退出，而不是直接拒绝。
+                self._send_worker_command("cancel")
+                try:
+                    worker.wait(timeout=8)
+                except subprocess.TimeoutExpired:
+                    raise RuntimeError("上一次课表导入仍在结束中，请几秒后再试")
             task_id = self.tasks.create(
                 SCHEDULE_MANIFEST.id, SCHEDULE_MANIFEST.name, SCHEDULE_MANIFEST.version,
                 "从教务系统导入课表",

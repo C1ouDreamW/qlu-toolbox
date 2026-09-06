@@ -381,6 +381,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <div class="page schedule-page">
+    <div v-if="importState.running" class="school-import-status">
+      <Loader2 class="spin" :size="15" />
+      <span>{{ importState.status || '正在导入课表…' }}</span>
+      <button class="text-button" @click="cancelSchoolImport">取消</button>
+    </div>
+
     <template v-if="schedule">
       <header class="schedule-header">
         <div class="schedule-heading">
@@ -421,12 +427,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </div>
         </div>
       </header>
-
-      <div v-if="importState.running" class="school-import-status">
-        <Loader2 class="spin" :size="15" />
-        <span>{{ importState.status || '正在导入课表…' }}</span>
-        <button class="text-button" @click="cancelSchoolImport">取消</button>
-      </div>
 
       <div class="timetable-scroll">
         <div class="timetable" :style="{ '--day-count': days.length }">
