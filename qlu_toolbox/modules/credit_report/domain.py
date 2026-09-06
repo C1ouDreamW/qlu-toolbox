@@ -42,7 +42,6 @@ CODE_FIELD_CANDIDATES = ("kch", "kcbh", "kcmc")
 FAIL_WORDS = ("不及格", "缺考", "作弊", "违纪", "旷考", "取消资格", "无效", "缓考")
 PASS_WORDS = ("合格", "及格", "优秀", "良好", "中等", "通过")
 IN_PROGRESS_WORDS = ("在修", "未评", "暂无", "待定", "--")
-ELECTIVE_MARKERS = ("选修", "公选", "任选", "通识", "素质")
 
 CREDIT_PATTERN = re.compile(r"^\d+(?:\.\d+)?$")
 HEX_ID = r"[0-9A-Fa-f]{32}"
@@ -110,11 +109,6 @@ def classify_score(score_text: str) -> str:
     if any(word in text for word in PASS_WORDS):
         return "passed"
     return "failed"
-
-
-def is_elective_like(record: CourseRecord) -> bool:
-    """未归入模块的课程，只有看起来像选修/通识课时才计入总学分。"""
-    return any(marker in record.category_text or marker in record.nature_text for marker in ELECTIVE_MARKERS)
 
 
 def is_general_elective(record: CourseRecord) -> bool:
@@ -380,15 +374,6 @@ def default_rules() -> CreditRules:
 RULES_SCHEMA_VERSION = 1
 
 
-def _sub_from_dict(data: dict[str, Any]) -> SubRule:
-    return SubRule(
-        key=str(data.get("key") or "sub"),
-        label=str(data.get("label") or "子模块"),
-        required=normalize_credit(data.get("required")),
-        keywords=[str(item) for item in data.get("keywords", []) if str(item)],
-    )
-
-
 def normalize_rules(data: dict[str, Any]) -> dict[str, Any]:
     rules = default_rules()
     if isinstance(data, dict):
@@ -404,7 +389,9 @@ def normalize_rules(data: dict[str, Any]) -> dict[str, Any]:
             override = by_key.get(module.key)
             if not override:
                 continue
-            module.required = normalize_credit(override.get("required"))
+            # 手工编辑的规则文件可能缺字段，缺失时保留默认值而不是归零。
+            if override.get("required") is not None:
+                module.required = normalize_credit(override.get("required"))
             module.keywords = [
                 str(item) for item in override.get("keywords", module.keywords) if str(item)
             ]
@@ -413,7 +400,7 @@ def normalize_rules(data: dict[str, Any]) -> dict[str, Any]:
             }
             for sub in module.subs:
                 sub_override = override_subs.get(sub.key)
-                if sub_override:
+                if sub_override and sub_override.get("required") is not None:
                     sub.required = normalize_credit(sub_override.get("required"))
     return rules_to_dict(rules)
 
@@ -480,12 +467,13 @@ def rules_from_dict(data: dict[str, Any]) -> CreditRules:
         override = by_key.get(module.key)
         if not override:
             continue
-        module.required = normalize_credit(override.get("required"))
+        if override.get("required") is not None:
+            module.required = normalize_credit(override.get("required"))
         module.keywords = [str(item) for item in override.get("keywords", []) if str(item)]
         override_subs = {sub["key"]: sub for sub in override.get("subs", [])}
         for sub in module.subs:
             sub_override = override_subs.get(sub.key)
-            if sub_override:
+            if sub_override and sub_override.get("required") is not None:
                 sub.required = normalize_credit(sub_override.get("required"))
     return rules
 

@@ -17,7 +17,6 @@ const showCourses = ref<string | null>(null)
 const showUnmatched = ref(false)
 const showExtra = ref(false)
 const rules = ref<CreditRules | null>(null)
-const rulesLoading = ref(false)
 
 const stages = [
   { id: 'environment', label: '检查环境' },
@@ -56,13 +55,10 @@ const progressPercent = computed(() => {
 const display = (value: number) => Number(value.toFixed(2)).toString()
 
 onMounted(async () => {
-  rulesLoading.value = true
   try {
     rules.value = await api.invoke<CreditRules>('getCreditRules')
   } catch {
     rules.value = null
-  } finally {
-    rulesLoading.value = false
   }
 })
 

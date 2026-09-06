@@ -34,15 +34,6 @@ from qlu_toolbox.modules.grade_export.service import _launch_context, _wait_for_
 YEARS_TO_QUERY = 8
 EventSink = Any
 
-STAGES = {
-    "environment": "检查运行环境",
-    "browser": "启动浏览器",
-    "login": "等待用户登录",
-    "plan": "读取培养方案",
-    "grades": "读取全部成绩",
-    "analyze": "统计学分修读情况",
-}
-
 
 @dataclass(frozen=True)
 class CreditOptions:
@@ -117,7 +108,11 @@ def _capture_plan(page, emit: EventSink, cancel_event: threading.Event) -> dict[
     page.on("response", on_response)
     try:
         page.goto(PLAN_INDEX_URL, wait_until="domcontentloaded", timeout=60_000)
-        page.wait_for_timeout(3_500)
+        # 教务页面加载慢时列表 XHR 可能晚到，多等两轮再放弃。
+        for _ in range(3):
+            if captured:
+                break
+            page.wait_for_timeout(3_500)
         _check_cancelled(cancel_event)
 
         items = (captured or {}).get("items") or []
@@ -159,11 +154,12 @@ def _capture_plan(page, emit: EventSink, cancel_event: threading.Event) -> dict[
             _check_cancelled(cancel_event)
             jdkcsx = node_jdkcsx.get(key, "1") or "1"
             body = f"xfyqjd_id={node_id}&jdkcsx={jdkcsx}"
+            text = ""
             try:
                 text = _fetch_in_page(page, PLAN_NODE_COURSES_URL, body)
                 data = json.loads(text.lstrip("﻿\r\n\t "))
             except Exception as exc:
-                head = " ".join(text[:100].split()) if isinstance(text, str) else "<无响应>"
+                head = " ".join(text[:100].split()) if text else "<无响应>"
                 _event(
                     emit,
                     "log",
@@ -412,7 +408,7 @@ def run_credit_report(
             records = [CourseRecord.from_item(item) for item in items]
             report = summarize(records, rules, plan)
             report["snapshotDir"] = str(snapshot_dir)
-            _event(emit, "success", report=report)
+            _event(emit, "success", report=report, path=str(snapshot_dir))
             return 0
     except CancelledError:
         _event(emit, "cancelled", message="操作已取消")

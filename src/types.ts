@@ -100,6 +100,7 @@ export interface CreditCourseStat {
   score: string
   term: string
   module: string
+  source: 'official' | 'keyword' | 'extra' | 'ignored'
 }
 
 export interface CreditSubStat {
