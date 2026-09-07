@@ -117,30 +117,20 @@ function unique<T>(values: T[]): T[] {
 
 export function parseWeekExpression(value: string, totalWeeks = 30): number[] {
   const weeks = new Set<number>()
-  const normalizedValue = value.replace(/[－—~～]/g, '-').replace(/\s+/g, '')
-  const pattern = /(\d+)(?:-(\d+))?周(?:\((单|双)\))?/g
-  for (const match of normalizedValue.matchAll(pattern)) {
-    const start = Number(match[1])
-    const end = Number(match[2] || match[1])
-    const parity = match[3]
-    for (let week = Math.max(1, start); week <= Math.min(totalWeeks, end); week += 1) {
+  const normalizedValue = value.replace(/[－—~～]/g, '-').replace(/[（]/g, '(').replace(/[）]/g, ')')
+    .replace(/\s+/g, '').replace(/\(\d+(?:-\d+)?节\)/g, '').replace(/[周()]/g, '')
+  if (!normalizedValue) return []
+  for (const token of normalizedValue.split(/[,，、;；]/)) {
+    const match = token.match(/^(单|双)?(\d+)(?:-(\d+))?(单|双)?$/)
+    if (!match) throw new ScheduleParseError(`无法识别周次：${token}`)
+    const start = Number(match[2])
+    const end = Number(match[3] || match[2])
+    const parity = match[1] || match[4]
+    if (start < 1 || end > totalWeeks || start > end) throw new ScheduleParseError(`周次需在 1-${totalWeeks} 内：${token}`)
+    for (let week = start; week <= end; week += 1) {
       if (parity === '单' && week % 2 === 0) continue
       if (parity === '双' && week % 2 !== 0) continue
       weeks.add(week)
-    }
-  }
-  if (!weeks.size) {
-    for (const token of normalizedValue.split(/[,，、;；]/)) {
-      const match = token.match(/^(单|双)?(\d+)(?:-(\d+))?(单|双)?$/)
-      if (!match) continue
-      const parity = match[1] || match[4]
-      const start = Number(match[2])
-      const end = Number(match[3] || match[2])
-      for (let week = Math.max(1, start); week <= Math.min(totalWeeks, end); week += 1) {
-        if (parity === '单' && week % 2 === 0) continue
-        if (parity === '双' && week % 2 !== 0) continue
-        weeks.add(week)
-      }
     }
   }
   return [...weeks].sort((left, right) => left - right)
@@ -155,7 +145,7 @@ function periodRange(value: string): [number | null, number | null] {
 function defaultTermSettings(academicYear: string, semester: string): { startDate: string; totalWeeks: number } {
   if (academicYear === '2026-2027' && semester === '1') return { startDate: '2026-09-07', totalWeeks: 19 }
   const year = Number(academicYear.slice(0, 4)) || new Date().getFullYear()
-  return { startDate: `${year}-09-01`, totalWeeks: 20 }
+  return { startDate: semester === '2' ? `${year + 1}-03-01` : `${year}-09-01`, totalWeeks: 20 }
 }
 
 function splitTeachers(value: string): string[] {
@@ -171,6 +161,7 @@ function parseCourseCell(value: string, weekday: number, number: number, totalWe
   const schedulePart = parts.find(part => /周.*节/.test(part)) || ''
   const scheduleIndex = parts.indexOf(schedulePart)
   const [startPeriod, endPeriod] = periodRange(schedulePart)
+  if (scheduleIndex < 0 || startPeriod === null || endPeriod === null || startPeriod < 1 || endPeriod > 11 || startPeriod > endPeriod) return null
   const teachingClass = value.match(/教学班[：:]\s*([^◇]+)/)?.[1]?.trim() || ''
   const creditValue = finiteNumber(value.match(/学分[：:]\s*([\d.]+)/)?.[1] || '')
   const teachers = splitTeachers(parts[scheduleIndex + 2] || '')
@@ -260,9 +251,16 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
     for (const [column, weekday] of dayColumns) {
       const value = (row[column] || '').trim()
       if (!value) continue
-      const parsed = parseCourseCell(value, weekday, ++meetingNumber, defaults.totalWeeks)
-      if (parsed) mergeCourse(courses, parsed)
-      else warnings.push(`无法识别课程单元格：${value.slice(0, 20)}`)
+      // A new course block starts with its name followed by a week expression.
+      const blocks = value.split(/(?:\r?\n|[;；])+\s*(?=[^◇\r\n]+◇\s*\d[^◇]*周)/)
+      for (const block of blocks) {
+        try {
+          if ((block.match(/周[^◇]*节/g) || []).length > 1) throw new ScheduleParseError('同一单元格含多个时段，请核对原文件')
+          const parsed = parseCourseCell(block, weekday, ++meetingNumber, 30)
+          if (parsed) mergeCourse(courses, parsed)
+          else warnings.push(`无法识别课程单元格：${block.slice(0, 40)}`)
+        } catch (error) { warnings.push(`${block.slice(0, 40)}：${error instanceof Error ? error.message : String(error)}`) }
+      }
     }
   }
 
@@ -293,7 +291,7 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
     course.teachers = unique([...course.teachers, ...teachers])
     course.meetings.push({
       id: `meeting-${meetingNumber}`,
-      weeks: parseWeekExpression(weeksText, defaults.totalWeeks),
+      weeks: parseWeekExpression(weeksText, 30),
       weekday: null,
       startPeriod: null,
       endPeriod: null,
@@ -319,6 +317,12 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
     updatedAt: timestamp,
   }
   const meetings = courses.flatMap(course => course.meetings)
+  const lastWeek = Math.max(0, ...meetings.flatMap(meeting => meeting.weeks))
+  if (lastWeek > schedule.totalWeeks) {
+    schedule.totalWeeks = lastWeek
+    warnings.push(`检测到第 ${lastWeek} 周课程，已扩展学期周数，请确认校历。`)
+  }
+  if (!(academicYear === '2026-2027' && semester === '1')) warnings.push('开学日期为估计值，请按学校校历确认；星期列按所在周的周一对齐。')
   return {
     schedule,
     scheduledMeetings: meetings.filter(meeting => meeting.weekday !== null).length,
@@ -328,13 +332,14 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
 }
 
 export function weekForDate(schedule: ScheduleBook, date = new Date()): number {
-  const start = new Date(`${schedule.startDate}T00:00:00`)
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  return Math.floor((target.getTime() - start.getTime()) / 604_800_000) + 1
+  const start = datesForWeek(schedule, 1)[0]
+  return Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+    - Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / 604_800_000) + 1
 }
 
 export function datesForWeek(schedule: ScheduleBook, week: number): Date[] {
   const start = new Date(`${schedule.startDate}T00:00:00`)
+  start.setDate(start.getDate() - (start.getDay() + 6) % 7)
   start.setDate(start.getDate() + (week - 1) * 7)
   return Array.from({ length: 7 }, (_, index) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + index))
 }
@@ -368,17 +373,55 @@ export function meetingConflicts(meetings: ScheduleMeeting[]): [string, string][
 }
 
 export function parseScheduleBackup(payload: string): ScheduleBook {
+  if (new TextEncoder().encode(payload).length > 2 * 1024 * 1024) throw new ScheduleParseError('课表备份超过 2 MiB')
   let value: unknown
   try { value = JSON.parse(payload) } catch { throw new ScheduleParseError('课表备份不是有效的 JSON 文件') }
-  const schedule = value as Partial<ScheduleBook>
-  if (schedule.schemaVersion !== 1 || !schedule.id || !schedule.name || !Array.isArray(schedule.courses)) {
-    throw new ScheduleParseError('课表备份格式不受支持')
+  validateSchedule(value)
+  return value
+}
+
+export function validateSchedule(value: unknown): asserts value is ScheduleBook {
+  const record = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v)
+  const text = (v: unknown): v is string => typeof v === 'string'
+  const name = (v: unknown) => text(v) && v.trim().length > 0 && v.length <= 120
+  const integer = (v: unknown, max: number) => Number.isInteger(v) && Number(v) >= 1 && Number(v) <= max
+  const texts = (v: unknown) => Array.isArray(v) && v.every(text)
+  const date = (v: unknown) => text(v) && /^\d{4}-\d{2}-\d{2}$/.test(v)
+    && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v
+  const time = (v: unknown) => text(v) && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v)
+  const require = (ok: boolean, message: string) => { if (!ok) throw new ScheduleParseError(message) }
+  require(record(value), '课表格式不受支持')
+  if (!record(value)) return
+  const s = value
+  require(s.schemaVersion === 1, '课表格式不受支持')
+  require(name(s.id) && name(s.name) && text(s.academicYear) && text(s.semester)
+    && text(s.updatedAt) && Number.isFinite(Date.parse(s.updatedAt)), '课表基本信息无效')
+  require(date(s.startDate) && integer(s.totalWeeks, 30), '开学日期需有效，学期周数需为 1–30 的整数')
+  require(['auto', 'show', 'hide'].includes(s.weekendMode), '周末显示设置无效')
+  require(Array.isArray(s.periods) && s.periods.length === 11 && s.periods.every((p: unknown, i: number) =>
+    record(p) && p.period === i + 1 && time(p.start) && time(p.end) && p.start < p.end), '需提供 11 节有效的上课时间，结束时间须晚于开始时间')
+  require(Array.isArray(s.noClassDates) && s.noClassDates.every((d: unknown) => record(d) && date(d.date) && text(d.reason)), '停课日期格式无效')
+  require(Array.isArray(s.courses), '课程列表无效')
+  const courseIds = new Set<string>(), meetingIds = new Set<string>()
+  for (const c of s.courses) {
+    require(record(c) && name(c.id) && !courseIds.has(c.id) && name(c.name) && texts(c.teachers)
+      && text(c.code) && text(c.teachingClass) && text(c.note) && /^#[0-9a-f]{6}$/i.test(c.color)
+      && (c.credit === null || (typeof c.credit === 'number' && Number.isFinite(c.credit) && c.credit >= 0))
+      && Array.isArray(c.meetings), '课程信息不完整或编号重复')
+    courseIds.add(c.id)
+    for (const m of c.meetings) {
+      require(record(m) && name(m.id) && !meetingIds.has(m.id) && texts(m.teachers) && text(m.location)
+        && ['manual', 'imported'].includes(m.source) && Array.isArray(m.weeks)
+        && m.weeks.every((w: unknown, i: number) => integer(w, 30) && (i === 0 || (w as number) > m.weeks[i - 1]))
+        && (m.weekday === null ? m.startPeriod === null && m.endPeriod === null
+          : integer(m.weekday, 7) && integer(m.startPeriod, 11) && integer(m.endPeriod, 11) && m.startPeriod <= m.endPeriod), '课程时段、周次或编号无效')
+      meetingIds.add(m.id)
+    }
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(schedule.startDate || '') || !Number.isInteger(schedule.totalWeeks)
-    || schedule.totalWeeks! < 1 || schedule.totalWeeks! > 30) {
-    throw new ScheduleParseError('课表备份中的校历参数无效')
-  }
-  return schedule as ScheduleBook
+}
+
+export function formatScheduleWeeks(weeks: number[]): string {
+  return weeks.length ? `${weeks.join('、')} 周` : '未安排周次'
 }
 
 export function gradePoint(score: string): number | null {
