@@ -51,6 +51,7 @@ nuitka-crash-report*.xml
 /references/
 /.agents/
 /.zcode/
+/.workbuddy/
 /.idea/
 /.vscode/
 .DS_Store
