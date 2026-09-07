@@ -7,7 +7,7 @@ import {
 } from 'lucide-vue-next'
 import {
   datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
-  visibleWeekdays, weekForDate,
+  visibleWeekdays, weekForDate, validateSchedule, formatScheduleWeeks,
 } from '@lumatile/academic-core'
 import type {
   ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleImportSource, ScheduleMeeting, StoredSchedule,
@@ -113,15 +113,22 @@ function openEditor(course: ScheduleCourse | null = null) {
   workspace.value = 'editor'
 }
 function closeEditor() { workspace.value = editorReturnWorkspace.value }
-async function saveBook(next: ScheduleBook) {
+let saveQueue = Promise.resolve(true)
+function saveBook(next: ScheduleBook) {
+  const snapshot = JSON.parse(JSON.stringify(next)) as ScheduleBook
+  saveQueue = saveQueue.then(async () => {
   try {
-    await scheduleStorage.save(next, true)
-    await loadSchedules(next.id)
+    error.value = ''
+    validateSchedule(snapshot)
+    await scheduleStorage.save(snapshot, true)
+    await loadSchedules(snapshot.id)
     return true
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : String(reason)
     return false
   }
+  })
+  return saveQueue
 }
 async function saveCourse(course: ScheduleCourse) {
   if (!schedule.value) return
@@ -149,6 +156,7 @@ async function saveSettings(next: ScheduleBook) {
 }
 
 async function loadSchedules(preferredId = '') {
+  try {
   stored.value = await scheduleStorage.list()
   const item = stored.value.find(candidate => candidate.id === preferredId)
     || stored.value.find(candidate => candidate.isActive) || stored.value[0]
@@ -156,6 +164,16 @@ async function loadSchedules(preferredId = '') {
   if (schedule.value) week.value = Math.min(schedule.value.totalWeeks, Math.max(1, weekForDate(schedule.value)))
   await nextTick()
   resetTrack()
+  } catch (reason) {
+    schedule.value = null
+    error.value = `无法读取课表：${reason instanceof Error ? reason.message : String(reason)}。请切换课表或删除损坏的数据后重新导入。`
+  }
+}
+
+async function deleteBroken(item: StoredSchedule) {
+  if (!window.confirm(`确定删除无法读取的课表「${item.name}」？`)) return
+  try { await scheduleStorage.delete(item.id); error.value = ''; await loadSchedules() }
+  catch (reason) { error.value = String(reason) }
 }
 
 async function chooseImport() {
@@ -213,6 +231,7 @@ async function confirmImport() {
       name: target?.name || original.name,
       updatedAt: new Date().toISOString(),
     }
+    validateSchedule(saved)
     await scheduleStorage.save(saved, true)
     importPreview.value = null
     await loadSchedules(saved.id)
@@ -376,6 +395,13 @@ onMounted(() => { void loadSchedules() })
     </template>
 
     <div v-else class="schedule-empty">
+      <div v-if="stored.length">
+        <p>已保存的课表</p>
+        <div v-for="item in stored" :key="item.id">
+          <button class="secondary" @click="switchSchedule(item)">{{ item.name }}</button>
+          <button class="secondary" @click="deleteBroken(item)">删除此课表</button>
+        </div>
+      </div>
       <span><CalendarDays /></span><h1>还没有课表</h1><p>从教务导入 XLS 或 XLSX，也可以从同学分享的备份开始。</p>
       <button class="primary" :disabled="!nativeAndroid || busy" @click="importFromSchool"><School />{{ busy ? '正在读取…' : '从教务导入' }}</button>
       <button class="secondary" :disabled="!nativeAndroid || busy" @click="chooseImport"><FolderOpen />从文件导入</button>
@@ -395,7 +421,7 @@ onMounted(() => { void loadSchedules() })
     <Transition name="fade"><button v-if="selected" class="sheet-scrim" aria-label="关闭详情" @click="selected = null" /></Transition>
     <Transition name="sheet"><section v-if="selected" class="course-detail">
       <div class="sheet-handle" /><header><i :style="{ background: selected.course.color }" /><h2>{{ selected.course.name }}</h2><button @click="selected = null"><X /></button></header>
-      <p><CalendarDays />第 {{ selected.meeting.weeks[0] }}–{{ selected.meeting.weeks.at(-1) }} 周</p>
+      <p><CalendarDays />{{ formatScheduleWeeks(selected.meeting.weeks) }}</p>
       <p><Clock3 />周{{ weekdayName(selected.meeting.weekday!) }} 第 {{ selected.meeting.startPeriod }}–{{ selected.meeting.endPeriod }} 节 <small>{{ meetingTime(selected.meeting) }}</small></p>
       <p><MapPin />{{ selected.meeting.location || '地点待定' }}</p>
       <p><Users />{{ selected.meeting.teachers.join('、') || selected.course.teachers.join('、') || '教师待定' }}</p>
@@ -411,6 +437,8 @@ onMounted(() => { void loadSchedules() })
     <Transition name="fade"><div v-if="importPreview" class="dialog-scrim"><section class="import-dialog">
       <header><span><Download /></span><div><small>已识别课表</small><h2>{{ importPreview.schedule.name }}</h2></div><button @click="importPreview = null"><X /></button></header>
       <div class="import-stats"><span><strong>{{ importPreview.schedule.courses.length }}</strong>门课程</span><span><strong>{{ importPreview.scheduledMeetings }}</strong>个时段</span><span><strong>{{ importPreview.pendingMeetings }}</strong>待安排</span></div>
+      <p v-for="warning in importPreview.warnings" :key="warning" role="alert">{{ warning }}</p>
+      <p v-if="error" role="alert">{{ error }}</p>
       <label>开学日期<input v-model="importPreview.schedule.startDate" type="date" /></label>
       <label>学期周数<input v-model.number="importPreview.schedule.totalWeeks" type="number" min="1" max="30" /></label>
       <div v-if="stored.length" class="mode-tabs"><button :class="{ active: importMode === 'create' }" @click="importMode = 'create'">创建新课表</button><button :class="{ active: importMode === 'overwrite' }" @click="importMode = 'overwrite'">覆盖已有课表</button></div>
@@ -421,7 +449,7 @@ onMounted(() => { void loadSchedules() })
 
     <ScheduleManager
       v-if="schedule && (workspace === 'courses' || workspace === 'settings')"
-      :book="schedule" :initial-tab="workspace"
+      :book="schedule" :initial-tab="workspace" :save-error="error"
       @close="closeWorkspace" @add="openEditor()" @edit="openEditor"
       @saved="saveSettings" @delete-book="deleteBook"
     />

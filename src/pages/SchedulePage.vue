@@ -11,7 +11,7 @@ import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
 import {
   datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
-  visibleWeekdays, weekForDate,
+  visibleWeekdays, weekForDate, validateSchedule,
 } from '@lumatile/academic-core'
 import type {
   ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleImportSource,
@@ -154,7 +154,7 @@ async function load(preferredId?: string) {
     return
   }
   try {
-    const parsed = JSON.parse(row.payload) as ScheduleBook
+    const parsed = parseScheduleBackup(row.payload)
     schedule.value = parsed
     scheduleId.value = row.id
     week.value = Math.min(Math.max(weekForDate(parsed), 1), parsed.totalWeeks)
@@ -167,12 +167,14 @@ async function load(preferredId?: string) {
 }
 
 async function run(action: () => Promise<void>) {
-  if (busy.value) return
+  if (busy.value) return false
   busy.value = true
   try {
     await action()
+    return true
   } catch (reason) {
     appStore.notify(reason instanceof Error ? reason.message : String(reason), 'error')
+    return false
   } finally {
     busy.value = false
   }
@@ -190,19 +192,24 @@ function emptyBook(): ScheduleBook {
   }
 }
 
+let saveQueue = Promise.resolve(true)
 function saveBook(book: ScheduleBook, makeActive = false) {
-  return run(async () => {
+  const snapshot = JSON.parse(JSON.stringify(book)) as ScheduleBook
+  saveQueue = saveQueue.then(() => run(async () => {
+    validateSchedule(snapshot)
     await window.qlu.invoke('saveSchedule', {
-      id: book.id, name: book.name, payload: JSON.stringify(book), makeActive,
+      id: snapshot.id, name: snapshot.name, payload: JSON.stringify(snapshot), makeActive,
     })
-    await load(book.id)
-  })
+    await load(snapshot.id)
+  }))
+  return saveQueue
 }
 
 function createBlank() { void saveBook(emptyBook(), true) }
 
 function openAddCourse() {
-  returnToManager.value = false
+  returnToManager.value = managerOpen.value
+  managerOpen.value = false
   editingCourse.value = null
   editorOpen.value = true
 }
@@ -229,11 +236,11 @@ async function upsertCourse(course: ScheduleCourse) {
       : [...schedule.value.courses, course],
     updatedAt: new Date().toISOString(),
   }
-  await saveBook(book, true)
+  return saveBook(book, true)
 }
 
 async function onCourseSaved(course: ScheduleCourse) {
-  await upsertCourse(course)
+  if (!await upsertCourse(course)) return
   editorOpen.value = false
   if (returnToManager.value) managerOpen.value = true
   appStore.notify('课程已保存', 'success')
@@ -246,7 +253,7 @@ async function onCourseDeleted(courseId: string) {
     courses: schedule.value.courses.filter(item => item.id !== courseId),
     updatedAt: new Date().toISOString(),
   }
-  await saveBook(book, true)
+  if (!await saveBook(book, true)) return
   editorOpen.value = false
   if (returnToManager.value) managerOpen.value = true
   appStore.notify('课程已删除', 'success')
@@ -315,9 +322,10 @@ function cancelSchoolImport() { void appStore.cancelScheduleImport() }
 
 watch(() => importState.result, (source) => {
   if (!source) return
-  openImportPreview(source)
-  importState.result = null
-})
+  try { openImportPreview(source) }
+  catch (reason) { appStore.notify(reason instanceof Error ? reason.message : String(reason), 'error') }
+  finally { importState.result = null }
+}, { immediate: true })
 
 async function confirmImport() {
   const preview = importPreview.value
@@ -333,7 +341,7 @@ async function confirmImport() {
     name: target ? target.name : preview.schedule.name,
     updatedAt: new Date().toISOString(),
   }
-  await saveBook(book, true)
+  if (!await saveBook(book, true)) return
   importPreview.value = null
   appStore.notify(target ? `已覆盖「${book.name}」` : `已导入「${book.name}」`, 'success')
 }
@@ -470,7 +478,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
     <template v-else-if="loadError">
       <PageHeader eyebrow="TIMETABLE" title="课表" description="课表数据出现问题，暂时无法显示。" />
-      <section class="empty-card"><div class="empty-icon"><CalendarDays :size="25" /></div><h3>无法读取课表</h3><p>{{ loadError }}</p></section>
+      <section class="empty-card"><div class="empty-icon"><CalendarDays :size="25" /></div><h3>无法读取课表</h3><p>{{ loadError }}</p><button class="secondary-button" @click="switching = true">切换课表</button><button class="danger-ghost" @click="confirmDelete = true">删除无法读取的课表</button></section>
     </template>
 
     <template v-else>

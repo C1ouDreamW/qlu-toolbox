@@ -2,13 +2,15 @@
 import { ref } from 'vue'
 import { ArrowLeft, BookOpen, CalendarOff, ChevronRight, Clock3, Plus, Trash2 } from 'lucide-vue-next'
 import type { ScheduleBook, ScheduleCourse, WeekendMode } from '@lumatile/contracts'
+import { validateSchedule } from '@lumatile/academic-core'
 
-const props = defineProps<{ book: ScheduleBook; initialTab: 'courses' | 'settings' }>()
+const props = defineProps<{ book: ScheduleBook; initialTab: 'courses' | 'settings'; saveError?: string }>()
 const emit = defineEmits<{ close: []; add: []; edit: [course: ScheduleCourse]; saved: [book: ScheduleBook]; deleteBook: [] }>()
 const tab = ref(props.initialTab)
 const draft = ref<ScheduleBook>(JSON.parse(JSON.stringify(props.book)))
 const newOffDate = ref('')
 const newOffReason = ref('停课')
+const error = ref('')
 
 function pending(course: ScheduleCourse) { return course.meetings.some(meeting => meeting.weekday === null) }
 function addNoClassDate() {
@@ -19,7 +21,13 @@ function addNoClassDate() {
   save()
 }
 function removeNoClassDate(index: number) { draft.value.noClassDates.splice(index, 1); save() }
-function save() { emit('saved', { ...draft.value, updatedAt: new Date().toISOString() }) }
+function save() {
+  try {
+    error.value = ''
+    validateSchedule(draft.value)
+    emit('saved', JSON.parse(JSON.stringify({ ...draft.value, updatedAt: new Date().toISOString() })))
+  } catch (reason) { error.value = reason instanceof Error ? reason.message : String(reason) }
+}
 </script>
 
 <template>
@@ -34,6 +42,7 @@ function save() { emit('saved', { ...draft.value, updatedAt: new Date().toISOStr
       </button>
     </main>
     <main v-else>
+      <p v-if="error || saveError" class="form-error" role="alert">{{ error || saveError }}</p>
       <section class="settings-group">
         <h2>学期</h2>
         <div class="settings-card">

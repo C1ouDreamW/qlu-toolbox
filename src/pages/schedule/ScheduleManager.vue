@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { CalendarOff, ChevronRight, Clock3, Plus, Trash2 } from 'lucide-vue-next'
 import BaseModal from '@/components/BaseModal.vue'
+import { validateSchedule } from '@lumatile/academic-core'
 import type { ScheduleBook, ScheduleCourse, WeekendMode } from '@lumatile/contracts'
 
 const props = defineProps<{ book: ScheduleBook; initialTab: 'courses' | 'settings' }>()
@@ -12,9 +13,16 @@ const tab = ref(props.initialTab)
 const draft = ref<ScheduleBook>(JSON.parse(JSON.stringify(props.book)))
 const newOffDate = ref('')
 const newOffReason = ref('停课')
+const error = ref('')
 
 function pending(course: ScheduleCourse) { return course.meetings.some(meeting => meeting.weekday === null) }
-function save() { emit('saved', { ...draft.value, updatedAt: new Date().toISOString() }) }
+function save() {
+  try {
+    error.value = ''
+    validateSchedule(draft.value)
+    emit('saved', JSON.parse(JSON.stringify({ ...draft.value, updatedAt: new Date().toISOString() })))
+  } catch (reason) { error.value = reason instanceof Error ? reason.message : String(reason) }
+}
 function addNoClassDate() {
   if (!newOffDate.value || draft.value.noClassDates.some(item => item.date === newOffDate.value)) return
   draft.value.noClassDates.push({ date: newOffDate.value, reason: newOffReason.value.trim() || '停课' })
@@ -30,6 +38,7 @@ function removeNoClassDate(index: number) {
 
 <template>
   <BaseModal class="modal-wide" title="课表管理" dismissible @close="emit('cancel')">
+    <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <div class="manager-tabs" role="tablist">
       <button type="button" role="tab" :class="{ active: tab === 'courses' }" :aria-selected="tab === 'courses'" @click="tab = 'courses'">课程</button>
       <button type="button" role="tab" :class="{ active: tab === 'settings' }" :aria-selected="tab === 'settings'" @click="tab = 'settings'">课表设置</button>
