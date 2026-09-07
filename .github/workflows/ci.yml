@@ -169,7 +169,7 @@ jobs:
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon testDebugUnitTest assembleDebug
+          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
 
       - name: Verify debug application ID
         shell: bash

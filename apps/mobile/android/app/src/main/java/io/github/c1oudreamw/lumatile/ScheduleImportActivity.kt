@@ -235,7 +235,8 @@ class ScheduleImportActivity : AppCompatActivity() {
                 if (writtenBytes != expectedBytes || file.length() != expectedBytes) throw IOException("文件长度不一致")
                 val digest = MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
                 if (!digest.equals(expectedSha256, true)) throw IOException("文件摘要不一致")
-                val header = file.inputStream().use { it.readNBytes(4) }
+                val header = ByteArray(4)
+                file.inputStream().use { java.io.DataInputStream(it).readFully(header) }
                 if (!header.contentEquals(XLS_MAGIC) && !header.contentEquals(XLSX_MAGIC)) throw IOException("响应不是 Excel 文件")
                 runOnUiThread {
                     completed = true

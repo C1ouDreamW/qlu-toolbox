@@ -2,9 +2,18 @@ package io.github.c1oudreamw.lumatile
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import android.content.pm.PackageManager
 import org.junit.Test
 
 class AppUpdateSecurityTest {
+    @Test
+    @Suppress("DEPRECATION")
+    fun requestsLegacySignaturesBeforeAndroidNine() {
+        assertEquals(PackageManager.GET_SIGNATURES, AppUpdateSecurity.signingFlags(26))
+        assertEquals(PackageManager.GET_SIGNATURES, AppUpdateSecurity.signingFlags(27))
+        assertEquals(PackageManager.GET_SIGNING_CERTIFICATES, AppUpdateSecurity.signingFlags(28))
+    }
     @Test
     fun acceptsOnlyProjectReleaseUrlsAndKnownRedirectHosts() {
         assertTrue(AppUpdateSecurity.isAllowedDownloadUrl(

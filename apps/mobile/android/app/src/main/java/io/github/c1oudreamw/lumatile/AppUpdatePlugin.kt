@@ -229,7 +229,7 @@ class AppUpdatePlugin : Plugin() {
         )
     } else {
         @Suppress("DEPRECATION")
-        context.packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+        context.packageManager.getPackageInfo(packageName, AppUpdateSecurity.signingFlags(Build.VERSION.SDK_INT))
     }
 
     private fun archivePackageInfo(apk: File): PackageInfo? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -239,7 +239,7 @@ class AppUpdatePlugin : Plugin() {
         )
     } else {
         @Suppress("DEPRECATION")
-        context.packageManager.getPackageArchiveInfo(apk.absolutePath, PackageManager.GET_SIGNING_CERTIFICATES)
+        context.packageManager.getPackageArchiveInfo(apk.absolutePath, AppUpdateSecurity.signingFlags(Build.VERSION.SDK_INT))
     }
 
     private fun signatureDigests(info: PackageInfo): Set<String> {
@@ -295,6 +295,9 @@ class AppUpdatePlugin : Plugin() {
 private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }
 
 internal object AppUpdateSecurity {
+    @Suppress("DEPRECATION")
+    fun signingFlags(sdk: Int): Int = if (sdk >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+
     fun isAllowedDownloadUrl(value: String): Boolean {
         return try {
             val uri = URI(value)
