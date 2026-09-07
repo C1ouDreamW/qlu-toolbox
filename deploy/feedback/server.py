@@ -58,13 +58,13 @@ def validate_feedback(value: object) -> dict[str, str]:
     website = value.get("website", "")
     if website:
         raise ValueError("请求内容无效")
-    if feedback_type not in ALLOWED_TYPES:
+    if not isinstance(feedback_type, str) or feedback_type not in ALLOWED_TYPES:
         raise ValueError("请选择反馈类型")
     if not isinstance(content, str) or not 2 <= len(content.strip()) <= 2000:
         raise ValueError("反馈内容需为 2～2000 个字符")
     if not isinstance(contact, str) or len(contact.strip()) > 120:
         raise ValueError("联系方式不能超过 120 个字符")
-    if platform not in ALLOWED_PLATFORMS:
+    if not isinstance(platform, str) or platform not in ALLOWED_PLATFORMS:
         raise ValueError("平台信息无效")
     if not isinstance(app_version, str) or not 1 <= len(app_version.strip()) <= 40:
         raise ValueError("应用版本无效")

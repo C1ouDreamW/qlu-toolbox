@@ -44,6 +44,8 @@ class FeedbackServerTests(unittest.TestCase):
     def test_rejects_invalid_feedback(self) -> None:
         invalid_values = [
             ("type", "other"),
+            ("type", []),
+            ("platform", {}),
             ("content", " "),
             ("content", "x" * 2001),
             ("platform", "web"),
