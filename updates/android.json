@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "applicationId": "io.github.c1oudreamw.lumatile",
-  "versionCode": 9,
-  "versionName": "1.2.4",
+  "versionCode": 10,
+  "versionName": "2.0.0",
   "channel": "stable",
-  "title": "QLU 工具箱最终迁移版",
-  "notes": "本版本完成 Android 应用身份、正式签名和双更新渠道迁移。后续版本将更名为一格有光 / LumaTile。",
-  "publishedAt": "2026-07-18T21:24:48Z",
-  "apkUrl": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v1.2.4/QLU-Toolbox-Android-v1.2.4.apk",
-  "sha256": "d0065b2ad28da4a324a9b4068b614de4812dd918e64424b69d07dd241a36bd00",
-  "size": 3621187,
+  "title": "一格有光版本更新",
+  "notes": "发现一格有光 / LumaTile 新版本，请安装更新。",
+  "publishedAt": "2026-09-07T16:37:35.631Z",
+  "apkUrl": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.0/LumaTile-Android-v2.0.0.apk",
+  "sha256": "e2a3b1c2e4f186427ab197854be0412335d4e4052809e5a03445f8eb01886d06",
+  "size": 6384100,
   "mandatory": false
 }
