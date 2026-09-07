@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ArrowLeft, Copy, Plus, Save, Trash2 } from 'lucide-vue-next'
-import { parseWeekExpression, SCHEDULE_COLORS } from '@lumatile/academic-core'
+import { meetingConflicts, parseWeekExpression, SCHEDULE_COLORS } from '@lumatile/academic-core'
 import type { ScheduleBook, ScheduleCourse, ScheduleMeeting } from '@lumatile/contracts'
 
-const props = defineProps<{ book: ScheduleBook; course?: ScheduleCourse | null }>()
+const props = defineProps<{ book: ScheduleBook; course?: ScheduleCourse | null; saveError?: string }>()
 const emit = defineEmits<{ close: []; saved: [course: ScheduleCourse]; deleted: [id: string] }>()
 
 type MeetingDraft = Omit<ScheduleMeeting, 'weeks' | 'teachers'> & { weekText: string; teacherText: string }
@@ -22,6 +22,15 @@ const meetings = ref<MeetingDraft[]>((props.course?.meetings.length ? props.cour
   weekText: formatWeeks(meeting.weeks),
   teacherText: meeting.teachers.join('、'),
 })))
+
+const conflict = computed(() => {
+  try {
+    const drafts = meetings.value.map(meeting => ({ ...meeting, weeks: parseWeekExpression(meeting.weekText, props.book.totalWeeks), teachers: [] }))
+    const ids = new Set(drafts.map(meeting => meeting.id))
+    return meetingConflicts([...props.book.courses.filter(course => course.id !== id).flatMap(course => course.meetings), ...drafts])
+      .some(pair => pair.some(meetingId => ids.has(meetingId)))
+  } catch { return false }
+})
 
 function newId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` }
 function blankMeeting(): ScheduleMeeting {
@@ -66,7 +75,7 @@ function save() {
   <section class="editor-page">
     <header><button @click="emit('close')"><ArrowLeft /></button><h1>{{ course ? '编辑课程' : '添加课程' }}</h1><button class="save-link" @click="save">保存</button></header>
     <main>
-      <p v-if="error" class="form-error">{{ error }}</p>
+      <p v-if="error || saveError" class="form-error" role="alert">{{ error || saveError }}</p><p v-if="conflict" role="status">该时段与其他课程重叠，请核对；仍可保存。</p>
       <section class="form-card course-basics">
         <label class="course-name"><span>课程名称</span><input v-model="name" placeholder="例如：操作系统" /></label>
         <label><span>任课教师</span><input v-model="teacherText" placeholder="多人用顿号分隔" /></label>

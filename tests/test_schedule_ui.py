@@ -71,6 +71,22 @@ if(m==='saveSchedule'){if(window.failSave)throw Error('模拟磁盘写入失败'
                 self.assertEqual(mobile.evaluate('JSON.parse(JSON.parse(localStorage.lumatilePreviewSchedules)[0].payload).totalWeeks'),19)
                 mobile.reload()
                 mobile.locator('.schedule-grid').first.wait_for()
+                # Both clients must expose overlapping cards through an accessible list.
+                book['startDate'] = __import__('datetime').date.today().isoformat()
+                book['courses'] = [dict(id=f'c{i}', name=f'冲突课程{i}', teachers=[], color='#336699', credit=None, code='', teachingClass='', note='',
+                    meetings=[dict(id=f'm{i}', weeks=list(range(1,20)), weekday=1, startPeriod=1, endPeriod=2,
+                                   location='教室', teachers=[], source='manual')]) for i in (1,2)]
+                row['payload'] = json.dumps(book)
+                mobile.evaluate('(row)=>localStorage.lumatilePreviewSchedules=JSON.stringify([row])', row)
+                mobile.reload()
+                mobile.get_by_role('button',name='本周 2 个时段冲突',exact=False).click()
+                self.assertEqual(mobile.get_by_role('dialog',name='本周冲突课程').get_by_role('button').count(),2)
+                page.evaluate('(row)=>auditBoot.schedules=[row]', row)
+                page.locator('.modal-close').click()
+                page.get_by_role('button',name='设置',exact=True).click()
+                page.get_by_role('button',name='课表',exact=True).first.click()
+                page.get_by_role('button',name='本周有 2 个冲突时段',exact=False).click()
+                self.assertEqual(page.locator('.modal-backdrop .switch-row').count(),2)
                 browser.close()
         finally:
             server.shutdown()

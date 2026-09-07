@@ -7,7 +7,7 @@ import {
 } from 'lucide-vue-next'
 import {
   datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
-  visibleWeekdays, weekForDate, validateSchedule, formatScheduleWeeks,
+  visibleWeekdays, weekForDate, validateSchedule, formatScheduleWeeks, meetingConflicts,
 } from '@lumatile/academic-core'
 import type {
   ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleImportSource, ScheduleMeeting, StoredSchedule,
@@ -25,6 +25,7 @@ const week = ref(1)
 const menuOpen = ref(false)
 const importMenuOpen = ref(false)
 const switching = ref(false)
+const conflictsOpen = ref(false)
 const selected = ref<{ course: ScheduleCourse; meeting: ScheduleMeeting } | null>(null)
 const importPreview = ref<ScheduleImportPreview | null>(null)
 const importMode = ref<'create' | 'overwrite'>('create')
@@ -57,6 +58,7 @@ function meetingsForWeek(targetWeek: number) {
       && meeting.weeks.includes(targetWeek) && visibleDays.includes(meeting.weekday))
     .map(meeting => ({ course, meeting })))
 }
+const conflictIds = computed(() => new Set(meetingConflicts(meetingsForWeek(week.value).map(item => item.meeting)).flat()))
 const title = computed(() => {
   if (!schedule.value) return '我的课表'
   const current = weekForDate(schedule.value)
@@ -326,6 +328,7 @@ function touchCancel() {
 }
 
 function handleBack() {
+  if (conflictsOpen.value) { conflictsOpen.value = false; return true }
   if (importPreview.value) { importPreview.value = null; return true }
   if (selected.value) { selected.value = null; return true }
   if (switching.value) { switching.value = false; return true }
@@ -358,6 +361,7 @@ onMounted(() => { void loadSchedules() })
 
     <div v-if="error" class="schedule-alert"><AlertCircle />{{ error }}<button @click="error = ''"><X /></button></div>
 
+    <button v-if="conflictIds.size" class="secondary" @click="conflictsOpen = true">本周 {{ conflictIds.size }} 个时段冲突，查看全部课程</button>
     <template v-if="schedule">
       <div
         class="schedule-viewport"
@@ -418,6 +422,11 @@ onMounted(() => { void loadSchedules() })
       <button @click="shareSchedule"><Share2 />导出并分享</button>
     </section></Transition>
 
+    <button v-if="conflictsOpen" class="sheet-scrim" aria-label="关闭冲突列表" @click="conflictsOpen = false" />
+    <section v-if="conflictsOpen" class="switch-sheet" role="dialog" aria-label="本周冲突课程">
+      <h2>本周冲突课程</h2>
+      <button v-for="item in meetingsForWeek(week).filter(item => conflictIds.has(item.meeting.id))" :key="item.meeting.id" @click="selected = item; conflictsOpen = false">{{ item.course.name }} · 周{{ weekdayName(item.meeting.weekday!) }} {{ item.meeting.startPeriod }}–{{ item.meeting.endPeriod }} 节</button>
+    </section>
     <Transition name="fade"><button v-if="selected" class="sheet-scrim" aria-label="关闭详情" @click="selected = null" /></Transition>
     <Transition name="sheet"><section v-if="selected" class="course-detail">
       <div class="sheet-handle" /><header><i :style="{ background: selected.course.color }" /><h2>{{ selected.course.name }}</h2><button @click="selected = null"><X /></button></header>
@@ -455,7 +464,7 @@ onMounted(() => { void loadSchedules() })
     />
     <ScheduleEditor
       v-if="schedule && workspace === 'editor'" :key="editingCourse?.id || 'new'"
-      :book="schedule" :course="editingCourse"
+      :book="schedule" :course="editingCourse" :save-error="error"
       @close="closeEditor" @saved="saveCourse" @deleted="deleteCourse"
     />
   </section>

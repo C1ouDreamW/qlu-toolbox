@@ -11,7 +11,7 @@ import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
 import {
   datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
-  visibleWeekdays, weekForDate, validateSchedule,
+  visibleWeekdays, weekForDate, validateSchedule, meetingConflicts,
 } from '@lumatile/academic-core'
 import type {
   ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleImportSource,
@@ -27,6 +27,7 @@ const scheduleId = ref('')
 const week = ref(1)
 const loadError = ref('')
 const selected = ref<ScheduleCourse | null>(null)
+const conflictsOpen = ref(false)
 const switching = ref(false)
 const confirmDelete = ref(false)
 const busy = ref(false)
@@ -74,6 +75,7 @@ const placedMeetings = computed(() => {
     .map(meeting => ({ course, meeting })))
 })
 
+const conflictIds = computed(() => new Set(meetingConflicts(placedMeetings.value.map(item => item.meeting)).flat()))
 function dayDate(day: number) { return dates.value[day - 1] }
 function noClass(day: number) {
   const date = dayDate(day)
@@ -138,7 +140,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey || event.metaKey || event.altKey) return
   const target = event.target as HTMLElement | null
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
-  if (selected.value || switching.value || confirmDelete.value || editorOpen.value || managerOpen.value || importPreview.value) return
+  if (conflictsOpen.value || selected.value || switching.value || confirmDelete.value || editorOpen.value || managerOpen.value || importPreview.value) return
   if (event.key === 'ArrowLeft') changeWeek(-1)
   else if (event.key === 'ArrowRight') changeWeek(1)
 }
@@ -395,6 +397,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       <button class="text-button" @click="cancelSchoolImport">取消</button>
     </div>
 
+    <button v-if="conflictIds.size" class="secondary-button" @click="conflictsOpen = true">本周有 {{ conflictIds.size }} 个冲突时段，查看全部冲突课程</button>
+    <BaseModal v-if="conflictsOpen" title="本周冲突课程" dismissible @close="conflictsOpen = false">
+      <p>以下课程时间重叠，请核对安排；仍可正常保存和编辑。</p>
+      <button v-for="item in placedMeetings.filter(item => conflictIds.has(item.meeting.id))" :key="item.meeting.id" class="switch-row" @click="selected = item.course; conflictsOpen = false">{{ item.course.name }} · {{ meetingLine(item.meeting) }}</button>
+    </BaseModal>
     <template v-if="schedule">
       <header class="schedule-header">
         <div class="schedule-heading">
