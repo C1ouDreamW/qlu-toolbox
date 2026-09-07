@@ -54,6 +54,7 @@ nuitka-crash-report*.xml
 /.workbuddy/
 /.idea/
 /.vscode/
+AGENTS.md
 .DS_Store
 Thumbs.db
 
