@@ -67,6 +67,8 @@ class FeedbackServerTests(unittest.TestCase):
         self.assertFalse(feedback_server.rate_limited(
             "client", now=feedback_server.RATE_WINDOW_SECONDS + 5.0,
         ))
+        feedback_server.rate_limited("another", now=2 * feedback_server.RATE_WINDOW_SECONDS + 10.0)
+        self.assertNotIn("client", feedback_server._requests)
 
 
 if __name__ == "__main__":

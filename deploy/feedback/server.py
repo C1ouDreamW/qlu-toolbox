@@ -102,6 +102,9 @@ def save_feedback(value: dict[str, str], path: Path = DB_PATH) -> str:
 def rate_limited(client: str, now: float | None = None) -> bool:
     timestamp = time.monotonic() if now is None else now
     with _rate_lock:
+        for key in list(_requests):
+            if not _requests[key] or timestamp - _requests[key][-1] >= RATE_WINDOW_SECONDS:
+                del _requests[key]
         history = _requests[client]
         while history and timestamp - history[0] >= RATE_WINDOW_SECONDS:
             history.popleft()
@@ -138,7 +141,7 @@ class FeedbackHandler(BaseHTTPRequestHandler):
         if self.path != "/api/feedback":
             self._json(HTTPStatus.NOT_FOUND, {"error": "接口不存在"})
             return
-        forwarded = self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
+        forwarded = self.headers.get("X-Forwarded-For", "").rsplit(",", 1)[-1].strip()
         client = forwarded or self.client_address[0]
         if rate_limited(client):
             self._json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "提交过于频繁，请稍后再试"})
