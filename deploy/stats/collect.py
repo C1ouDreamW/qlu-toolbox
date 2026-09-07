@@ -435,7 +435,7 @@ def svg_bars(values: list[int], labels: list[str], color: str, title: str) -> st
 def dist_table(title: str, rows: list[dict], total: int | None = None) -> str:
     if not rows:
         return f'<section class="card"><h3>{title}</h3><p class="muted">暂无数据</p></section>'
-    max_count = max(row["count"] for row in rows)
+    max_count = max(1, max(row["count"] for row in rows))
     body = "".join(
         f'<tr><td class="label">{html.escape(str(row["label"]))}</td>'
         f'<td class="bar-cell"><div class="bar" style="width:{row["count"] / max_count * 100:.0f}%"></div></td>'
@@ -499,7 +499,7 @@ def render_html(report: dict) -> str:
 {dist_table("客户端分布", report["client_dist"])}
 {dist_table("自建源热门文件（近 30 天）", report["top_files"])}
 {dist_table("GitHub 下载（最新快照）", report["github_by_asset"], totals["downloads_github"])}
-<p class="muted">口径：日活按 beacon 随机安装号去重；旧版客户端（v2.0.0）只体现在“更新检查请求”中；GitHub 下载为官方 API 累计值快照。</p>
+<p class="muted">口径：日活按 beacon 随机安装号去重；旧版客户端（v2.0.0 之前）只体现在“更新检查请求”中；GitHub 下载为官方 API 累计值快照。</p>
 </main></body></html>"""
 
 

@@ -24,6 +24,7 @@ class ReleaseRegressionTests(unittest.TestCase):
                 self.assertEqual(report["raw_checks"], [1])
         rendered = stats.dist_table("test", [{"label": '<img src=x onerror="alert(1)">', "count": 1}])
         self.assertNotIn("<img", rendered)
+        self.assertIn("0%", stats.dist_table("test", [{"label": "new.apk", "count": 0}]))
         for method, status, path in [("HEAD", 200, "a.apk"), ("GET", 301, "a.apk"), ("GET", 200, "SHA256SUMS.txt")]:
             line = f'127.0.0.1 - - [07/Sep/2026:09:00:00 +0800] "{method} /releases/v2/{path} HTTP/1.1" {status} 0'
             self.assertIsNone(stats.parse_log_line(line))
