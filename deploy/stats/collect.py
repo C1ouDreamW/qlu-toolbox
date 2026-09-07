@@ -11,6 +11,7 @@ Releases 下载计数，最后生成自包含的 stats.html / stats.json 报告�
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -61,7 +62,7 @@ def parse_log_line(line: str) -> dict | None:
     if not match:
         return None
     status = int(match.group("status"))
-    if status < 200 or status >= 400:
+    if match.group("method") != "GET" or status not in {200, 204, 206, 304}:
         return None
     when = parse_log_time(match.group("time"))
     if when is None:
@@ -85,6 +86,8 @@ def parse_log_line(line: str) -> dict | None:
         client = "desktop" if path.endswith("desktop.json") else "android"
         return {"kind": "manifest", "day": day, "ts": ts, "client": client}
     if path.startswith("/releases/"):
+        if status not in {200, 206} or not path.lower().endswith((".apk", ".exe", ".dmg", ".zip")):
+            return None
         rest = path[len("/releases/"):].strip("/")
         if not rest:
             return None
@@ -267,6 +270,8 @@ def fetch_github_downloads(conn: sqlite3.Connection, repos: list[str], timeout: 
             tag = str(release.get("tag_name") or "")
             for asset in release.get("assets") or []:
                 name = str(asset.get("name") or "")
+                if not name.lower().endswith((".apk", ".exe", ".dmg", ".zip")):
+                    continue
                 if not tag or not name:
                     continue
                 key = (tag, name)
@@ -290,7 +295,8 @@ def collect_report(conn: sqlite3.Connection, days: int = 30) -> dict:
     daily_days = [row[0] for row in conn.execute(
         "SELECT DISTINCT day FROM beacon_hits WHERE day BETWEEN ? AND ? "
         "UNION SELECT DISTINCT day FROM download_hits WHERE day BETWEEN ? AND ? "
-        "ORDER BY day", (start, today, start, today)
+        "UNION SELECT day FROM manifest_checks WHERE day BETWEEN ? AND ? "
+        "ORDER BY day", (start, today, start, today, start, today)
     )]
     # 补全连续日期序列，图表不断档
     all_days: list[str] = []
@@ -431,7 +437,7 @@ def dist_table(title: str, rows: list[dict], total: int | None = None) -> str:
         return f'<section class="card"><h3>{title}</h3><p class="muted">暂无数据</p></section>'
     max_count = max(row["count"] for row in rows)
     body = "".join(
-        f'<tr><td class="label">{row["label"]}</td>'
+        f'<tr><td class="label">{html.escape(str(row["label"]))}</td>'
         f'<td class="bar-cell"><div class="bar" style="width:{row["count"] / max_count * 100:.0f}%"></div></td>'
         f'<td class="num">{row["count"]}</td></tr>'
         for row in rows
