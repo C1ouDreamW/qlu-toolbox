@@ -48,6 +48,9 @@ class ScheduleImportActivity : AppCompatActivity() {
     private lateinit var actionButton: Button
     private var pageLoaded = false
     private var transferStarted = false
+    private var polling = false
+    private val captureTimeout = Runnable { fail("等待课表导出超时，请关闭后重新导入。") }
+    private val transferTimeout = Runnable { fail("接收课表超时，请检查网络后重新导入。") }
     private var completed = false
     private var resultDelivered = false
     private var temporaryFile: File? = null
@@ -183,7 +186,11 @@ class ScheduleImportActivity : AppCompatActivity() {
     private fun installExportInterceptor() {
         webView.evaluateJavascript(buildInterceptorScript()) { installed ->
             if (installed != "true") fail("无法接管课表导出，教务页面可能已更新。")
-            else pollExport()
+            else if (!polling) {
+                polling = true
+                handler.postDelayed(captureTimeout, 15 * 60_000L)
+                pollExport()
+            }
         }
     }
 
@@ -196,6 +203,7 @@ class ScheduleImportActivity : AppCompatActivity() {
                 val state = encoded?.let(::JSONObject)
                 if (state?.optBoolean("started") == true && !transferStarted) {
                     transferStarted = true
+                    handler.postDelayed(transferTimeout, 60_000L)
                     progressBar.visibility = View.VISIBLE
                     status("正在接收并校验教务课表…")
                 }
@@ -210,7 +218,7 @@ class ScheduleImportActivity : AppCompatActivity() {
         if (!result.optBoolean("ok")) { fail(result.optString("message", "教务系统导出失败")); return }
         val total = result.optLong("total")
         val length = result.optInt("base64Length")
-        if (total <= 0 || total > MAX_FILE_SIZE || length <= 0) { fail("导出文件为空或超过 20 MiB 安全限制。"); return }
+        if (total <= 0 || total > MAX_FILE_SIZE || length <= 0 || length.toLong() != ((total + 2) / 3) * 4) { fail("导出文件为空或超过 20 MiB 安全限制。"); return }
         temporaryFile = File(cacheDir, "school-schedule-${System.currentTimeMillis()}.part").apply { delete() }
         readChunk(0, length, total, 0, result.optString("sha256"))
     }
@@ -252,26 +260,85 @@ class ScheduleImportActivity : AppCompatActivity() {
         (() => {
           if (window.__LUMATILE_SCHEDULE_IMPORT__?.installed) return true;
           const state = window.__LUMATILE_SCHEDULE_IMPORT__ = {installed:true,started:false,result:null,base64:null};
-          const originalSubmit = HTMLFormElement.prototype.submit;
-          HTMLFormElement.prototype.submit = function() {
-            const url = new URL(this.action || location.href, location.href);
-            if (url.origin !== location.origin || !url.pathname.endsWith('/kbcx/xskbcx_cxDcExcelXskb.html')) return originalSubmit.call(this);
-            if (state.started) return;
-            state.started = true;
-            (async () => {
-              try {
-                const response = await fetch(url.toString(), {method:'POST',credentials:'same-origin',body:new URLSearchParams(new FormData(this))});
-                if (!response.ok) return JSON.stringify({ok:false,message:'教务系统导出失败（HTTP ' + response.status + '）'});
-                const bytes = new Uint8Array(await response.arrayBuffer());
-                if (!bytes.length || bytes.length > $MAX_FILE_SIZE) return JSON.stringify({ok:false,message:'导出文件为空或超过安全限制'});
+          const fail = error => { state.result = JSON.stringify({ok:false,message:String(error?.message || error)}); };
+          const capture = async bytes => {
+            try {
+                if (!bytes.length || bytes.length > $MAX_FILE_SIZE) throw Error('导出文件为空或超过安全限制');
                 const digest = await crypto.subtle.digest('SHA-256', bytes.buffer);
                 const sha256 = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2,'0')).join('');
                 let binary = ''; for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
                 state.base64 = btoa(binary);
-                return JSON.stringify({ok:true,total:bytes.length,base64Length:state.base64.length,sha256});
-              } catch (error) { return JSON.stringify({ok:false,message:String(error?.message || error)}); }
-            })().then(result => state.result = result);
+                state.result = JSON.stringify({ok:true,total:bytes.length,base64Length:state.base64.length,sha256});
+            } catch (error) { fail(error); }
           };
+          const captureResponse = async response => {
+            if (!response.ok) throw Error('教务系统导出失败（HTTP ' + response.status + '）');
+            if (Number(response.headers.get('Content-Length')) > $MAX_FILE_SIZE) throw Error('导出文件超过安全限制');
+            await capture(new Uint8Array(await response.arrayBuffer()));
+          };
+          const install = win => {
+            try { if (new URL(win.document.baseURI).origin !== location.origin) return; } catch { return; }
+            try {
+              if (win.__LUMATILE_SCHEDULE_FRAME__) return;
+              win.__LUMATILE_SCHEDULE_FRAME__ = true;
+              const isExport = value => {
+                try { const url = new URL(value, win.document.baseURI); return url.origin === location.origin && url.pathname.endsWith('/kbcx/xskbcx_cxDcExcelXskb.html'); }
+                catch { return false; }
+              };
+              const originalFetch = win.fetch.bind(win);
+              const submit = (form, submitter) => {
+                const action = submitter?.hasAttribute('formaction') ? submitter.formAction : form.action;
+                if (!isExport(action)) return false;
+                if (!state.started) {
+                  state.started = true;
+                  const controller = new AbortController();
+                  const timer = setTimeout(() => controller.abort(), 60000);
+                  const data = new URLSearchParams(new win.FormData(form));
+                  if (submitter?.name) data.append(submitter.name, submitter.value);
+                  const url = new URL(action, win.document.baseURI);
+                  const method = (submitter?.hasAttribute('formmethod') ? submitter.formMethod : form.method || 'get').toUpperCase();
+                  if (method === 'GET') for (const [key,value] of data) url.searchParams.append(key,value);
+                  originalFetch(url.toString(), {method,credentials:'same-origin',body:method==='GET'?undefined:data,signal:controller.signal})
+                    .then(captureResponse).catch(fail).finally(() => clearTimeout(timer));
+                }
+                return true;
+              };
+              const originalSubmit = win.HTMLFormElement.prototype.submit;
+              win.HTMLFormElement.prototype.submit = function() { if (!submit(this)) return originalSubmit.apply(this,arguments); };
+              win.document.addEventListener('submit',event => {
+                if (event.target instanceof win.HTMLFormElement && submit(event.target,event.submitter)) { event.preventDefault(); event.stopImmediatePropagation(); }
+              },true);
+              win.fetch = function(input,init) {
+                const take = isExport(typeof input === 'string' || input instanceof win.URL ? input : input.url) && !state.started;
+                if (take) state.started = true;
+                return originalFetch(input,init).then(response => { if(take) captureResponse(response.clone()).catch(fail); return response; },error => { if(take) fail(error); throw error; });
+              };
+              const originalOpen = win.XMLHttpRequest.prototype.open, originalSend = win.XMLHttpRequest.prototype.send;
+              win.XMLHttpRequest.prototype.open = function(method,url) { this.__scheduleExport = isExport(url); return originalOpen.apply(this,arguments); };
+              win.XMLHttpRequest.prototype.send = function() {
+                if (this.__scheduleExport && !state.started) {
+                  state.started = true;
+                  if (!this.responseType || this.responseType === 'text') this.overrideMimeType('text/plain; charset=x-user-defined');
+                  this.addEventListener('load',async () => {
+                    try {
+                      if (this.status < 200 || this.status >= 300) throw Error('导出失败：HTTP ' + this.status);
+                      const bytes = this.response instanceof win.Blob ? new Uint8Array(await this.response.arrayBuffer())
+                        : this.response instanceof win.ArrayBuffer ? new Uint8Array(this.response)
+                        : Uint8Array.from(this.responseText,c => c.charCodeAt(0) & 255);
+                      await capture(bytes);
+                    } catch(error) { fail(error); }
+                  });
+                  for (const event of ['error','abort','timeout']) this.addEventListener(event,() => fail('课表网络请求未完成'));
+                }
+                return originalSend.apply(this,arguments);
+              };
+              const frames = () => { for (const frame of win.document.querySelectorAll('iframe,frame')) { try { install(frame.contentWindow); } catch {} } };
+              win.document.addEventListener('load',frames,true);
+              new win.MutationObserver(frames).observe(win.document,{childList:true,subtree:true});
+              frames();
+            } catch (error) { fail(error); }
+          };
+          install(window);
           return true;
         })()
     """.trimIndent()
