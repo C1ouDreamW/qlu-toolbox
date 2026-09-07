@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import io
+import threading
 import os
 import signal
 import subprocess
@@ -14,6 +16,15 @@ from qlu_toolbox.bridge import Bridge
 
 
 class BridgeProcessTests(unittest.TestCase):
+    def test_schedule_worker_crash_uses_schedule_event_channel(self):
+        bridge = Bridge.__new__(Bridge)
+        bridge.tasks, bridge.emit = Mock(), Mock()
+        bridge.lock, bridge.worker = threading.Lock(), None
+        worker = Mock(stdout=io.StringIO(''), stderr=io.StringIO('crash'))
+        worker.wait.return_value = 1
+        bridge._read_worker(worker, 'schedule-task', 'scheduleImport')
+        self.assertEqual(bridge.emit.call_args.args[0]['name'], 'scheduleImport')
+
     def test_macos_browser_download_terminates_the_process_group(self):
         process = Mock(pid=1234)
         process.poll.return_value = None

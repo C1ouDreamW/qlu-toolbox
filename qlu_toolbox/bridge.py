@@ -484,7 +484,7 @@ class Bridge:
             message = stderr or f"后台任务异常结束（退出码 {exit_code}）"
             self.tasks.fail(task_id, message)
             self.emit({
-                "channel": "event", "name": "gradeExport", "taskId": task_id,
+                "channel": "event", "name": event_name, "taskId": task_id,
                 "event": {"type": "error", "code": "WORKER_EXIT", "message": message},
             })
         with self.lock:
