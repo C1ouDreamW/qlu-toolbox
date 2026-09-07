@@ -204,7 +204,7 @@ jobs:
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon testDebugUnitTest assembleRelease
+          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleRelease
 
       - name: Prepare Android artifact
         shell: bash
@@ -288,10 +288,10 @@ jobs:
           apk=$(find artifacts -maxdepth 1 -name 'LumaTile-Android-v*.apk' -type f -print -quit)
           test -n "$apk"
           version="${GITHUB_REF_NAME#v}"
-          git fetch origin main
-          git checkout -B main origin/main
           version_code=$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9]\+\).*$/\1/p' apps/mobile/android/app/build.gradle | head -n 1)
           test -n "$version_code"
+          git fetch origin main
+          git checkout -B main origin/main
           node scripts/generate-android-update-manifest.mjs "$apk" updates/android.json "$version_code" "$version" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME"
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
