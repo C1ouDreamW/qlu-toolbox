@@ -464,7 +464,7 @@ onBeforeUnmount(() => {
         <div class="update-actions">
           <button class="primary" @click="dismissAnnouncement">知道了</button>
         </div>
-        <small class="update-safety">公告由更新源服务器发布，不包含个人数据；可在“我的”页面管理相关开关。</small>
+        <small class="update-safety">公告由更新源服务器发布；启动时独立读取，不受自动更新和匿名统计开关影响。</small>
       </section>
     </div>
 

@@ -45,7 +45,10 @@ function applyStartPage() {
   }
 }
 
-async function acceptWelcome() { await appStore.saveSettings({ welcome_accepted: true }) }
+async function acceptWelcome() {
+  await appStore.saveSettings({ welcome_accepted: true })
+  runStartupTasks()
+}
 async function checkUpdate(manual = false) {
   if (!boot.value || checkingUpdate.value) return
   checkingUpdate.value = true
@@ -73,13 +76,18 @@ function dismissAnnouncement() {
   announcement.value = null
 }
 
-onMounted(async () => {
-  await appStore.initialize()
-  if (!boot.value?.settings.welcome_accepted) return
+let startupDone = false
+function runStartupTasks() {
+  if (startupDone || !boot.value?.settings.welcome_accepted) return
+  startupDone = true
   applyStartPage()
   if (boot.value.settings.check_updates) void checkUpdate()
   if (boot.value.settings.anonymous_stats) void window.qlu.sendStatsBeacon()
   void showAnnouncement()
+}
+onMounted(async () => {
+  await appStore.initialize()
+  runStartupTasks()
 })
 </script>
 
@@ -102,7 +110,7 @@ onMounted(async () => {
       <button class="primary-button wide" :disabled="!disclaimerConfirmed" @click="acceptWelcome">确认并开始使用</button>
     </BaseModal>
     <BaseModal v-if="update" title="发现新版本" dismissible @close="update = null"><span class="update-version">{{ update.version }}</span><p class="modal-lead">{{ update.name || '一格有光更新' }}</p><p class="update-notes">{{ update.notes || '本次发布暂无详细说明。' }}</p><div class="modal-actions"><button class="secondary-button" @click="update = null">稍后再说</button><button class="primary-button" @click="api.openExternal(update!.url)">查看新版本</button></div></BaseModal>
-    <BaseModal v-if="announcement" :title="announcement.level === 'warning' ? '重要通知' : '公告'" dismissible @close="dismissAnnouncement"><span class="update-version">{{ announcement.title }}</span><p class="modal-lead">{{ announcement.body }}</p><div class="modal-actions"><button v-if="announcement.url" class="secondary-button" @click="api.openExternal(announcement.url!)">查看详情</button><button class="primary-button" @click="dismissAnnouncement">知道了</button></div></BaseModal>
+    <BaseModal v-if="announcement" :title="announcement.level === 'warning' ? '重要通知' : '公告'" dismissible @close="dismissAnnouncement"><span class="update-version">{{ announcement.title }}</span><p class="modal-lead announcement-body">{{ announcement.body }}</p><div class="modal-actions"><button v-if="announcement.url" class="secondary-button" @click="api.openExternal(announcement.url!)">查看详情</button><button class="primary-button" @click="dismissAnnouncement">知道了</button></div></BaseModal>
     <FeedbackModal v-if="boot && feedbackOpen" :version="boot.version" @close="feedbackOpen = false" />
     <BaseModal v-if="browser.required" :title="browser.error ? '浏览器组件下载未完成' : browser.installing ? '正在准备备用浏览器' : '需要备用浏览器组件'">
       <div class="browser-download-mark" :data-state="browser.error ? 'error' : browser.installing ? 'loading' : 'ready'">
