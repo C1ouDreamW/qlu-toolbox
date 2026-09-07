@@ -62,12 +62,13 @@ export async function findAvailableUpdate(current: CurrentAppVersion): Promise<A
   if (!newer.length) return null
   const highestVersionCode = Math.max(...newer.map(item => item.versionCode))
   const highest = newer.filter(item => item.versionCode === highestVersionCode)
-  const hashes = new Set(highest.map(item => item.sha256.toLowerCase()))
+  const hashes = new Set(highest.map(item => `${item.sha256.toLowerCase()}:${item.size}`))
   if (hashes.size > 1) {
     throw new Error(`更新清单冲突：versionCode ${highestVersionCode} 对应多个不同的 APK`)
   }
 
-  return highest.at(-1) ?? null
+  const selected = highest[0]
+  return { ...selected, fallbackApkUrls: [...new Set(highest.map(item => item.apkUrl))].filter(url => url !== selected.apkUrl) }
 }
 
 async function fetchManifest(url: string): Promise<UpdateManifest> {

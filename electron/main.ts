@@ -213,8 +213,12 @@ function registerIpc() {
     await shell.openExternal(url)
   })
   ipcMain.handle('system:check-update', async (_event, currentVersion: string) => {
-    try { return await checkSelfHostedUpdate(currentVersion) }
-    catch { return checkGithubUpdate(currentVersion) }
+    try {
+      const primary = await checkSelfHostedUpdate(currentVersion)
+      if (primary) return primary
+    } catch { return checkGithubUpdate(currentVersion) }
+    // A stale but reachable mirror must not hide a published GitHub update.
+    return checkGithubUpdate(currentVersion)
   })
   ipcMain.handle('system:send-stats-beacon', () => sendStatsBeacon())
   ipcMain.handle('system:fetch-announcement', () => fetchAnnouncement())

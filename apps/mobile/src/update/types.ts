@@ -23,6 +23,7 @@ export interface UpdateManifest {
 
 export interface AvailableUpdate extends UpdateManifest {
   source: string
+  fallbackApkUrls?: string[]
 }
 
 export interface UpdateDownloadProgress {
