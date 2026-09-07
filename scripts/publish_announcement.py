@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -29,7 +30,7 @@ def build_announcement(args: argparse.Namespace) -> dict:
         "schemaVersion": 1,
         "id": args.id or f"{datetime.now(timezone.utc).strftime('%Y%m%d')}-{os.urandom(2).hex()}",
         "title": args.title,
-        "body": args.body,
+        "body": args.body.replace("\\n", "\n"),
         "level": args.level,
     }
     if args.url:
@@ -61,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.clear:
-        run(["ssh", args.host, "rm", "-f", args.remote_path])
+        run(["ssh", args.host, f"rm -f -- {shlex.quote(args.remote_path)}"])
         print("公告已清除")
         return 0
 
@@ -74,16 +75,23 @@ def main(argv: list[str] | None = None) -> int:
         handle.write("\n")
         temp_path = handle.name
     try:
-        run(["scp", temp_path, f"{args.host}:{args.remote_path}"])
+        remote_temp = f"{args.remote_path}.{os.urandom(6).hex()}.tmp"
+        run(["scp", temp_path, f"{args.host}:{remote_temp}"])
+        run(["ssh", args.host, f"mv -f -- {shlex.quote(remote_temp)} {shlex.quote(args.remote_path)}"])
     finally:
         os.unlink(temp_path)
 
     print(f"公告已发布：{announcement['id']}（{args.title}）")
     verify = subprocess.run(["curl", "-fsS", args.public_url], capture_output=True, text=True)
-    if verify.returncode == 0 and announcement["id"] in verify.stdout:
+    try:
+        verified = verify.returncode == 0 and json.loads(verify.stdout).get("id") == announcement["id"]
+    except (ValueError, AttributeError):
+        verified = False
+    if verified:
         print("线上校验通过")
     else:
         print(f"[warn] 无法通过 {args.public_url} 校验，请手动确认", file=sys.stderr)
+        return 1
     return 0
 
 
