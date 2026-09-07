@@ -9,6 +9,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Windows runner 默认 stdout 编码为 cp1252，测试中的中文 print 会触发
+  # UnicodeEncodeError；强制 UTF-8 保持三个平台行为一致
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: utf-8
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
