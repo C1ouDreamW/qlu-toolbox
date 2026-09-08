@@ -19,11 +19,15 @@ class AndroidScheduleCaptureTests(ScheduleCaptureEndToEndTests):
                 for path in ['/', '/native', '/ajax', '/iframe', '/xhr', '/request-submit']:
                     with self.subTest(path=path):
                         page = browser.new_page()
+                        # 先安装拦截脚本，再推进模拟页面的 600ms 导出定时器，避免慢 CI 抢跑。
+                        page.clock.install(time=0)
+                        page.clock.pause_at(1000)
                         requests = []
                         page.on('request', lambda r: requests.append(r.url) if 'cxDcExcel' in r.url else None)
                         page.goto(self.base+path)
                         self.assertTrue(page.evaluate(script))
-                        page.wait_for_function('window.__LUMATILE_SCHEDULE_IMPORT__.result', timeout=5000)
+                        page.clock.run_for(600)
+                        page.wait_for_function('window.__LUMATILE_SCHEDULE_IMPORT__.result', polling=50, timeout=5000)
                         state = page.evaluate('window.__LUMATILE_SCHEDULE_IMPORT__')
                         self.assertTrue(json.loads(state['result'])['ok'], state['result'])
                         self.assertEqual(base64.b64decode(state['base64']),CONTENT)
