@@ -15,6 +15,7 @@ import AboutPage from '@/pages/AboutPage.vue'
 import GradeExportPage from '@/pages/GradeExportPage.vue'
 import GPACalculatorPage from '@/pages/GPACalculatorPage.vue'
 import SchedulePage from '@/pages/SchedulePage.vue'
+import CreditReportPage from '@/pages/CreditReportPage.vue'
 import { appStore } from '@/store'
 import { logoUrl } from '@/assets'
 import type { Announcement, PageName } from '@/types'
@@ -27,7 +28,7 @@ const reloadApp = () => window.location.reload()
 const checkingUpdate = ref(false)
 const feedbackOpen = ref(false)
 const boot = appStore.boot
-const pageComponent = computed(() => ({ schedule: SchedulePage, home: HomePage, tools: ToolsPage, tasks: TasksPage, settings: SettingsPage, about: AboutPage, grade: GradeExportPage, gpa: GPACalculatorPage }[appStore.state.page]))
+const pageComponent = computed(() => ({ schedule: SchedulePage, home: HomePage, tools: ToolsPage, tasks: TasksPage, settings: SettingsPage, about: AboutPage, grade: GradeExportPage, gpa: GPACalculatorPage, credit: CreditReportPage }[appStore.state.page]))
 const browser = appStore.state.browser
 
 function navigate(page: PageName) {

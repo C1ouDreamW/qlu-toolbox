@@ -1,4 +1,4 @@
-export type PageName = 'home' | 'tools' | 'tasks' | 'settings' | 'about' | 'grade' | 'gpa' | 'schedule'
+export type PageName = 'home' | 'tools' | 'tasks' | 'settings' | 'about' | 'grade' | 'gpa' | 'schedule' | 'credit'
 export type Theme = 'light' | 'dark' | 'system'
 
 import type { StoredSchedule } from '@lumatile/contracts'
@@ -115,4 +115,88 @@ export interface GPAWorkbook {
   rowCount: number
   courses: GPACourse[]
   warnings: string[]
+}
+
+export interface CreditCourseStat {
+  code: string
+  name: string
+  credit: number
+  state: 'passed' | 'in_progress' | 'failed'
+  score: string
+  term: string
+  module: string
+  source: 'official' | 'keyword' | 'extra' | 'ignored'
+}
+
+export interface CreditSubStat {
+  key: string
+  label: string
+  required: number
+  earned: number
+  in_progress: number
+  gap: number
+  satisfied: boolean
+}
+
+export interface CreditModuleStat {
+  key: string
+  label: string
+  required: number
+  earned: number
+  in_progress: number
+  gap: number
+  satisfied: boolean
+  art_only: boolean
+  subs: CreditSubStat[]
+  courses: CreditCourseStat[]
+}
+
+export interface CreditRecommendation {
+  key: string
+  label: string
+  detail: string
+  credit: number
+}
+
+export interface CreditReport {
+  source: 'plan' | 'fallback'
+  art_major: boolean
+  total_required: number
+  total_earned: number
+  total_in_progress: number
+  total_gap: number
+  modules: CreditModuleStat[]
+  unfulfilled: string[]
+  recommendations: CreditRecommendation[]
+  extra_elective: CreditCourseStat[]
+  unmatched: CreditCourseStat[]
+  snapshotDir?: string
+}
+
+export interface CreditEvent {
+  type: 'status' | 'log' | 'success' | 'error' | 'cancelled' | 'browser_required'
+  stage?: string; message?: string; code?: string; report?: CreditReport
+}
+
+export interface CreditRulesSub {
+  key: string
+  label: string
+  required: number
+  keywords: string[]
+}
+
+export interface CreditRulesModule {
+  key: string
+  label: string
+  required: number
+  art_only: boolean
+  keywords: string[]
+  subs: CreditRulesSub[]
+}
+
+export interface CreditRules {
+  schema_version: number
+  art_major: boolean
+  total_required: number
+  modules: CreditRulesModule[]
 }

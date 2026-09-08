@@ -315,3 +315,80 @@
 @media(max-width:800px){.sidebar-feedback{justify-content:center}.sidebar-feedback span{display:none}}
 
 .announcement-body{white-space:pre-wrap;overflow-wrap:anywhere}
+
+
+/* 学分修读情况 */
+.tool-icon.credit{color:#8a5cd6;background:#f3edfd}
+.credit-rules{margin:4px 0 14px;padding:12px 13px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.credit-rules summary{display:flex;flex-direction:column;gap:4px;cursor:pointer;user-select:none}
+.credit-rules summary span{font-size:13px;font-weight:650}
+.credit-rules summary small{color:var(--muted);font-size:11px}
+.credit-rules .field{margin:12px 0 10px}
+.credit-rule-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.credit-rule-row span{font-size:12px;font-weight:600}
+.credit-rule-row small{color:var(--muted);font-weight:400;font-size:11px}
+.credit-rule-row input{width:80px;height:32px;padding:0 9px;border:1px solid var(--line-strong);border-radius:7px;background:var(--surface);font:inherit;font-size:13px}
+.credit-rule-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.credit-rule-actions .primary-button,.credit-rule-actions .secondary-button{height:34px;padding:0 13px;font-size:12px}
+.credit-overview{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;margin:6px 0 14px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.credit-ring{display:grid;place-items:center;width:118px;height:118px;border-radius:50%;background:conic-gradient(var(--primary) calc(var(--pct,0)*1%),var(--line) 0);position:relative}
+.credit-ring::before{content:'';position:absolute;inset:10px;border-radius:50%;background:var(--surface)}
+.credit-ring strong,.credit-ring span{position:relative;z-index:1;display:block;text-align:center}
+.credit-ring strong{font-size:24px;letter-spacing:-.03em}
+.credit-ring span{max-width:96px;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.45}
+.credit-ring[data-state="done"]{background:conic-gradient(var(--green) calc(var(--pct,0)*1%),var(--line) 0)}
+.credit-facts{display:grid;gap:11px}
+.credit-facts>div{display:flex;align-items:center;gap:10px;color:var(--primary)}
+.credit-facts>div[data-tone="warn"]{color:var(--red)}
+.credit-facts>div[data-tone="good"]{color:var(--green)}
+.credit-facts strong{display:block;font-size:14px;color:var(--text)}
+.credit-facts span small{display:block;color:var(--muted);font-size:11px}
+.credit-gaps{margin-bottom:14px;padding:13px 15px;border:1px solid color-mix(in srgb,var(--red) 30%,var(--line));border-radius:12px;background:var(--red-soft)}
+.credit-gaps h3{display:flex;align-items:center;gap:7px;margin:0 0 8px;color:var(--red);font-size:13px}
+.credit-gaps p{margin:0 0 5px;color:var(--text);font-size:12px;line-height:1.65}
+.credit-gaps[data-tone="good"]{border-color:color-mix(in srgb,var(--green) 30%,var(--line));background:var(--green-soft)}
+.credit-gaps[data-tone="good"] h3{margin:0;color:var(--green)}
+.credit-modules{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.credit-modules article{padding:14px 16px;border:1px solid var(--line);border-radius:13px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.credit-modules article[data-satisfied="true"]{border-color:color-mix(in srgb,var(--green) 26%,var(--line))}
+.credit-modules header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.credit-modules header strong{font-size:13px}
+.credit-nums{flex:1;color:var(--muted);font-size:12px}
+.credit-modules header em{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;color:var(--red);background:var(--red-soft);font-size:11px;font-style:normal;font-weight:650}
+.credit-modules header em.ok{color:var(--green);background:var(--green-soft)}
+.credit-subs{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.credit-subs span{padding:5px 11px;border-radius:99px;color:var(--red);background:var(--red-soft);font-size:11px;font-weight:600}
+.credit-subs span[data-satisfied="true"]{color:var(--green);background:var(--green-soft)}
+.credit-course-toggle{display:inline-flex;align-items:center;gap:6px;margin-top:11px;padding:0;border:0;background:transparent;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
+.credit-courses{display:flex;flex-direction:column;gap:6px;margin:9px 0 0;padding:0;list-style:none}
+.credit-courses li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 11px;border-radius:8px;background:var(--surface-2)}
+.credit-courses li strong{font-size:12px}
+.credit-courses li span{color:var(--muted);font-size:11px}
+.credit-courses li[data-state="in_progress"] strong{color:var(--amber)}
+.credit-courses li[data-state="failed"] strong{color:var(--red)}
+.credit-courses li.empty{justify-content:center;color:var(--faint);font-size:11px}
+.credit-unmatched{border-top:1px solid var(--line)}
+.credit-unmatched>button{width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 0;border:0;background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
+.credit-unmatched ul{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;padding:0;list-style:none}
+.credit-unmatched li{display:flex;justify-content:space-between;gap:10px;padding:7px 11px;border-radius:8px;background:var(--surface-2);font-size:11px}
+.credit-unmatched li span{color:var(--muted)}
+
+/* 学分页补充：推荐选课方向 + 环形修正 */
+.credit-ring{width:136px;height:136px}
+.credit-ring::before{inset:12px}
+.credit-ring strong{font-size:23px}
+.credit-ring span{max-width:112px;font-size:10px;line-height:1.5}
+.credit-recs{margin-bottom:14px;padding:13px 15px;border:1px solid color-mix(in srgb,var(--primary) 26%,var(--line));border-radius:12px;background:var(--primary-soft)}
+.credit-recs h3{display:flex;align-items:center;gap:7px;margin:0 0 9px;color:var(--primary);font-size:13px}
+.credit-rec{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;margin-bottom:7px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.credit-rec:last-of-type{margin-bottom:0}
+.credit-rec-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.credit-rec-main strong{font-size:12px}
+.credit-rec-main span{color:var(--muted);font-size:11px;line-height:1.5}
+.credit-rec em{flex-shrink:0;padding:4px 11px;border-radius:99px;color:var(--primary);background:var(--primary-soft);font-size:11px;font-style:normal;font-weight:700}
+.credit-rec-note{margin:9px 0 0;color:var(--muted);font-size:10px}
+
+/* 学分页：专业类型切换按钮防裁切 */
+.credit-page .semester-options strong{font-size:12px;white-space:nowrap;overflow:visible;text-overflow:clip}
+.credit-page .semester-options small{font-size:10px;white-space:normal;line-height:1.45}
+.credit-page .semester-options button{align-items:center;text-align:center}

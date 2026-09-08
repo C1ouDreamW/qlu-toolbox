@@ -1,7 +1,7 @@
 import { computed, reactive, watch } from 'vue'
 import type {
   BootstrapData, BrowserComponentEvent, BrowserComponentStatus,
-  GradeEvent, PageName, ScheduleImportEvent, ScheduleImportSource,
+  CreditEvent, CreditReport, GradeEvent, PageName, ScheduleImportEvent, ScheduleImportSource,
   Settings, StoredSchedule, TaskRecord,
 } from './types'
 
@@ -34,6 +34,15 @@ const state = reactive({
     status: '',
     failed: false,
     result: null as ScheduleImportSource | null,
+  },
+  credit: {
+    running: false,
+    taskId: '',
+    stage: 'environment',
+    status: '准备就绪',
+    logs: [] as string[],
+    report: null as CreditReport | null,
+    failed: false,
   },
 })
 
@@ -122,6 +131,55 @@ async function initialize() {
           state.scheduleImport.running = false
           state.scheduleImport.failed = true
           notify(event.message || '课表导入失败', 'error')
+          void refreshTasks()
+        }
+        return
+      }
+      if (name === 'creditReport') {
+        const message = payload as { taskId: string; event: CreditEvent }
+        const event = message.event
+        if (event.type === 'status') {
+          state.credit.stage = event.stage || state.credit.stage
+          state.credit.status = event.message || '正在处理…'
+        } else if (event.type === 'log') {
+          state.credit.logs.push(event.message || '')
+        } else if (event.type === 'browser_required') {
+          state.credit.stage = 'browser'
+          state.credit.status = event.message || '需要下载备用浏览器组件'
+          state.browser.required = true
+          state.browser.installing = false
+          state.browser.progress = 0
+          state.browser.message = '下载完成后将自动继续当前任务。'
+          state.browser.error = ''
+        } else if (event.type === 'success') {
+          state.credit.running = false
+          if (event.report) {
+            const report = { ...event.report }
+            if (!report.recommendations) report.recommendations = []
+            if (!report.extra_elective) report.extra_elective = []
+            if (!report.unmatched) report.unmatched = []
+            state.credit.report = report
+          } else {
+            state.credit.report = null
+          }
+          state.credit.status = '统计完成'
+          state.credit.stage = 'success'
+          state.browser.required = false
+          notify('学分修读情况统计完成', 'success')
+          void refreshTasks()
+        } else if (event.type === 'cancelled') {
+          state.credit.running = false
+          state.credit.status = event.message || '操作已取消'
+          state.credit.stage = 'cancelled'
+          state.browser.required = false
+          void refreshTasks()
+        } else if (event.type === 'error') {
+          state.credit.running = false
+          state.credit.failed = true
+          state.credit.status = event.message || '统计失败'
+          state.credit.stage = 'error'
+          state.browser.required = false
+          notify(state.credit.status, 'error')
           void refreshTasks()
         }
         return
