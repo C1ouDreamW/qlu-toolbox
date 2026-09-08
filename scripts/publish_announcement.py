@@ -82,10 +82,17 @@ def main(argv: list[str] | None = None) -> int:
         os.unlink(temp_path)
 
     print(f"公告已发布：{announcement['id']}（{args.title}）")
-    verify = subprocess.run(["curl", "-fsS", args.public_url], capture_output=True, text=True)
+    # Windows 下 text=True 默认用 GBK 解码，线上 JSON 是 UTF-8，必须显式指定
+    verify = subprocess.run(
+        ["curl", "-fsS", args.public_url],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     try:
-        verified = verify.returncode == 0 and json.loads(verify.stdout).get("id") == announcement["id"]
-    except (ValueError, AttributeError):
+        verified = verify.returncode == 0 and json.loads(verify.stdout or "").get("id") == announcement["id"]
+    except (ValueError, AttributeError, TypeError):
         verified = False
     if verified:
         print("线上校验通过")
