@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  面向齐鲁工业大学学生的非官方工具，提供课表管理、分项成绩导出和 GPA 计算。<br>
+  面向齐鲁工业大学学生的非官方工具，提供课表管理、分项成绩导出、GPA 计算和学分修读统计。<br>
   用户在独立浏览器或受限 WebView 中手动登录，课表与成绩数据均在本机处理和保存。
 </p>
 
@@ -40,21 +40,22 @@
 
 | 平台 | 当前版本 | 发布形式 | 说明 |
 |---|---:|---|---|
-| Windows x64 | 2.0.0 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
-| macOS Apple Silicon | 2.0.0 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
-| Android 7.0 及以上 | 2.0.0（versionCode 10） | APK | 使用系统 WebView，支持系统文件保存和应用内更新检查 |
+| Windows x64 | 2.0.1 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
+| macOS Apple Silicon | 2.0.1 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
+| Android 7.0 及以上 | 2.0.1（versionCode 11） | APK | 使用系统 WebView，支持系统文件保存和应用内更新检查 |
 
-v2.0.0 作为桥接版本仍发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases)；后续版本由 `lumatile.ishua.cloud` 分发并保留 GitHub 备用渠道。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+安装包同时发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 与自建更新源 `lumatile.ishua.cloud`（互为备用渠道）。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 桌面版
 
 ### 功能
 
-- **课表工具**：周视图课表（今日列高亮、停课日覆盖、周末显示方式可选），方向键或下拉切周，内置课程编辑器与多课表管理，支持开学日期与作息时间设置。
+- **课表工具**：周视图课表（今日列高亮、停课日覆盖、周末显示方式可选），方向键或下拉切周，内置课程编辑器与多课表管理，支持开学日期与作息时间设置；同一时段多门安排重叠时，课程卡片按时段分段显示并可点击切换显示哪门安排，选择会记住。
 - **课表导入与备份**：登录教务系统后点击学校原有的"输出EXCEL"即可在同源环境接管导入（含大小与 SHA-256 校验），也可导入本地 Excel 课表；课表可导出为 `.lumatile-schedule.json` 备份，与 Android 端互相导入。
 - **分项成绩导出**：选择学年、学期和保存目录，在浏览器中手动登录后自动查询并导出 Excel。
 - **结果校验**：保存前识别 XLS/XLSX，并核对工作簿中的实际学期，降低误保存其他学期数据的风险。
 - **GPA 计算器**：读取分项成绩 XLSX，展示课程成绩分项，支持逐课勾选并计算总学分、总成绩点和加权平均 GPA。
+- **学分修读情况（v2.0.1 新增）**：登录教务后自动读取培养方案修读要求、官方课程映射与全部学年成绩，在本地统计综合素质选修课各模块的学分进度与缺口，给出修读建议，支持自定义修读规则。感谢 [@LoMoCatAp](https://github.com/LoMoCatAp) 贡献。
 - **任务记录**：保存成功、失败、取消和异常中断的任务状态。
 - **本地设置**：管理默认目录、浏览器偏好、主题、启动页、更新检查和登录状态。
 - **备用浏览器**：Edge 和 Chrome 均不可用时，可在应用内按需下载与当前 Playwright 版本匹配的 Chromium。
@@ -112,7 +113,7 @@ macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若
 
 ### 功能
 
-- **课表工具**：周视图课表（今日列高亮），滑动切周并预览相邻一周，内置课程编辑器与多课表管理，支持开学日期与作息时间设置，适配系统返回键逐级返回。
+- **课表工具**：周视图课表（今日列高亮），滑动切周并预览相邻一周，内置课程编辑器与多课表管理，支持开学日期与作息时间设置，适配系统返回键逐级返回；同一时段多门安排重叠时，课程卡片按时段分段显示并可点击切换显示哪门安排，选择会记住。
 - **课表导入与备份**：应用内登录教务后点击学校原有的"输出EXCEL"即可接管导入并校验文件（需校园网环境），也可从系统文件选择器导入 Excel 或 `.lumatile-schedule.json` 备份；课表可导出备份并通过系统分享面板发送，与桌面端互相导入。
 - **独立教务 WebView**：只允许齐鲁工业大学教务和统一认证域名的 HTTPS 导航，不暴露通用 JavaScript Bridge。
 - **手动登录与会话管理**：在 WebView 中完成登录和验证码操作，可选择保留或清除登录状态。
@@ -129,7 +130,7 @@ macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若
 
 ### 下载与安装
 
-1. v2.0.0 从 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载 `LumaTile-Android-v*.apk`，后续版本由应用内更新源提供。
+1. 首次安装可从 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载 `LumaTile-Android-v*.apk`；已安装用户可在应用内检查更新，由自建更新源提供新版本 APK。
 2. 在 Android 系统设置中允许当前浏览器或文件管理器“安装未知应用”。
 3. 打开 APK 完成安装；安装后可关闭该来源的安装权限。
 
@@ -253,7 +254,8 @@ qlu_toolbox/modules/gpa_calculator/   桌面 XLSX 解析与 GPA 规则
 apps/mobile/src/                      Android 端 Vue、Capacitor 和 Web Worker 代码
 apps/mobile/android/                  Kotlin Activity、原生插件、Room 和 Gradle 工程
 packages/contracts/                   移动端共享 TypeScript 数据契约
-packages/academic-core/               学期、导出参数、成绩解析和 GPA 领域逻辑
+packages/academic-core/               学期、导出参数、成绩解析、GPA、课表时段分段与学分修读领域逻辑
+packages/schedule-ui/                 课表周次摘要与滚轮选择的共享界面逻辑
 tests/                                Python 单元与 Bridge 集成测试
 .github/workflows/                    Windows、macOS、Android CI 与 Release 流程
 updates/android.json                  Android 公开更新清单
