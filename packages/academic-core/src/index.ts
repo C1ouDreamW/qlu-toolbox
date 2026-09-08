@@ -372,6 +372,49 @@ export function meetingConflicts(meetings: ScheduleMeeting[]): [string, string][
   return conflicts
 }
 
+export type SchedulePlacement = { course: ScheduleCourse; meeting: ScheduleMeeting }
+export type ScheduleSegment = {
+  key: string
+  weekday: number
+  startPeriod: number
+  endPeriod: number
+  candidates: SchedulePlacement[]
+  item: SchedulePlacement
+  continued: boolean
+}
+
+/** Display-only segments. Original meetings remain intact for editing and export. */
+export function scheduleSegments(
+  schedule: ScheduleBook, week: number, choices: Record<string, string> = {},
+): ScheduleSegment[] {
+  const result: ScheduleSegment[] = []
+  const meetings = schedule.courses.flatMap(course => course.meetings
+    .filter(meeting => meeting.weekday !== null && meeting.startPeriod !== null
+      && meeting.endPeriod !== null && meeting.weeks.includes(week))
+    .map(meeting => ({ course, meeting })))
+  for (const weekday of visibleWeekdays(schedule, week)) {
+    const day = meetings.filter(item => item.meeting.weekday === weekday).sort((a, b) =>
+      a.meeting.startPeriod! - b.meeting.startPeriod!
+      || a.meeting.id.localeCompare(b.meeting.id))
+    const boundaries = [...new Set(day.flatMap(({ meeting }) => [meeting.startPeriod!, meeting.endPeriod! + 1]))]
+      .sort((a, b) => a - b)
+    let previousDefault: SchedulePlacement | undefined
+    for (let index = 0; index < boundaries.length - 1; index += 1) {
+      const startPeriod = boundaries[index]
+      const endPeriod = boundaries[index + 1] - 1
+      const candidates = day.filter(({ meeting }) => meeting.startPeriod! <= startPeriod && meeting.endPeriod! >= endPeriod)
+      if (!candidates.length) { previousDefault = undefined; continue }
+      // Defaults must not depend on user choices in a neighbouring segment.
+      previousDefault = candidates.find(item => item === previousDefault) || candidates[0]
+      const key = JSON.stringify([schedule.id, schedule.startDate, week, weekday, startPeriod, endPeriod,
+        candidates.map(({ course, meeting }) => [course.id, meeting.id, meeting.startPeriod, meeting.endPeriod, [...meeting.weeks].sort((a, b) => a - b)])])
+      const item = candidates.find(item => item.meeting.id === choices[key]) || previousDefault
+      result.push({ key, weekday, startPeriod, endPeriod, candidates, item, continued: startPeriod > item.meeting.startPeriod! })
+    }
+  }
+  return result
+}
+
 export function parseScheduleBackup(payload: string): ScheduleBook {
   if (new TextEncoder().encode(payload).length > 2 * 1024 * 1024) throw new ScheduleParseError('课表备份超过 2 MiB')
   let value: unknown
