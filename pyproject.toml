@@ -1,6 +1,6 @@
 [project]
 name = "lumatile"
-version = "2.0.0"
+version = "2.0.1"
 description = "一格有光：面向齐鲁工业大学学生的非官方本地校园效率工具"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
