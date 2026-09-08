@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import {
   clampIndexToLoop, indexForValue, normalizeIndex, valueForIndex,
   positionForIndex, targetIndexForDrag, targetIndexForTap,
-} from './wheelPicker'
+} from '@lumatile/schedule-ui'
 
 export interface WheelOption { value: number; label: string; sublabel?: string }
 

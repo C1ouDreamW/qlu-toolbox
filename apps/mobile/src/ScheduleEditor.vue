@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { ArrowLeft, ChevronRight, Copy, Plus, Save, Trash2 } from 'lucide-vue-next'
 import { meetingConflicts, SCHEDULE_COLORS } from '@lumatile/academic-core'
 import type { ScheduleBook, ScheduleCourse, ScheduleMeeting } from '@lumatile/contracts'
-import { formatMeetingSummary, formatWeekSummary } from './scheduleEditorText'
+import { formatMeetingSummary, formatWeekSummary } from '@lumatile/schedule-ui'
 import WeekPickerSheet from './WeekPickerSheet.vue'
 import TimePickerSheet from './TimePickerSheet.vue'
 
