@@ -529,8 +529,8 @@ onMounted(() => { void loadSchedules() })
 .meeting-card.meeting-card-short>small{display:none}
 .meeting-card:focus-visible{outline:2px solid #0b76e8;outline-offset:-2px}
 .course-continuation{margin-right:3px;font-size:9px;font-style:normal;font-weight:500;opacity:.85}
-.meeting-card>.course-conflict-badge{position:absolute;right:0;bottom:0;display:block;width:27px;height:24px;margin:0;background:rgba(255,255,255,.95);color:#18324b;clip-path:polygon(100% 0,100% 100%,0 100%);text-shadow:none;pointer-events:none}
-.course-conflict-badge>b{position:absolute;right:3px;bottom:1px;font-size:10px;line-height:13px}
+.meeting-card>.course-conflict-badge{position:absolute;right:5px;bottom:5px;display:block;width:24px;height:24px;margin:0;background:rgba(255,255,255,.55);color:#18324b;clip-path:path('M24 4.8 Q24 0 20.6 3.4 L3.4 20.6 Q0 24 4.8 24 H21.5 Q24 24 24 21.5 Z');text-shadow:none;pointer-events:none}
+.course-conflict-badge>b{position:absolute;right:2px;bottom:1px;text-align:right;font-size:9px;font-weight:600;line-height:10px}
 .course-detail{max-height:calc(100dvh - env(safe-area-inset-top) - 24px);overflow-y:auto;overscroll-behavior:contain}
 .course-detail h2{min-width:0;overflow-wrap:anywhere}
 .course-detail .course-segment-context{display:block;padding:9px 4px;color:#667d93;font-size:11px;line-height:1.6}
