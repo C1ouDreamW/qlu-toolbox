@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Copy, Plus, Save, Trash2 } from 'lucide-vue-next'
+import { ChevronRight, Copy, Plus, Save, Trash2 } from 'lucide-vue-next'
 import BaseModal from '@/components/BaseModal.vue'
-import { meetingConflicts, parseWeekExpression, SCHEDULE_COLORS } from '@lumatile/academic-core'
+import { meetingConflicts, SCHEDULE_COLORS } from '@lumatile/academic-core'
+import { formatMeetingSummary, formatWeekSummary } from '@lumatile/schedule-ui'
 import type { ScheduleBook, ScheduleCourse, ScheduleMeeting } from '@lumatile/contracts'
+import ScheduleWeekPicker from './ScheduleWeekPicker.vue'
+import ScheduleTimePicker from './ScheduleTimePicker.vue'
 
 const props = defineProps<{ book: ScheduleBook; course?: ScheduleCourse | null }>()
 const emit = defineEmits<{ cancel: []; saved: [course: ScheduleCourse]; deleted: [id: string] }>()
 
-type MeetingDraft = Omit<ScheduleMeeting, 'weeks' | 'teachers'> & { weekText: string; teacherText: string }
+type MeetingDraft = ScheduleMeeting & { teacherText: string }
 const id = props.course?.id || newId()
 const name = ref(props.course?.name || '')
 const code = ref(props.course?.code || '')
@@ -20,13 +23,15 @@ const note = ref(props.course?.note || '')
 const error = ref('')
 const meetings = ref<MeetingDraft[]>((props.course?.meetings.length ? props.course.meetings : [blankMeeting()]).map(meeting => ({
   ...meeting,
-  weekText: formatWeeks(meeting.weeks),
   teacherText: meeting.teachers.join('、'),
 })))
 
+const picker = ref<{ kind: 'week' | 'time'; meetingId: string; anchorEl: HTMLElement } | null>(null)
+const pickerMeeting = computed(() => meetings.value.find(meeting => meeting.id === picker.value?.meetingId) || null)
+
 const conflict = computed(() => {
   try {
-    const drafts = meetings.value.map(meeting => ({ ...meeting, weeks: parseWeekExpression(meeting.weekText, props.book.totalWeeks), teachers: [] }))
+    const drafts = meetings.value.map(meeting => ({ ...meeting, teachers: [] }))
     const ids = new Set(drafts.map(meeting => meeting.id))
     return meetingConflicts([...props.book.courses.filter(course => course.id !== id).flatMap(course => course.meetings), ...drafts])
       .some(pair => pair.some(meetingId => ids.has(meetingId)))
@@ -34,42 +39,55 @@ const conflict = computed(() => {
 })
 
 function newId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` }
-function blankMeeting(): ScheduleMeeting {
+function blankMeeting(): MeetingDraft {
   return {
     id: newId(), weeks: Array.from({ length: props.book.totalWeeks }, (_, index) => index + 1),
     weekday: null, startPeriod: null, endPeriod: null, location: '', teachers: [], source: 'manual',
+    teacherText: '',
   }
-}
-function formatWeeks(weeks: number[]) {
-  if (weeks.length === props.book.totalWeeks) return `1-${props.book.totalWeeks}`
-  return weeks.join(',')
 }
 function splitNames(value: string) { return value.split(/[、,，/]/).map(item => item.trim()).filter(Boolean) }
 function addMeeting(source?: MeetingDraft) {
-  const base = source ? { ...source, id: newId() } : { ...blankMeeting(), weekText: `1-${props.book.totalWeeks}`, teacherText: '' }
-  meetings.value.push(base)
+  meetings.value.push(source ? { ...source, id: newId() } : blankMeeting())
 }
 function removeMeeting(index: number) {
-  if (meetings.value.length === 1) meetings.value[0] = { ...blankMeeting(), weekText: `1-${props.book.totalWeeks}`, teacherText: '' }
+  if (meetings.value.length === 1) meetings.value[0] = blankMeeting()
   else meetings.value.splice(index, 1)
 }
+
+function openPicker(kind: 'week' | 'time', meeting: MeetingDraft, event: MouseEvent) {
+  picker.value = { kind, meetingId: meeting.id, anchorEl: event.currentTarget as HTMLElement }
+}
+function closePicker() { picker.value = null }
+function applyWeeks(weeks: number[]) {
+  if (pickerMeeting.value) pickerMeeting.value.weeks = weeks
+  closePicker()
+}
+function applyTime(value: { weekday: number | null; startPeriod: number | null; endPeriod: number | null }) {
+  if (pickerMeeting.value) {
+    pickerMeeting.value.weekday = value.weekday
+    pickerMeeting.value.startPeriod = value.startPeriod
+    pickerMeeting.value.endPeriod = value.endPeriod
+  }
+  closePicker()
+}
+
 function save() {
   error.value = ''
   if (!name.value.trim()) { error.value = '请填写课程名称'; return }
   try {
     const normalized = meetings.value.map(meeting => {
-      const weeks = parseWeekExpression(meeting.weekText, props.book.totalWeeks)
-      if (!weeks.length) throw new Error('周数不能为空，请填写如 1-16、单1-15 或 双2-16')
+      if (!meeting.weeks.length) throw new Error('周数不能为空，请在周数选择中勾选上课周次')
       const pending = meeting.weekday === null
-      const startPeriod = pending ? null : Number(meeting.startPeriod)
-      const endPeriod = pending ? null : Number(meeting.endPeriod)
+      const startPeriod = pending ? null : meeting.startPeriod
+      const endPeriod = pending ? null : meeting.endPeriod
       if (!pending && (!startPeriod || !endPeriod || startPeriod > endPeriod)) throw new Error('请检查上课节次')
-      return { ...meeting, weeks, startPeriod, endPeriod, teachers: splitNames(meeting.teacherText), source: 'manual' as const }
+      return { ...meeting, weeks: [...meeting.weeks].sort((left, right) => left - right), startPeriod, endPeriod, teachers: splitNames(meeting.teacherText), source: 'manual' as const }
     })
     emit('saved', {
       id, name: name.value.trim(), code: code.value.trim(), teachingClass: teachingClass.value.trim(),
       teachers: splitNames(teacherText.value), credit: credit.value || null, color: color.value,
-      note: note.value.trim(), meetings: normalized.map(({ weekText: _weekText, teacherText: _teacherText, ...meeting }) => meeting),
+      note: note.value.trim(), meetings: normalized.map(({ teacherText: _teacherText, ...meeting }) => meeting),
     })
   } catch (reason) { error.value = reason instanceof Error ? reason.message : String(reason) }
 }
@@ -99,28 +117,21 @@ function save() {
             <button type="button" title="删除该时段" @click="removeMeeting(index)"><Trash2 :size="15" /></button>
           </span>
         </header>
-        <div class="editor-grid">
-          <label class="editor-field"><span>周数</span><input v-model="meeting.weekText" placeholder="1-16 / 单1-15 / 1,3,5" /></label>
-          <label class="editor-field"><span>星期</span>
-            <select v-model="meeting.weekday">
-              <option :value="null">待安排</option>
-              <option v-for="day in 7" :key="day" :value="day">周{{ '一二三四五六日'[day - 1] }}</option>
-            </select>
-          </label>
-          <template v-if="meeting.weekday !== null">
-            <label class="editor-field"><span>开始节次</span>
-              <select v-model="meeting.startPeriod">
-                <option v-for="period in book.periods" :key="period.period" :value="period.period">第 {{ period.period }} 节 · {{ period.start }}</option>
-              </select>
-            </label>
-            <label class="editor-field"><span>结束节次</span>
-              <select v-model="meeting.endPeriod">
-                <option v-for="period in book.periods" :key="period.period" :value="period.period">第 {{ period.period }} 节 · {{ period.end }}</option>
-              </select>
-            </label>
-          </template>
-          <label class="editor-field"><span>教室</span><input v-model="meeting.location" placeholder="选填" /></label>
-          <label class="editor-field"><span>本时段教师</span><input v-model="meeting.teacherText" placeholder="留空使用课程教师" /></label>
+        <div class="meeting-rows">
+          <button type="button" class="picker-row" @click="openPicker('week', meeting, $event)">
+            <span class="picker-label">周数</span>
+            <span class="picker-value">{{ formatWeekSummary(meeting.weeks) }}</span>
+            <ChevronRight :size="14" class="picker-chevron" />
+          </button>
+          <button type="button" class="picker-row" @click="openPicker('time', meeting, $event)">
+            <span class="picker-label">上课时间</span>
+            <span class="picker-value" :class="{ pending: meeting.weekday === null }">{{ formatMeetingSummary(meeting.weekday, meeting.startPeriod, meeting.endPeriod) }}</span>
+            <ChevronRight :size="14" class="picker-chevron" />
+          </button>
+          <div class="editor-grid">
+            <label class="editor-field"><span>教室</span><input v-model="meeting.location" placeholder="选填" /></label>
+            <label class="editor-field"><span>本时段教师</span><input v-model="meeting.teacherText" placeholder="留空使用课程教师" /></label>
+          </div>
         </div>
       </section>
       <button class="text-button add-meeting" type="button" @click="addMeeting()"><Plus :size="15" /> 添加另一个时段</button>
@@ -130,6 +141,28 @@ function save() {
       <button v-if="course" class="danger-ghost" @click="emit('deleted', id)"><Trash2 :size="15" /> 删除课程</button>
       <button class="primary-button" @click="save"><Save :size="15" /> 保存课程</button>
     </div>
+
+    <ScheduleWeekPicker
+      v-if="picker?.kind === 'week' && pickerMeeting"
+      :anchor-el="picker.anchorEl" :weeks="pickerMeeting.weeks" :total-weeks="book.totalWeeks"
+      @close="closePicker" @save="applyWeeks"
+    />
+    <ScheduleTimePicker
+      v-if="picker?.kind === 'time' && pickerMeeting"
+      :anchor-el="picker.anchorEl" :weekday="pickerMeeting.weekday" :start-period="pickerMeeting.startPeriod"
+      :end-period="pickerMeeting.endPeriod" :periods="book.periods"
+      @close="closePicker" @save="applyTime"
+    />
   </BaseModal>
 </template>
 
+<style scoped>
+.meeting-rows{display:grid;gap:8px}
+.picker-row{display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);text-align:left;transition:border-color .15s ease,background-color .15s ease}
+.picker-row:hover{border-color:var(--line-strong);background:color-mix(in srgb,var(--surface-2) 60%,var(--surface))}
+.picker-row:focus-visible{outline:none;border-color:var(--primary)}
+.picker-label{flex:0 0 auto;color:var(--muted);font-size:var(--font-caption)}
+.picker-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-weight:600}
+.picker-value.pending{color:var(--muted);font-weight:500}
+.picker-chevron{flex:0 0 auto;color:var(--faint)}
+</style>
