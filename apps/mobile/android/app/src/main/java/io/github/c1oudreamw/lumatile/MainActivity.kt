@@ -13,6 +13,7 @@ class MainActivity : BridgeActivity() {
         registerPlugin(GradeExportPlugin::class.java)
         registerPlugin(AppUpdatePlugin::class.java)
         registerPlugin(SchedulePlugin::class.java)
+        registerPlugin(CreditReportPlugin::class.java)
         super.onCreate(savedInstanceState)
         installSystemBarInsets()
         lockWebViewTextZoom()

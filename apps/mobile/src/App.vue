@@ -13,10 +13,11 @@ import type { Announcement, AvailableUpdate, UpdateDownloadProgress } from './up
 import brandIconUrl from '../../../assets/qlu-toolbox.png'
 import mobilePackage from '../package.json'
 import SchedulePage from './SchedulePage.vue'
+import CreditReportPage from './CreditReportPage.vue'
 import FeedbackSheet from './FeedbackSheet.vue'
 import { BACK_EXIT_WINDOW_MS, isSecondBackPress } from './backNavigation'
 
-type Page = 'schedule' | 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about'
+type Page = 'schedule' | 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about' | 'credit'
 type StartPage = 'schedule' | 'toolbox' | 'last'
 const legalNoticeVersion = '2026-07-19'
 const savedStartPage = localStorage.getItem('scheduleStartPage')
@@ -306,6 +307,7 @@ onBeforeUnmount(() => {
     <header v-if="page !== 'schedule'" class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>一格有光</strong></div></header>
 
     <SchedulePage v-if="page === 'schedule'" ref="schedulePage" :native-android="nativeAndroid" />
+    <CreditReportPage v-else-if="page === 'credit'" :native-android="nativeAndroid" :grade-busy="busy" @back="selectPage('home')" />
 
     <section v-else-if="page === 'home'" class="page">
       <div class="hero"><p class="eyebrow">LUMATILE MOBILE</p><h1>校园工具，装进口袋</h1><p>数据留在设备本地，登录始终在学校原始页面完成。</p></div>
@@ -313,6 +315,7 @@ onBeforeUnmount(() => {
       <div v-if="!nativeAndroid" class="notice error">当前为网页预览，原生功能仅在 Android 安装包中可用。</div>
       <button class="tool-card" @click="selectPage('grade')"><span class="tool-icon"><FileDown /></span><span><strong>分项成绩查询</strong><small>选择学年学期，登录后自动导出 XLSX</small></span><em>已可用</em></button>
       <button class="tool-card" @click="selectPage('gpa')"><span class="tool-icon gpa-icon"><Calculator /></span><span><strong>绩点计算器</strong><small>导入成绩文件，自由选择课程并计算加权 GPA</small></span><em>测试版</em></button>
+      <button class="tool-card" @click="selectPage('credit')"><span class="tool-icon"><BookOpen /></span><span><strong>学分修读情况</strong><small>对照培养方案核对各模块学分，查看修读建议</small></span><em>新增</em></button>
       <div class="privacy"><span><ShieldCheck />不上传成绩</span><span><LockKeyhole />不读取密码</span></div>
     </section>
 
