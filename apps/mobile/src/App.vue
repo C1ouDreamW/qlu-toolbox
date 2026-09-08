@@ -314,7 +314,7 @@ onBeforeUnmount(() => {
       <div class="unofficial-banner"><ShieldAlert /><span><strong>非学校官方应用</strong><small>仅供个人学习与交流使用，不代表学校官方立场</small></span></div>
       <div v-if="!nativeAndroid" class="notice error">当前为网页预览，原生功能仅在 Android 安装包中可用。</div>
       <button class="tool-card" @click="selectPage('grade')"><span class="tool-icon"><FileDown /></span><span><strong>分项成绩查询</strong><small>选择学年学期，登录后自动导出 XLSX</small></span><em>已可用</em></button>
-      <button class="tool-card" @click="selectPage('gpa')"><span class="tool-icon gpa-icon"><Calculator /></span><span><strong>绩点计算器</strong><small>导入成绩文件，自由选择课程并计算加权 GPA</small></span><em>测试版</em></button>
+      <button class="tool-card" @click="selectPage('gpa')"><span class="tool-icon gpa-icon"><Calculator /></span><span><strong>绩点计算器</strong><small>导入成绩文件，自由选择课程并计算加权 GPA</small></span><em>已可用</em></button>
       <button class="tool-card" @click="selectPage('credit')"><span class="tool-icon"><BookOpen /></span><span><strong>学分修读情况</strong><small>对照培养方案核对各模块学分，查看修读建议</small></span><em>新增</em></button>
       <div class="privacy"><span><ShieldCheck />不上传成绩</span><span><LockKeyhole />不读取密码</span></div>
     </section>
