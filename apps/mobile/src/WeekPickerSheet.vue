@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Check } from 'lucide-vue-next'
 import { parseWeekExpression } from '@lumatile/academic-core'
 import BottomSheet from './BottomSheet.vue'
 
@@ -88,7 +87,7 @@ function save() {
         v-for="week in totalWeeks" :key="week" type="button" class="week-chip"
         :class="{ active: selected.has(week) }" :aria-pressed="selected.has(week)" @click="toggleWeek(week)"
       >
-        <Check v-if="selected.has(week)" class="week-check" /><span>{{ week }}</span>
+        <span>{{ week }}</span>
       </button>
     </div>
 
@@ -118,7 +117,6 @@ function save() {
 .week-chip span{font-size:15px}
 .week-chip.active{border-color:#0b76e8;color:#075ebd;background:#e8f3ff}
 .week-chip:active{transform:scale(.94)}
-.week-check{position:absolute;top:4px;right:5px;width:12px;color:#0b76e8}
 .week-count{margin:12px 2px 0;color:#667d93;font-size:12px;text-align:right}
 .expr-toggle{display:block;width:100%;margin-top:2px;padding:9px 0;border:0;color:#075ebd;background:none;font-size:12px;font-weight:700;text-align:center}
 .expr-box{display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:4px;padding:10px;border:1px solid #dce8f2;border-radius:12px;background:#f8fbfe}
@@ -131,7 +129,6 @@ function save() {
   .preset-tabs button.active{color:#83c5ff;background:#27435a}
   .week-chip{border-color:#324c63;color:#8ba0b2;background:#0d1722}
   .week-chip.active{border-color:#168cf4;color:#83c5ff;background:#17344d}
-  .week-check{color:#62b5ff}
   .week-count{color:#8ba0b2}
   .expr-toggle{color:#62b5ff}
   .expr-box{border-color:#324c63;background:#0d1722}
