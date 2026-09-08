@@ -460,11 +460,10 @@ onBeforeUnmount(() => {
 
     <div v-if="announcement" class="update-backdrop" @click.self="dismissAnnouncement">
       <section class="update-dialog" role="dialog" aria-modal="true" aria-labelledby="announcement-dialog-title">
-        <span class="update-icon"><Info /></span>
-        <p class="eyebrow">{{ announcement.level === 'warning' ? 'IMPORTANT NOTICE' : 'ANNOUNCEMENT' }}</p>
+        <p class="eyebrow">{{ announcement.level === 'warning' ? '重要公告' : '公告' }}</p>
         <h1 id="announcement-dialog-title">{{ announcement.title }}</h1>
         <p class="update-notes">{{ announcement.body }}</p>
-        <div class="update-actions">
+        <div class="update-actions single">
           <button class="primary" @click="dismissAnnouncement">知道了</button>
         </div>
         <small class="update-safety">公告由更新源服务器发布；启动时独立读取，不受自动更新和匿名统计开关影响。</small>
