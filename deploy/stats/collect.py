@@ -18,6 +18,7 @@ import re
 import sqlite3
 import sys
 import urllib.request
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -238,6 +239,22 @@ def kv_set(conn: sqlite3.Connection, key: str, value: str) -> None:
     )
 
 
+def collect_feedback_counts(db_path: str) -> dict[str, int] | None:
+    """尽力只读反馈库取计数，供统计页展示；读不到时返回 None，不影响统计页生成。"""
+    try:
+        uri = f"file:{Path(db_path).as_posix()}?mode=ro"
+        with closing(sqlite3.connect(uri, uri=True)) as conn:
+            new = conn.execute("SELECT COUNT(*) FROM feedback WHERE status = 'new'").fetchone()[0]
+            resolved = conn.execute("SELECT COUNT(*) FROM feedback WHERE status = 'resolved'").fetchone()[0]
+            week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+            recent = conn.execute(
+                "SELECT COUNT(*) FROM feedback WHERE created_at >= ?", (week_ago,)
+            ).fetchone()[0]
+        return {"new": new, "resolved": resolved, "recent": recent}
+    except Exception:  # 数据库缺失、权限不足、表结构变化等一律跳过
+        return None
+
+
 def fetch_github_downloads(conn: sqlite3.Connection, repos: list[str], timeout: float, force: bool) -> bool:
     """尽力拉取 GitHub Releases 资产计数（累计值快照）。失败时静默返回 False。"""
     last = kv_get(conn, "github_last_fetch")
@@ -447,7 +464,7 @@ def dist_table(title: str, rows: list[dict], total: int | None = None) -> str:
       <table><tbody>{body}</tbody></table>{suffix}</section>"""
 
 
-def render_html(report: dict) -> str:
+def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
     labels = report["days"]
     totals = report["totals"]
     dau_chart = svg_line(report["dau"], labels, "#4f6ef7", "日活")
@@ -455,15 +472,24 @@ def render_html(report: dict) -> str:
     check_chart = svg_line(report["raw_checks"], labels, "#e2a03f", "更新检查")
     new_chart = svg_bars(report["new_installs"], labels, "#8a63f4", "新增安装")
 
+    card_rows = [
+        ("识别的安装数", totals["installs"]),
+        ("自建源下载", totals["downloads_selfhosted"]),
+        ("GitHub 下载", totals["downloads_github"]),
+        ("心跳总数", totals["beacons"]),
+    ]
+    if feedback is not None:
+        card_rows.append(("未处理反馈", feedback["new"]))
     cards = "".join(
         f'<div class="stat"><div class="stat-num">{value}</div><div class="stat-label">{label}</div></div>'
-        for label, value in [
-            ("识别的安装数", totals["installs"]),
-            ("自建源下载", totals["downloads_selfhosted"]),
-            ("GitHub 下载", totals["downloads_github"]),
-            ("心跳总数", totals["beacons"]),
-        ]
+        for label, value in card_rows
     )
+    feedback_line = ""
+    if feedback is not None:
+        feedback_line = (
+            f'<p class="muted">反馈：未处理 {feedback["new"]} 条，已处理 {feedback["resolved"]} 条，'
+            f'近 7 天新增 {feedback["recent"]} 条 · <a href="/admin/">打开反馈管理页</a></p>'
+        )
     return f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -473,6 +499,7 @@ def render_html(report: dict) -> str:
   body {{ font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background: #f4f7fb; color: #1c2430; }}
   main {{ max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }}
   h1 {{ font-size: 20px; }} h3 {{ font-size: 14px; margin: 0 0 10px; }}
+  a {{ color: #4f6ef7; }}
   .cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0; }}
   .stat {{ background: #fff; border-radius: 10px; padding: 14px 16px; }}
   .stat-num {{ font-size: 24px; font-weight: 700; }}
@@ -543,6 +570,7 @@ def main(argv: list[str] | None = None) -> int:
                 conn, config["github_repos"], float(config["github_timeout"]), args.force_github
             )
         report = collect_report(conn, int(config.get("range_days", 30)))
+        feedback = collect_feedback_counts(str(config.get("feedback_db_path", "")))
         conn.commit()
     finally:
         conn.close()
@@ -550,7 +578,7 @@ def main(argv: list[str] | None = None) -> int:
     (report_dir / "stats.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    (report_dir / "stats.html").write_text(render_html(report), encoding="utf-8")
+    (report_dir / "stats.html").write_text(render_html(report, feedback), encoding="utf-8")
     os.chmod(report_dir / "stats.json", 0o644)
     os.chmod(report_dir / "stats.html", 0o644)
     print(f"[ok] 新增事件 {total_new}，报告已写入 {report_dir}")

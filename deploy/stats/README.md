@@ -7,15 +7,15 @@
 ```text
 /opt/lumatile-stats/
 ├── collect.py       # 本目录同名文件的部署副本
-├── config.json      # 日志路径、GitHub 仓库、报告目录
+├── config.json      # 日志路径、GitHub 仓库、报告目录、feedback_db_path
 ├── stats.db         # SQLite 原始数据（可用 sqlite3 直接查询）
 └── report/          # stats.html + stats.json，由 nginx Basic Auth 保护
 /etc/cron.d/lumatile-stats              # 每日 00:25 执行
-/etc/nginx/lumatile-stats.htpasswd      # /stats/ 的 Basic Auth 凭据
+/etc/nginx/lumatile-stats.htpasswd      # /stats/ 与 /admin/ 共用的 Basic Auth 凭据
 /etc/nginx/conf.d/lumatile-update.conf  # lumatile 站点，含 access_log 与 /stats/ location
 ```
 
-统计页：<https://lumatile.ishua.cloud/stats/>（账号 `admin`，密码在首次部署时生成，忘记可重建 htpasswd）。
+统计页：<https://lumatile.ishua.cloud/stats/>（账号 `admin`，密码在首次部署时生成，忘记可重建 htpasswd）。页面底部会展示反馈概览（未处理/已处理/近 7 天新增），只读访问 `config.json` 中 `feedback_db_path` 指向的反馈库，读不到时自动跳过；详细查看与标记处理在 <https://lumatile.ishua.cloud/admin/>，两处使用同一账号。
 
 ## 日常操作
 
