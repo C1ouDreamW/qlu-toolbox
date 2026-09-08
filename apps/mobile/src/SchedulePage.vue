@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import {
   AlertCircle, BookOpen, CalendarDays, Check, Clock3, Download,
   FileSpreadsheet, FolderOpen, MapPin, MoreHorizontal, Plus, RefreshCw, School, Share2,
@@ -7,8 +7,10 @@ import {
 } from 'lucide-vue-next'
 import {
   datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
-  visibleWeekdays, weekForDate, validateSchedule, formatScheduleWeeks, meetingConflicts,
+  visibleWeekdays, weekForDate, validateSchedule, formatScheduleWeeks, scheduleSegments,
 } from '@lumatile/academic-core'
+import type { ScheduleSegment, SchedulePlacement } from '@lumatile/academic-core'
+import { readScheduleDisplayChoices, saveScheduleDisplayChoices } from '@lumatile/schedule-ui'
 import type {
   ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleImportSource, ScheduleMeeting, StoredSchedule,
 } from '@lumatile/contracts'
@@ -25,7 +27,10 @@ const week = ref(1)
 const menuOpen = ref(false)
 const importMenuOpen = ref(false)
 const switching = ref(false)
-const conflictsOpen = ref(false)
+const selectedSegmentKey = ref('')
+const selectedWeek = ref(1)
+const displayChoices = ref<Record<string, string>>({})
+const displayChoiceError = ref('')
 const selected = ref<{ course: ScheduleCourse; meeting: ScheduleMeeting } | null>(null)
 const importPreview = ref<ScheduleImportPreview | null>(null)
 const importMode = ref<'create' | 'overwrite'>('create')
@@ -51,15 +56,30 @@ const todayKey = dateKey(new Date())
 const pendingCount = computed(() => schedule.value?.courses.reduce(
   (sum, course) => sum + course.meetings.filter(meeting => meeting.weekday === null).length, 0,
 ) || 0)
-function meetingsForWeek(targetWeek: number) {
-  if (!schedule.value) return []
-  const visibleDays = visibleWeekdays(schedule.value, targetWeek)
-  return schedule.value.courses.flatMap(course => course.meetings
-    .filter(meeting => meeting.weekday !== null && meeting.startPeriod !== null && meeting.endPeriod !== null
-      && meeting.weeks.includes(targetWeek) && visibleDays.includes(meeting.weekday))
-    .map(meeting => ({ course, meeting })))
+watch(() => schedule.value?.id, id => {
+  displayChoices.value = id ? readScheduleDisplayChoices(id) : {}
+  selected.value = null
+  selectedSegmentKey.value = ''
+  displayChoiceError.value = ''
+})
+const segmentsByWeek = computed(() => new Map(carouselWeeks.value.map(targetWeek => [targetWeek,
+  schedule.value ? scheduleSegments(schedule.value, targetWeek, displayChoices.value) : [],
+])))
+const selectedSegment = computed(() => segmentsByWeek.value.get(selectedWeek.value)?.find(segment => segment.key === selectedSegmentKey.value))
+function openSegment(segment: ScheduleSegment, targetWeek: number) {
+  if (settling) return
+  selectedWeek.value = targetWeek
+  selectedSegmentKey.value = segment.key
+  selected.value = segment.item
+  displayChoiceError.value = ''
 }
-const conflictIds = computed(() => new Set(meetingConflicts(meetingsForWeek(week.value).map(item => item.meeting)).flat()))
+function chooseDisplay(item: SchedulePlacement) {
+  if (!schedule.value || !selectedSegment.value?.candidates.some(candidate => candidate.meeting.id === item.meeting.id)) return
+  displayChoices.value = { ...displayChoices.value, [selectedSegment.value.key]: item.meeting.id }
+  selected.value = item
+  displayChoiceError.value = saveScheduleDisplayChoices(schedule.value.id, displayChoices.value)
+    ? '' : '已切换显示，但未能记住选择；重启后可能恢复默认。'
+}
 const title = computed(() => {
   if (!schedule.value) return '我的课表'
   const current = weekForDate(schedule.value)
@@ -238,6 +258,10 @@ async function confirmImport() {
     await scheduleStorage.save(saved, true)
     importPreview.value = null
     await loadSchedules(saved.id)
+    if (target) {
+      displayChoices.value = {}
+      if (!saveScheduleDisplayChoices(saved.id, {})) error.value = '课表已覆盖，但未能清除旧的显示偏好。'
+    }
   } catch (reason) { error.value = reason instanceof Error ? reason.message : String(reason) }
   finally { busy.value = false }
 }
@@ -329,7 +353,6 @@ function touchCancel() {
 }
 
 function handleBack() {
-  if (conflictsOpen.value) { conflictsOpen.value = false; return true }
   if (importPreview.value) { importPreview.value = null; return true }
   if (selected.value) { selected.value = null; return true }
   if (switching.value) { switching.value = false; return true }
@@ -363,7 +386,6 @@ onMounted(() => { void loadSchedules() })
 
     <div v-if="error" class="schedule-alert"><AlertCircle />{{ error }}<button @click="error = ''"><X /></button></div>
 
-    <button v-if="conflictIds.size" class="secondary" @click="conflictsOpen = true">本周 {{ conflictIds.size }} 个时段冲突，查看全部课程</button>
     <template v-if="schedule">
       <div
         class="schedule-viewport"
@@ -389,14 +411,24 @@ onMounted(() => { void loadSchedules() })
           class="no-class-column" :style="{ gridColumn: visibleWeekdays(schedule, pageWeek).indexOf(day) + 2 }"
         ><span>停课</span><small>{{ noClass(day, pageWeek)?.reason }}</small></div>
         <button
-          v-for="item in meetingsForWeek(pageWeek)" :key="item.meeting.id" class="meeting-card"
+          v-for="segment in segmentsByWeek.get(pageWeek)" :key="segment.key" class="meeting-card"
+          :class="{ 'meeting-card-short': segment.startPeriod === segment.endPeriod, 'meeting-card-conflict': segment.candidates.length > 1 }"
           :style="{
-            gridColumn: visibleWeekdays(schedule, pageWeek).indexOf(item.meeting.weekday!) + 2,
-            gridRow: `${item.meeting.startPeriod! + 1} / ${item.meeting.endPeriod! + 2}`,
-            background: item.course.color,
+            gridColumn: visibleWeekdays(schedule, pageWeek).indexOf(segment.weekday) + 2,
+            gridRow: `${segment.startPeriod + 1} / ${segment.endPeriod + 2}`,
+            background: segment.item.course.color,
           }"
-          @click="selected = item"
-        ><strong>{{ item.course.name }}</strong><span v-if="item.meeting.location">{{ item.meeting.location }}</span><small>{{ item.meeting.teachers[0] || item.course.teachers[0] || '' }}</small></button>
+          :aria-label="`${segment.item.course.name}，完整第${segment.item.meeting.startPeriod}–${segment.item.meeting.endPeriod}节${segment.candidates.length > 1 ? `，第${segment.startPeriod}–${segment.endPeriod}节有${segment.candidates.length}项重叠安排，点击切换显示` : ''}`"
+          @click="openSegment(segment, pageWeek)"
+        >
+          <strong><em v-if="segment.continued" class="course-continuation">续</em>{{ segment.item.course.name }}</strong>
+          <small v-if="segment.startPeriod !== segment.item.meeting.startPeriod || segment.endPeriod !== segment.item.meeting.endPeriod">完整{{ segment.item.meeting.startPeriod }}–{{ segment.item.meeting.endPeriod }}节</small>
+          <template v-if="segment.startPeriod !== segment.endPeriod">
+            <span v-if="segment.item.meeting.location">{{ segment.item.meeting.location }}</span>
+            <small>{{ segment.item.meeting.teachers[0] || segment.item.course.teachers[0] || '' }}</small>
+          </template>
+          <span v-if="segment.candidates.length > 1" class="course-conflict-badge" aria-hidden="true"><b>{{ segment.candidates.length }}</b></span>
+        </button>
       </div></div></div></div>
     </template>
 
@@ -424,18 +456,24 @@ onMounted(() => { void loadSchedules() })
       <button @click="shareSchedule"><Share2 />导出并分享</button>
     </section></Transition>
 
-    <button v-if="conflictsOpen" class="sheet-scrim" aria-label="关闭冲突列表" @click="conflictsOpen = false" />
-    <section v-if="conflictsOpen" class="switch-sheet" role="dialog" aria-label="本周冲突课程">
-      <h2>本周冲突课程</h2>
-      <button v-for="item in meetingsForWeek(week).filter(item => conflictIds.has(item.meeting.id))" :key="item.meeting.id" @click="selected = item; conflictsOpen = false">{{ item.course.name }} · 周{{ weekdayName(item.meeting.weekday!) }} {{ item.meeting.startPeriod }}–{{ item.meeting.endPeriod }} 节</button>
-    </section>
     <Transition name="fade"><button v-if="selected" class="sheet-scrim" aria-label="关闭详情" @click="selected = null" /></Transition>
-    <Transition name="sheet"><section v-if="selected" class="course-detail">
-      <div class="sheet-handle" /><header><i :style="{ background: selected.course.color }" /><h2>{{ selected.course.name }}</h2><button @click="selected = null"><X /></button></header>
+    <Transition name="sheet"><section v-if="selected" class="course-detail" role="dialog" aria-modal="true" :aria-label="selected.course.name">
+      <div class="sheet-handle" /><header><i :style="{ background: selected.course.color }" /><h2>{{ selected.course.name }}</h2><button aria-label="关闭课程详情" @click="selected = null"><X /></button></header>
+      <p v-if="selectedSegment" class="course-segment-context">第 {{ selectedWeek }} 周 · 当前片段 {{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节<span v-if="noClass(selectedSegment.weekday, selectedWeek)"> · 本日停课</span></p>
       <p><CalendarDays />{{ formatScheduleWeeks(selected.meeting.weeks) }}</p>
       <p><Clock3 />周{{ weekdayName(selected.meeting.weekday!) }} 第 {{ selected.meeting.startPeriod }}–{{ selected.meeting.endPeriod }} 节 <small>{{ meetingTime(selected.meeting) }}</small></p>
       <p><MapPin />{{ selected.meeting.location || '地点待定' }}</p>
       <p><Users />{{ selected.meeting.teachers.join('、') || selected.course.teachers.join('、') || '教师待定' }}</p>
+      <fieldset v-if="selectedSegment && selectedSegment.candidates.length > 1" class="course-conflict-picker">
+        <legend>{{ noClass(selectedSegment.weekday, selectedWeek) ? '停课日原安排' : '重叠时段' }} · 第{{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节</legend>
+        <p>选择在课表中显示的课程，仅本周生效，不改变课程安排。</p>
+        <label v-for="item in selectedSegment.candidates" :key="item.meeting.id" class="course-conflict-option" :class="{ active: selectedSegment.item.meeting.id === item.meeting.id }">
+          <i :style="{ background: item.course.color }" />
+          <span><strong>{{ item.course.name }}</strong><small>完整 {{ item.meeting.startPeriod }}–{{ item.meeting.endPeriod }}节 · {{ item.meeting.location || '地点待定' }}</small><small>{{ item.meeting.teachers.join('、') || item.course.teachers.join('、') || '教师待定' }}</small></span>
+          <input type="radio" name="schedule-display" :value="item.meeting.id" :checked="selectedSegment.item.meeting.id === item.meeting.id" :aria-label="`在课表中显示${item.course.name}，第${item.meeting.startPeriod}–${item.meeting.endPeriod}节`" @change="chooseDisplay(item)" />
+        </label>
+        <p v-if="displayChoiceError" role="status">{{ displayChoiceError }}</p>
+      </fieldset>
       <button class="primary" @click="openEditor(selected.course); selected = null"><BookOpen />查看与编辑课程</button>
     </section></Transition>
 
@@ -483,4 +521,33 @@ onMounted(() => { void loadSchedules() })
 .schedule-grid.dragging{will-change:transform}.current-week-button{margin-left:10px}
 @media(prefers-color-scheme:dark){.current-week-button{color:#78c1ff;border-color:#315979;background:#153650}.day-head.today{color:#9fd3ff;background:#153650}.day-head.today strong{background:#24567d}.grid-cell.today{background:rgba(82,172,248,.07)}}
 @media(prefers-reduced-motion:reduce){.schedule-grid,.week-next-enter-active,.week-next-leave-active,.week-prev-enter-active,.week-prev-leave-active,.sheet-enter-active,.sheet-leave-active,.fade-enter-active,.fade-leave-active{transition:none}}
+.meeting-card{position:relative;min-height:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3px}
+.meeting-card>strong{flex-shrink:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.meeting-card>span,.meeting-card>small{margin-top:0}
+.meeting-card.meeting-card-conflict{padding-bottom:21px}
+.meeting-card.meeting-card-short>strong{-webkit-line-clamp:2}
+.meeting-card.meeting-card-short>small{display:none}
+.meeting-card:focus-visible{outline:2px solid #0b76e8;outline-offset:-2px}
+.course-continuation{margin-right:3px;font-size:9px;font-style:normal;font-weight:500;opacity:.85}
+.meeting-card>.course-conflict-badge{position:absolute;right:0;bottom:0;display:block;width:27px;height:24px;margin:0;background:rgba(255,255,255,.95);color:#18324b;clip-path:polygon(100% 0,100% 100%,0 100%);text-shadow:none;pointer-events:none}
+.course-conflict-badge>b{position:absolute;right:3px;bottom:1px;font-size:10px;line-height:13px}
+.course-detail{max-height:calc(100dvh - env(safe-area-inset-top) - 24px);overflow-y:auto;overscroll-behavior:contain}
+.course-detail h2{min-width:0;overflow-wrap:anywhere}
+.course-detail .course-segment-context{display:block;padding:9px 4px;color:#667d93;font-size:11px;line-height:1.6}
+.course-conflict-picker{min-width:0;margin:18px 0 0;padding:0;border:0;text-align:left}
+.course-conflict-picker legend{padding:0;font-size:13px;font-weight:700}
+.course-detail .course-conflict-picker>p{display:block;margin:7px 0 10px;padding:0;border:0;color:#667d93;font-size:11px;line-height:1.6}
+.course-conflict-option{display:flex;align-items:center;gap:10px;min-height:58px;margin-top:8px;padding:11px 12px;border:1px solid #e3edf5;border-radius:13px;background:#f5f8fb;cursor:pointer}
+.course-conflict-option.active{border-color:#9ecaf1;background:#edf6ff}
+.course-conflict-option>i{flex:0 0 4px;height:30px;border-radius:4px}
+.course-conflict-option>span{display:grid;flex:1;min-width:0;gap:4px;overflow-wrap:anywhere}
+.course-conflict-option strong{font-size:13px;line-height:1.4}
+.course-conflict-option small{color:#667d93;font-size:11px;line-height:1.4}
+.course-conflict-option input{flex:0 0 19px;width:19px;height:19px;margin:0;accent-color:#0b76e8}
+.course-conflict-option:focus-within{outline:2px solid #0b76e8;outline-offset:2px}
+@media(prefers-color-scheme:dark){
+  .course-detail .course-segment-context,.course-detail .course-conflict-picker>p,.course-conflict-option small{color:#96acbd}
+  .course-conflict-option{border-color:#294257;background:#1b2e40}
+  .course-conflict-option.active{border-color:#487ea8;background:#153650}
+}
 </style>

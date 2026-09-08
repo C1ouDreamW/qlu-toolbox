@@ -11,8 +11,10 @@ import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
 import {
   datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
-  visibleWeekdays, weekForDate, validateSchedule, meetingConflicts,
+  visibleWeekdays, weekForDate, validateSchedule, scheduleSegments,
 } from '@lumatile/academic-core'
+import type { ScheduleSegment, SchedulePlacement } from '@lumatile/academic-core'
+import { readScheduleDisplayChoices, saveScheduleDisplayChoices } from '@lumatile/schedule-ui'
 import type {
   ScheduleBook, ScheduleCourse, ScheduleImportPreview, ScheduleImportSource,
   ScheduleMeeting, StoredSchedule,
@@ -27,7 +29,9 @@ const scheduleId = ref('')
 const week = ref(1)
 const loadError = ref('')
 const selected = ref<ScheduleCourse | null>(null)
-const conflictsOpen = ref(false)
+const selectedSegmentKey = ref('')
+const displayChoices = ref<Record<string, string>>({})
+const displayChoiceError = ref('')
 const switching = ref(false)
 const confirmDelete = ref(false)
 const busy = ref(false)
@@ -66,16 +70,26 @@ const dateRange = computed(() => {
   const last = dates.value[6]
   return `${first.getMonth() + 1}月${first.getDate()}日 — ${last.getMonth() + 1}月${last.getDate()}日`
 })
-const placedMeetings = computed(() => {
-  if (!schedule.value) return []
-  const visible = days.value
-  return schedule.value.courses.flatMap(course => course.meetings
-    .filter(meeting => meeting.weekday !== null && meeting.startPeriod !== null && meeting.endPeriod !== null
-      && meeting.weeks.includes(week.value) && visible.includes(meeting.weekday))
-    .map(meeting => ({ course, meeting })))
+watch(() => schedule.value?.id, id => {
+  displayChoices.value = id ? readScheduleDisplayChoices(id) : {}
+  selected.value = null
+  selectedSegmentKey.value = ''
+  displayChoiceError.value = ''
 })
-
-const conflictIds = computed(() => new Set(meetingConflicts(placedMeetings.value.map(item => item.meeting)).flat()))
+const segments = computed(() => schedule.value ? scheduleSegments(schedule.value, week.value, displayChoices.value) : [])
+const selectedSegment = computed(() => segments.value.find(segment => segment.key === selectedSegmentKey.value))
+function openSegment(segment: ScheduleSegment) {
+  selectedSegmentKey.value = segment.key
+  selected.value = segment.item.course
+  displayChoiceError.value = ''
+}
+function chooseDisplay(item: SchedulePlacement) {
+  if (!schedule.value || !selectedSegment.value?.candidates.some(candidate => candidate.meeting.id === item.meeting.id)) return
+  displayChoices.value = { ...displayChoices.value, [selectedSegment.value.key]: item.meeting.id }
+  selected.value = item.course
+  displayChoiceError.value = saveScheduleDisplayChoices(schedule.value.id, displayChoices.value)
+    ? '' : '已切换显示，但未能记住选择；重启后可能恢复默认。'
+}
 function dayDate(day: number) { return dates.value[day - 1] }
 function noClass(day: number) {
   const date = dayDate(day)
@@ -140,7 +154,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.ctrlKey || event.metaKey || event.altKey) return
   const target = event.target as HTMLElement | null
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
-  if (conflictsOpen.value || selected.value || switching.value || confirmDelete.value || editorOpen.value || managerOpen.value || importPreview.value) return
+  if (selected.value || switching.value || confirmDelete.value || editorOpen.value || managerOpen.value || importPreview.value) return
   if (event.key === 'ArrowLeft') changeWeek(-1)
   else if (event.key === 'ArrowRight') changeWeek(1)
 }
@@ -345,6 +359,13 @@ async function confirmImport() {
   }
   if (!await saveBook(book, true)) return
   importPreview.value = null
+  if (target) {
+    displayChoices.value = {}
+    if (!saveScheduleDisplayChoices(book.id, {})) {
+      appStore.notify('课表已覆盖，但未能清除旧的显示偏好。', 'error')
+      return
+    }
+  }
   appStore.notify(target ? `已覆盖「${book.name}」` : `已导入「${book.name}」`, 'success')
 }
 
@@ -397,11 +418,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       <button class="text-button" @click="cancelSchoolImport">取消</button>
     </div>
 
-    <button v-if="conflictIds.size" class="secondary-button" @click="conflictsOpen = true">本周有 {{ conflictIds.size }} 个冲突时段，查看全部冲突课程</button>
-    <BaseModal v-if="conflictsOpen" title="本周冲突课程" dismissible @close="conflictsOpen = false">
-      <p>以下课程时间重叠，请核对安排；仍可正常保存和编辑。</p>
-      <button v-for="item in placedMeetings.filter(item => conflictIds.has(item.meeting.id))" :key="item.meeting.id" class="switch-row" @click="selected = item.course; conflictsOpen = false">{{ item.course.name }} · {{ meetingLine(item.meeting) }}</button>
-    </BaseModal>
     <template v-if="schedule">
       <header class="schedule-header">
         <div class="schedule-heading">
@@ -471,15 +487,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </div>
 
           <button
-            v-for="item in placedMeetings" :key="item.meeting.id"
-            class="tt-course" :style="{ '--course': item.course.color, gridColumn: String(columnFor(item.meeting.weekday!)), gridRow: `${item.meeting.startPeriod! + 1} / span ${item.meeting.endPeriod! - item.meeting.startPeriod! + 1}` }"
-            @click="selected = item.course"
+            v-for="segment in segments" :key="segment.key"
+            class="tt-course" :class="{ 'tt-course-short': segment.startPeriod === segment.endPeriod, 'tt-course-conflict': segment.candidates.length > 1 }"
+            :style="{ '--course': segment.item.course.color, gridColumn: String(columnFor(segment.weekday)), gridRow: `${segment.startPeriod + 1} / span ${segment.endPeriod - segment.startPeriod + 1}` }"
+            :aria-label="`${segment.item.course.name}，${meetingLine(segment.item.meeting)}${segment.candidates.length > 1 ? `，第${segment.startPeriod}–${segment.endPeriod}节有${segment.candidates.length}项重叠安排，点击切换显示` : ''}`"
+            @click="openSegment(segment)"
           >
-            <strong>{{ item.course.name }}</strong>
-            <small v-if="item.meeting.location">{{ item.meeting.location }}</small>
+            <strong><em v-if="segment.continued" class="course-continuation">续</em>{{ segment.item.course.name }}</strong>
+            <small v-if="segment.startPeriod !== segment.item.meeting.startPeriod || segment.endPeriod !== segment.item.meeting.endPeriod">完整 {{ segment.item.meeting.startPeriod }}–{{ segment.item.meeting.endPeriod }}节</small>
+            <small v-if="segment.startPeriod !== segment.endPeriod && segment.item.meeting.location">{{ segment.item.meeting.location }}</small>
+            <span v-if="segment.candidates.length > 1" class="course-conflict-badge" aria-hidden="true"><span>{{ segment.candidates.length }}</span></span>
           </button>
         </div>
-        <div v-if="!placedMeetings.length" class="tt-empty-hint"><CalendarDays :size="18" /> 本周没有课程安排</div>
+        <div v-if="!segments.length" class="tt-empty-hint"><CalendarDays :size="18" /> 本周没有课程安排</div>
       </div>
     </template>
 
@@ -502,8 +522,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       </section>
     </template>
 
-    <BaseModal v-if="selected" :title="selected.name" dismissible @close="selected = null">
+    <BaseModal v-if="selected" class="course-detail-modal" :title="selected.name" dismissible @close="selected = null">
       <div class="course-detail">
+        <p v-if="selectedSegment" class="course-segment-context">第 {{ week }} 周 · 周{{ weekdayName(selectedSegment.weekday) }} · 当前片段 {{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节<span v-if="noClass(selectedSegment.weekday)"> · 本日停课</span></p>
         <p v-if="selected.teachers.length" class="course-detail-line"><strong>教师</strong>{{ selected.teachers.join('、') }}</p>
         <p v-if="selected.code" class="course-detail-line"><strong>课程代码</strong>{{ selected.code }}</p>
         <p v-if="selected.teachingClass" class="course-detail-line"><strong>教学班</strong>{{ selected.teachingClass }}</p>
@@ -516,6 +537,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           <p v-if="!selected.meetings.length" class="course-detail-line">这门课程还没有安排上课时段。</p>
         </div>
         <p v-if="selected.note" class="course-detail-line"><strong>备注</strong>{{ selected.note }}</p>
+        <fieldset v-if="selectedSegment && selectedSegment.candidates.length > 1" class="course-conflict-picker">
+          <legend>{{ noClass(selectedSegment.weekday) ? '停课日原安排' : '重叠时段' }} · 第{{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节</legend>
+          <p>选择在课表中显示的课程，仅本周生效，不改变课程安排。</p>
+          <label v-for="item in selectedSegment.candidates" :key="item.meeting.id" class="course-conflict-option" :class="{ active: selectedSegment.item.meeting.id === item.meeting.id }">
+            <i :style="{ background: item.course.color }" />
+            <span><strong>{{ item.course.name }}</strong><small>完整 {{ item.meeting.startPeriod }}–{{ item.meeting.endPeriod }}节 · {{ item.meeting.location || '地点待定' }}</small><small>{{ item.meeting.teachers.join('、') || item.course.teachers.join('、') || '教师待定' }}</small></span>
+            <input type="radio" name="schedule-display" :value="item.meeting.id" :checked="selectedSegment.item.meeting.id === item.meeting.id" :aria-label="`在课表中显示${item.course.name}，第${item.meeting.startPeriod}–${item.meeting.endPeriod}节`" @change="chooseDisplay(item)" />
+          </label>
+          <p v-if="displayChoiceError" role="status">{{ displayChoiceError }}</p>
+        </fieldset>
       </div>
       <div class="modal-actions course-detail-actions">
         <button class="secondary-button" @click="editFromDetail"><Pencil :size="15" /> 编辑课程</button>

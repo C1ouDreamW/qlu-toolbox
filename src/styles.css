@@ -201,6 +201,26 @@
 .tt-course:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
 .tt-course strong{font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .tt-course small{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-course.tt-course-conflict{padding-bottom:22px}
+.tt-course.tt-course-short strong{-webkit-line-clamp:1;flex-shrink:0}
+.tt-course.tt-course-short small{display:none}
+.course-detail-modal .modal{max-height:calc(100dvh - 90px);overflow-y:auto;overscroll-behavior:contain}
+.course-detail-modal .modal>h2{padding-right:20px;overflow-wrap:anywhere}
+.course-continuation{display:inline-block;margin-right:4px;font-size:10px;font-style:normal;font-weight:500;opacity:.8}
+.course-conflict-badge{position:absolute;right:0;bottom:0;width:30px;height:26px;background:var(--text);color:var(--surface);clip-path:polygon(100% 0,100% 100%,0 100%);pointer-events:none}
+.course-conflict-badge>span{position:absolute;right:3px;bottom:1px;font-size:10px;font-weight:700;line-height:13px}
+.course-segment-context{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.6}
+.course-conflict-picker{min-width:0;margin:18px 0 0;padding:0;border:0;text-align:left}
+.course-conflict-picker legend{padding:0;color:var(--text);font-size:var(--font-label);font-weight:700}
+.course-conflict-picker>p{margin:7px 0 10px;color:var(--muted);font-size:11px;line-height:1.6}
+.course-conflict-option{display:flex;align-items:center;gap:10px;min-height:54px;margin-top:7px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);cursor:pointer}
+.course-conflict-option.active{border-color:color-mix(in srgb,var(--primary) 45%,var(--line));background:var(--primary-soft)}
+.course-conflict-option>i{flex:0 0 4px;height:30px;border-radius:4px}
+.course-conflict-option>span{display:grid;flex:1;min-width:0;gap:3px;overflow-wrap:anywhere}
+.course-conflict-option strong{font-size:var(--font-caption);color:var(--text)}
+.course-conflict-option small{font-size:11px;color:var(--muted)}
+.course-conflict-option input{flex:0 0 18px;width:18px;height:18px;margin:0;accent-color:var(--primary)}
+.course-conflict-option:focus-within{outline:2px solid var(--primary);outline-offset:2px}
 .tt-empty-hint{position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center;align-items:center;gap:7px;color:var(--faint);font-size:var(--font-caption);pointer-events:none}
 .schedule-empty{padding:64px 45px}
 .schedule-empty p{margin:8px 0 18px;color:var(--muted);font-size:var(--font-caption)}
