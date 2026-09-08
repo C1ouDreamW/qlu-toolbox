@@ -35,6 +35,7 @@ const error = ref('')
 const workspace = ref<'calendar' | 'courses' | 'settings' | 'editor'>('calendar')
 const editorReturnWorkspace = ref<'calendar' | 'courses' | 'settings'>('calendar')
 const editingCourse = ref<ScheduleCourse | null>(null)
+const editorRef = ref<InstanceType<typeof ScheduleEditor> | null>(null)
 const scheduleTrack = ref<HTMLElement | null>(null)
 let touchX = 0
 let touchY = 0
@@ -335,6 +336,7 @@ function handleBack() {
   if (importMenuOpen.value) { importMenuOpen.value = false; return true }
   if (menuOpen.value) { menuOpen.value = false; return true }
   if (workspace.value === 'editor') {
+    if (editorRef.value?.handleBack()) return true
     closeEditor()
     return true
   }
@@ -463,6 +465,7 @@ onMounted(() => { void loadSchedules() })
       @saved="saveSettings" @delete-book="deleteBook"
     />
     <ScheduleEditor
+      ref="editorRef"
       v-if="schedule && workspace === 'editor'" :key="editingCourse?.id || 'new'"
       :book="schedule" :course="editingCourse" :save-error="error"
       @close="closeEditor" @saved="saveCourse" @deleted="deleteCourse"
