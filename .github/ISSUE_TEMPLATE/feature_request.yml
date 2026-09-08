@@ -1,5 +1,5 @@
-name: 功能建议
-description: 建议新的校园工具或体验改进
+name: 功能与体验建议
+description: 建议新功能，或改进现有功能与界面体验
 title: "[Feature] "
 labels:
   - enhancement
@@ -7,20 +7,35 @@ body:
   - type: markdown
     attributes:
       value: 请描述真实使用场景，不要提交账号、成绩或其他个人信息。
+  - type: dropdown
+    id: request-type
+    attributes:
+      label: 建议类型
+      options:
+        - 新功能
+        - 现有功能优化
+        - 界面与交互优化
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
       label: 希望解决的问题
-      description: 当前遇到了什么不便？
+      description: 当前遇到了什么不便？现有功能优化请说明现状哪里不合适。
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
       label: 建议方案
-      description: 希望工具如何工作？
+      description: 希望工具如何工作？界面优化请描述期望的效果。
     validations:
       required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 相关截图
+      description: 可选。界面与交互优化建议尽量附截图或示意，请先删除个人信息。
   - type: textarea
     id: alternatives
     attributes:

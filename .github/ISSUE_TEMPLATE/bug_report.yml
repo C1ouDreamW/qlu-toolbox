@@ -11,15 +11,25 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: QLU 工具箱版本
-      placeholder: 例如 1.0.0-alpha.3
+      label: 一格有光（LumaTile）版本
+      placeholder: 例如 2.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 使用平台
+      options:
+        - Windows 桌面版
+        - macOS 桌面版
+        - Android 版
     validations:
       required: true
   - type: input
-    id: windows-version
+    id: os-version
     attributes:
-      label: Windows 版本
-      placeholder: 例如 Windows 11 24H2 64 位
+      label: 操作系统版本
+      placeholder: 例如 Windows 11 24H2 64 位、macOS 15、Android 14
     validations:
       required: true
   - type: dropdown
@@ -28,10 +38,27 @@ body:
       label: 发生问题的模块
       options:
         - 软件启动 / 主界面
-        - 分项成绩导出
+        - 课表工具 / 课程编辑
+        - 课表导入与备份
+        - 分项成绩导出（含教务登录）
+        - GPA 计算器
         - 任务记录
         - 设置 / 更新检查
+        - 备用浏览器下载
+        - Android 应用内更新
         - 其他
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 影响程度
+      description: 用于判断处理优先级，可在提交后由维护者调整。
+      options:
+        - 阻断：主要功能无法完成
+        - 严重：主要功能明显受损或结果不可信
+        - 一般：功能可用但有明显障碍
+        - 轻微：不影响正常使用
     validations:
       required: true
   - type: textarea
