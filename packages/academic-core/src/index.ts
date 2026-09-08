@@ -535,3 +535,4 @@ export function calculateGpa(courses: GPACourse[]): GPASummary {
     averageGpa: totalCredits > 0 ? totalGradePoints / totalCredits : null,
   }
 }
+export * from './credit'

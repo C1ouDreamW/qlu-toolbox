@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "art_major": false,
+  "total_required": 10.0,
+  "modules": [
+    {
+      "key": "sizheng",
+      "label": "思想政治理论模块",
+      "required": 2.0,
+      "art_only": false,
+      "keywords": [
+        "思想政治",
+        "思政",
+        "四史",
+        "文化"
+      ],
+      "subs": [
+        {
+          "key": "sishi",
+          "label": "四史",
+          "required": 1.0,
+          "keywords": [
+            "四史",
+            "党史",
+            "新中国史",
+            "改革开放史",
+            "社会主义发展史"
+          ]
+        },
+        {
+          "key": "wenhua",
+          "label": "文化",
+          "required": 1.0,
+          "keywords": [
+            "文化"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "anquan",
+      "label": "安全教育模块",
+      "required": 2.0,
+      "art_only": false,
+      "keywords": [
+        "安全",
+        "消防",
+        "应急",
+        "防灾",
+        "急救"
+      ],
+      "subs": []
+    },
+    {
+      "key": "yishu",
+      "label": "艺术体育模块",
+      "required": 2.0,
+      "art_only": true,
+      "keywords": [
+        "公共艺术",
+        "艺术",
+        "音乐",
+        "美术",
+        "摄影",
+        "影视",
+        "舞蹈",
+        "戏剧",
+        "戏曲",
+        "书法",
+        "鉴赏",
+        "体育",
+        "球类",
+        "健美",
+        "武术",
+        "网球",
+        "篮球",
+        "足球",
+        "排球",
+        "游泳",
+        "健身",
+        "跆拳道",
+        "太极"
+      ],
+      "subs": [
+        {
+          "key": "gongyi",
+          "label": "公共艺术",
+          "required": 2.0,
+          "keywords": [
+            "公共艺术",
+            "艺术",
+            "音乐",
+            "美术",
+            "摄影",
+            "影视",
+            "舞蹈",
+            "戏剧",
+            "戏曲",
+            "书法"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "renwen",
+      "label": "人文社科",
+      "required": 0.0,
+      "art_only": false,
+      "keywords": [
+        "人文",
+        "社科",
+        "哲学",
+        "文学",
+        "历史",
+        "法学",
+        "心理"
+      ],
+      "subs": []
+    },
+    {
+      "key": "ziran",
+      "label": "自然科学",
+      "required": 0.0,
+      "art_only": false,
+      "keywords": [
+        "自然",
+        "科学",
+        "科普"
+      ],
+      "subs": []
+    },
+    {
+      "key": "jingji",
+      "label": "经济管理",
+      "required": 0.0,
+      "art_only": false,
+      "keywords": [
+        "经济",
+        "管理",
+        "金融",
+        "会计",
+        "创业"
+      ],
+      "subs": []
+    },
+    {
+      "key": "waiyu",
+      "label": "外语",
+      "required": 0.0,
+      "art_only": false,
+      "keywords": [
+        "外语",
+        "英语",
+        "日语",
+        "俄语",
+        "法语",
+        "德语",
+        "韩语",
+        "翻译",
+        "口语"
+      ],
+      "subs": []
+    }
+  ]
+}

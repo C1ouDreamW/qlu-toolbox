@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import json
 import unittest
 from pathlib import Path
 
@@ -256,6 +257,18 @@ class NormalizeNameTest(unittest.TestCase):
     def test_strips_parenthesis_suffix(self) -> None:
         self.assertEqual(normalize_course_name("敦煌的艺术（智慧树）"), "敦煌的艺术")
         self.assertEqual(normalize_course_name(" 党史 "), "党史")
+
+
+class MobileParityTest(unittest.TestCase):
+    def test_shared_synthetic_fixtures(self) -> None:
+        fixture = Path(__file__).parents[1] / "packages/academic-core/src/credit-fixtures.json"
+        for index, case in enumerate(json.loads(fixture.read_text(encoding="utf-8"))["cases"]):
+            with self.subTest(index=index):
+                self.assertEqual(
+                    summarize([CourseRecord.from_item(item) for item in case["items"]],
+                              rules_from_dict(case["rules"]), case["plan"]),
+                    case["expected"],
+                )
 
 
 class RulesStoreTest(unittest.TestCase):
