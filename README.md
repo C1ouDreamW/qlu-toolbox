@@ -42,7 +42,7 @@
 |---|---:|---|---|
 | Windows x64 | 2.0.1 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
 | macOS Apple Silicon | 2.0.1 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
-| Android 7.0 及以上 | 2.0.1（versionCode 11） | APK | 使用系统 WebView，支持系统文件保存和应用内更新检查 |
+| Android 7.0 及以上 | 2.0.1（versionCode 12） | APK | 使用系统 WebView，支持系统文件保存和应用内更新检查 |
 
 安装包同时发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 与自建更新源 `lumatile.ishua.cloud`（互为备用渠道）。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
