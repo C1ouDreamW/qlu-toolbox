@@ -28,7 +28,7 @@ from .domain import (
     output_path,
     semester_label,
     workbook_extension,
-    xlsx_semester_values,
+    xlsx_semester_scan,
 )
 
 
@@ -397,7 +397,14 @@ def run_export(
                 if candidate_extension != ".xlsx":
                     content, extension = candidate_content, candidate_extension
                     break
-                actual_semesters = xlsx_semester_values(candidate_content)
+                scan = xlsx_semester_scan(candidate_content)
+                if not scan.has_data_rows:
+                    school_year = f"{options.academic_year}-{int(options.academic_year) + 1}"
+                    raise ExportError(
+                        f"{school_year} 学年第 {desired_semester} 学期暂无成绩，"
+                        "请确认所选时间是否有成绩记录"
+                    )
+                actual_semesters = scan.values
                 _event(
                     emit,
                     "log",

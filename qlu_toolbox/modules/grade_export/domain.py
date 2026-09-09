@@ -131,8 +131,19 @@ def semester_label(semester_value: str) -> str:
     )
 
 
-def xlsx_semester_values(content: bytes) -> set[str]:
-    """读取 OOXML 工作簿中的“学期”列，不引入额外 Excel 依赖。"""
+@dataclass(frozen=True)
+class SemesterScan:
+    """成绩表中“学期”列的扫描结果。"""
+
+    values: set[str]
+    has_data_rows: bool
+
+
+def xlsx_semester_scan(content: bytes) -> SemesterScan:
+    """扫描 OOXML 工作簿中的“学期”列，不引入额外 Excel 依赖。
+
+    无法定位“学期”表头时按存在数据行处理，避免把结构变化误报成“暂无成绩”。
+    """
     namespace = {"x": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
     try:
         with ZipFile(BytesIO(content)) as archive:
@@ -147,7 +158,7 @@ def xlsx_semester_values(content: bytes) -> set[str]:
             sheet_root = ElementTree.fromstring(archive.read("xl/worksheets/sheet1.xml"))
             rows = sheet_root.findall(".//x:sheetData/x:row", namespace)
             if not rows:
-                return set()
+                return SemesterScan(values=set(), has_data_rows=False)
 
             def cell_value(cell) -> str:
                 cell_type = cell.get("t", "")
@@ -168,7 +179,7 @@ def xlsx_semester_values(content: bytes) -> set[str]:
                     header_column = "".join(char for char in reference if char.isalpha())
                     break
             if not header_column:
-                return set()
+                return SemesterScan(values=set(), has_data_rows=True)
 
             values: set[str] = set()
             for row in rows[1:]:
@@ -180,9 +191,14 @@ def xlsx_semester_values(content: bytes) -> set[str]:
                         if value:
                             values.add(value)
                         break
-            return values
+            return SemesterScan(values=values, has_data_rows=bool(rows[1:]))
     except (BadZipFile, KeyError, ElementTree.ParseError, ValueError) as exc:
         raise ExportError("无法读取服务器返回的 Excel 文件") from exc
+
+
+def xlsx_semester_values(content: bytes) -> set[str]:
+    """读取 OOXML 工作簿中的“学期”列，不引入额外 Excel 依赖。"""
+    return xlsx_semester_scan(content).values
 
 
 def is_logged_in_url(url: str) -> bool:

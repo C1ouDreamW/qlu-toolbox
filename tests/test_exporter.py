@@ -18,10 +18,26 @@ from qlu_toolbox.modules.grade_export.domain import (
     is_logged_in_url,
     output_path,
     workbook_extension,
+    xlsx_semester_scan,
     xlsx_semester_values,
 )
 from qlu_toolbox.core.paths import AppPaths
 from qlu_toolbox.modules.grade_export.service import _launch_context
+
+
+SEMESTER_TABLE_STRINGS = """<?xml version="1.0" encoding="UTF-8"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <si><t>课程名称</t></si><si><t>学期</t></si><si><t>测试课程</t></si>
+</sst>"""
+
+
+def build_xlsx(worksheet: str, shared_strings: str | None = SEMESTER_TABLE_STRINGS) -> bytes:
+    buffer = BytesIO()
+    with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
+        if shared_strings is not None:
+            archive.writestr("xl/sharedStrings.xml", shared_strings)
+        archive.writestr("xl/worksheets/sheet1.xml", worksheet)
+    return buffer.getvalue()
 
 
 class ExporterTests(unittest.TestCase):
@@ -107,21 +123,35 @@ class ExporterTests(unittest.TestCase):
         self.assertEqual(path.suffix, ".xlsx")
 
     def test_reads_semester_column_from_xlsx(self):
-        shared_strings = """<?xml version="1.0" encoding="UTF-8"?>
-        <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-          <si><t>课程名称</t></si><si><t>学期</t></si><si><t>测试课程</t></si>
-        </sst>"""
         worksheet = """<?xml version="1.0" encoding="UTF-8"?>
         <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
           <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>
           <row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2"><v>2</v></c></row>
           <row r="3"><c r="A3" t="s"><v>2</v></c><c r="B3"><v>2</v></c></row>
         </sheetData></worksheet>"""
-        buffer = BytesIO()
-        with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
-            archive.writestr("xl/sharedStrings.xml", shared_strings)
-            archive.writestr("xl/worksheets/sheet1.xml", worksheet)
-        self.assertEqual(xlsx_semester_values(buffer.getvalue()), {"2"})
+        content = build_xlsx(worksheet)
+        self.assertEqual(xlsx_semester_values(content), {"2"})
+        scan = xlsx_semester_scan(content)
+        self.assertTrue(scan.has_data_rows)
+
+    def test_semester_scan_flags_header_only_table_as_empty(self):
+        worksheet = """<?xml version="1.0" encoding="UTF-8"?>
+        <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+          <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>
+        </sheetData></worksheet>"""
+        scan = xlsx_semester_scan(build_xlsx(worksheet))
+        self.assertFalse(scan.has_data_rows)
+        self.assertEqual(scan.values, set())
+
+    def test_semester_scan_treats_missing_semester_header_as_structure_change(self):
+        worksheet = """<?xml version="1.0" encoding="UTF-8"?>
+        <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+          <row r="1"><c r="A1" t="s"><v>0</v></c></row>
+          <row r="2"><c r="A2" t="s"><v>2</v></c></row>
+        </sheetData></worksheet>"""
+        scan = xlsx_semester_scan(build_xlsx(worksheet))
+        self.assertTrue(scan.has_data_rows)
+        self.assertEqual(scan.values, set())
 
 
 if __name__ == "__main__":
