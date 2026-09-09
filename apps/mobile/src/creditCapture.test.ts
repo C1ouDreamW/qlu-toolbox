@@ -7,7 +7,7 @@ import fixture from '../../../packages/academic-core/src/credit-fixtures.json'
 
 const script = readFileSync(new URL('../android/app/src/main/assets/credit-capture.js', import.meta.url), 'utf8')
 const observer = readFileSync(new URL('../android/app/src/main/assets/credit-plan-observer.js', import.meta.url), 'utf8')
-// 学校公共脚本覆盖标准数组方法，回调参数顺序是 (index, value)，与原生相反。
+// 学校公共脚本覆盖标准数组方法（回调参数顺序是 (index, value)，与原生相反），还把 trim 改写成移除全部空白。
 const schoolArrays = `
   Array.prototype.filter = function(callback) {
     const out = [];
@@ -19,6 +19,7 @@ const schoolArrays = `
     return false;
   };
   Array.prototype.every = function() { return true; };
+  String.prototype.trim = function() { return this.replace(/\\s+/ig, ""); };
 `
 async function capture(mode = '', gradeResponse?: unknown, legacyArrays = false) {
   const calls: { path: string; body: string }[] = []
@@ -107,6 +108,8 @@ it('captures plan, all semesters and latest enrolments with deduplication and a 
   expect(calls.filter(call => call.path.includes('cjcx_cxXsgrcj'))).toHaveLength(4)
   expect(calls.filter(call => call.path.includes('xkmdcx')).every(call => call.body.includes('xnm=2026'))).toBe(true)
   expect(calls.filter(call => call.path.includes('cxJxzxjhckIndex'))).toHaveLength(1)
+  expect(calls.filter(call => call.path.includes('Kcxx')).every(call => call.path.includes('gnmkdm=N153540'))).toBe(true)
+  expect(Object.values(data.course_map)[0]).toEqual([{ code: 'synthetic-map', name: '合成映射课程' }])
 })
 it.each(['grade-failure', 'invalid', 'origin'])('does not produce a report on %s', async mode => {
   const { result, bytes } = await capture(mode)
@@ -191,7 +194,7 @@ it('refuses to collect grades when the plan stage has not completed', async () =
   expect(JSON.parse(window.__LUMATILE_SCHEDULE_IMPORT__!.result).message).toContain('请先读取培养方案')
 })
 
-it('preserves grades, course maps and term options when school scripts override Array methods', async () => {
+it('preserves grades, course maps and term options when school scripts override Array methods and String.trim', async () => {
   const clean = await capture()
   const legacy = await capture('', undefined, true)
   expect(legacy.result.ok).toBe(true)

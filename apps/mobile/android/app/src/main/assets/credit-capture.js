@@ -3,6 +3,16 @@
   const state = window.__LUMATILE_SCHEDULE_IMPORT__ = { installed: true, started: false, result: null, base64: null, message: '正在读取培养方案…' };
   const root = '/jwglxt/';
   const warnings = [];
+  // 学校脚本把 trim 改写成移除全部空白（与 filter/some 同一批覆盖），会毁掉要求页解析，这里手工只去 BOM 与首尾空白。
+  const edgeTrim = value => {
+    const text = String(value);
+    const length = text.length;
+    let start = length && text.charCodeAt(0) === 0xFEFF ? 1 : 0;
+    let end = length;
+    while (start < end && text.charCodeAt(start) < 33) start++;
+    while (end > start && text.charCodeAt(end - 1) < 33) end--;
+    return start === 0 && end === length ? text : text.slice(start, end);
+  };
   async function request(path, body) {
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 30000);
     try {
@@ -11,7 +21,7 @@
       if (!response.ok) throw Error('教务接口返回 HTTP ' + response.status);
       const text = await response.text();
       if (text.length > 8 * 1024 * 1024) throw Error('教务响应超过安全限制');
-      return text.replace(/^\uFEFF/, '').trim();
+      return edgeTrim(text);
     } finally { clearTimeout(timer); }
   }
   async function query(path, body) {
@@ -56,15 +66,15 @@
           const type = chunk.match(/class='more' jdkcsx='([^']*)'/)?.[1] || '1';
           course_map[nodeId] = [];
           try {
-            const courses = JSON.parse(await request('jxzxjhgl/jxzxjhxfyq_cxJxzxjhxfyqKcxx.html', 'xfyqjd_id=' + nodeId + '&jdkcsx=' + encodeURIComponent(type)));
+            const courses = JSON.parse(await request('jxzxjhgl/jxzxjhxfyq_cxJxzxjhxfyqKcxx.html?gnmkdm=N153540', 'xfyqjd_id=' + nodeId + '&jdkcsx=' + encodeURIComponent(type)));
             if (!Array.isArray(courses)) throw Error('课程映射格式变化');
             for (const item of courses) {
-              if (item && typeof item === 'object' && !Array.isArray(item)) course_map[nodeId].push({ code: String(item.KCH || '').trim(), name: String(item.KCMC || '').trim() });
+              if (item && typeof item === 'object' && !Array.isArray(item)) course_map[nodeId].push({ code: edgeTrim(item.KCH || ''), name: edgeTrim(item.KCMC || '') });
             }
           } catch { warnings.push('部分官方课程映射未读取到，对应课程使用关键词归类，请核对结果。'); }
         }
       } catch { warnings.push('培养方案读取失败，使用内置 24/25 级要求与已保存的调整值。'); html = ''; course_map = {}; }
-      await transfer({ html, course_map, items: [], warnings });
+      await transfer({ html, course_map, items: [], warnings: [...new Set(warnings)] });
       return;
     }
     if (!location.pathname.endsWith('/cjcx_cxDgXscj.html') || !window.__LUMATILE_CREDIT_PLAN_READY__) throw Error('请先读取培养方案，再进入成绩查询');
@@ -81,7 +91,7 @@
       const batch = await query('cjcx/cjcx_cxXsgrcj.html?doType=query&gnmkdm=N305005',
         'xnm=' + encodeURIComponent(year) + '&xqm=' + encodeURIComponent(semester) + '&sfzgcj=&kcbj=&pkey=&_search=false&nd=' + Date.now() + '&queryModel.sortName=+&queryModel.sortOrder=asc&time=0');
       for (const item of batch) {
-        if (String(item.cjsfzf || '').trim() === '是') continue;
+        if (edgeTrim(item.cjsfzf || '') === '是') continue;
         const key = JSON.stringify([item.kch || item.kcmc || '', item.xnm || year, item.xqm || semester]);
         if (seen.has(key)) continue;
         seen.add(key); items.push(item);
