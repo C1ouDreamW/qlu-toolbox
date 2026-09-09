@@ -22,6 +22,18 @@ describe('schedule input boundaries', () => {
     expect(preview(cell('甲','20-22')).schedule.courses[0].meetings[0].weeks).toEqual([20,21,22])
     expect(preview(cell('甲')+'\n'+cell('乙')).schedule.courses).toHaveLength(2)
   })
+  it('accepts 第N周 expressions and degrades bad other-course items to warnings', () => {
+    expect(parseWeekExpression('第18周')).toEqual([18])
+    expect(parseWeekExpression('第1-3周,第5周')).toEqual([1,2,3,5])
+    const result = parseScheduleRows({ fileName: 'test.xls', rows: [
+      ['2026-2027年第1学期'], ['', '星期一'], ['', cell('甲')],
+      ['其他课程：保密技术专业高级实践1李健,马宾(共1周)/第18周/无  ;   坏课程张三(共1周)/错误周次/无'],
+    ] })
+    const practice = result.schedule.courses.find(course => course.name.includes('高级实践'))
+    expect(practice?.meetings[0]?.weeks).toEqual([18])
+    expect(result.pendingMeetings).toBe(1)
+    expect(result.warnings.some(warning => warning.includes('错误周次'))).toBe(true)
+  })
   it('aligns to Monday and handles spring academic year', () => {
     const book = preview().schedule
     book.startDate='2026-09-01'

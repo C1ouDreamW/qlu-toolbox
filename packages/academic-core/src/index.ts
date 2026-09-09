@@ -118,7 +118,7 @@ function unique<T>(values: T[]): T[] {
 export function parseWeekExpression(value: string, totalWeeks = 30): number[] {
   const weeks = new Set<number>()
   const normalizedValue = value.replace(/[－—~～]/g, '-').replace(/[（]/g, '(').replace(/[）]/g, ')')
-    .replace(/\s+/g, '').replace(/\(\d+(?:-\d+)?节\)/g, '').replace(/[周()]/g, '')
+    .replace(/\s+/g, '').replace(/\(\d+(?:-\d+)?节\)/g, '').replace(/第(?=\d)/g, '').replace(/[周()]/g, '')
   if (!normalizedValue) return []
   for (const token of normalizedValue.split(/[,，、;；]/)) {
     const match = token.match(/^(单|双)?(\d+)(?:-(\d+))?(单|双)?$/)
@@ -267,38 +267,40 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
   const other = source.rows.find(row => normalized(row[0] || '').startsWith('其他课程'))?.[0] || ''
   const pendingItems = other.replace(/^\s*其他课程[：:]?/, '').split(/\s*;\s*/).map(item => item.trim()).filter(Boolean)
   for (const item of pendingItems) {
-    const [identity = '', weeksText = '', location = ''] = item.split('/').map(part => part.trim())
-    const withoutCount = identity.replace(/\(共\d+周\)$/, '')
-    const { name, teachers } = pendingNameAndTeachers(withoutCount, courses.map(course => course.name))
-    const teachingClass = ''
-    const key = name
-    let course = courses.find(candidate => candidate.name === key)
-    if (!course) {
-      course = {
-        id: `course-${courses.length + 1}`,
-        name,
-        code: '',
-        teachingClass,
-        teachers,
-        credit: null,
-        color: SCHEDULE_COLORS[courses.length % SCHEDULE_COLORS.length],
-        note: '',
-        meetings: [],
+    try {
+      const [identity = '', weeksText = '', location = ''] = item.split('/').map(part => part.trim())
+      const withoutCount = identity.replace(/\(共\d+周\)$/, '')
+      const { name, teachers } = pendingNameAndTeachers(withoutCount, courses.map(course => course.name))
+      const teachingClass = ''
+      const key = name
+      let course = courses.find(candidate => candidate.name === key)
+      if (!course) {
+        course = {
+          id: `course-${courses.length + 1}`,
+          name,
+          code: '',
+          teachingClass,
+          teachers,
+          credit: null,
+          color: SCHEDULE_COLORS[courses.length % SCHEDULE_COLORS.length],
+          note: '',
+          meetings: [],
+        }
+        courses.push(course)
       }
-      courses.push(course)
-    }
-    meetingNumber += 1
-    course.teachers = unique([...course.teachers, ...teachers])
-    course.meetings.push({
-      id: `meeting-${meetingNumber}`,
-      weeks: parseWeekExpression(weeksText, 30),
-      weekday: null,
-      startPeriod: null,
-      endPeriod: null,
-      location: location === '无' ? '' : location,
-      teachers,
-      source: 'imported',
-    })
+      meetingNumber += 1
+      course.teachers = unique([...course.teachers, ...teachers])
+      course.meetings.push({
+        id: `meeting-${meetingNumber}`,
+        weeks: parseWeekExpression(weeksText, 30),
+        weekday: null,
+        startPeriod: null,
+        endPeriod: null,
+        location: location === '无' ? '' : location,
+        teachers,
+        source: 'imported',
+      })
+    } catch (error) { warnings.push(`${item.slice(0, 40)}：${error instanceof Error ? error.message : String(error)}`) }
   }
 
   if (!courses.length) throw new ScheduleParseError('课表中没有可识别的课程')
