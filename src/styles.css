@@ -57,7 +57,7 @@
 .app-dot{background:transparent;border-radius:0;color:inherit;font-size:0}
 .app-dot img{width:18px;height:18px;object-fit:contain}
 .brand-mark{background:#fff;color:inherit;border-radius:12px;box-shadow:var(--shadow-sm)}
-.brand-mark img{width:36px;height:36px;object-fit:contain}
+.brand-mark img{width:31px;height:31px;object-fit:contain}
 .about-logo{background:#fff;color:inherit;font-size:0}
 .about-logo img{width:62px;height:62px;object-fit:contain}
 .welcome-mark,.launch-logo{background:#fff;color:inherit;font-size:0;box-shadow:var(--shadow-sm)}
