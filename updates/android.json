@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "applicationId": "io.github.c1oudreamw.lumatile",
-  "versionCode": 12,
-  "versionName": "2.0.1",
+  "versionCode": 13,
+  "versionName": "2.0.2",
   "channel": "stable",
   "title": "一格有光版本更新",
   "notes": "发现一格有光 / LumaTile 新版本，请安装更新。",
-  "publishedAt": "2026-09-09T03:50:40.358Z",
-  "apkUrl": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.1/LumaTile-Android-v2.0.1.apk",
-  "sha256": "2d6d7e9ea9f82f2d370bfc5ea5b2375d381955ffe73ecf1932dfc01ad8a25f2a",
-  "size": 6405522,
+  "publishedAt": "2026-09-09T08:39:42.509Z",
+  "apkUrl": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.2/LumaTile-Android-v2.0.2.apk",
+  "sha256": "5bbd98c740ffbee84f4ea2b279e8fcc5c92fc3ce3e2a3aa8f3839bdfce5bfa58",
+  "size": 6408718,
   "mandatory": false
 }
