@@ -247,6 +247,7 @@
 .modal-backdrop.modal-wide .modal>.manager-tabs{flex:0 0 auto;overflow:visible}
 .modal-wide .modal-actions{flex:0 0 auto;overflow:visible}
 .pending-badge{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--amber);color:#fff;font-size:10px;font-weight:700}
+:root[data-theme="dark"] .pending-badge{color:#241b04}
 .course-detail-actions{justify-content:center}
 .form-error{margin:0 0 12px;padding:10px 13px;border-radius:10px;color:var(--red);background:var(--red-soft);font-size:var(--font-caption)}
 .editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
