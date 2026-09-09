@@ -2281,10 +2281,10 @@ select {
 }
 
 .brand-mark {
-    background: #fff;
+    background: transparent;
     color: inherit;
-    border-radius: 12px;
-    box-shadow: var(--shadow-sm)
+    border-radius: 0;
+    box-shadow: none
 }
 
 .brand-mark img {
