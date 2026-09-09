@@ -56,6 +56,7 @@ function notify(message: string, tone: 'success' | 'error' | 'info' = 'info') {
 function applyTheme(theme: Settings['theme']) {
   const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
   document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  window.qlu.syncTheme?.(theme)
 }
 
 async function refreshTasks() {

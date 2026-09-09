@@ -24,4 +24,5 @@ contextBridge.exposeInMainWorld('qlu', {
   submitFeedback: (payload: { type: 'bug' | 'suggestion'; content: string; contact: string }) =>
     ipcRenderer.invoke('system:submit-feedback', payload),
   windowAction: (action: 'minimize' | 'maximize' | 'close') => ipcRenderer.send('window:action', action),
+  syncTheme: (theme: 'light' | 'dark' | 'system') => ipcRenderer.send('theme:sync', theme),
 })

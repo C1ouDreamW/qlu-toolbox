@@ -18,6 +18,7 @@ interface Window {
     fetchAnnouncement(): Promise<Announcement | null>
     submitFeedback(payload: { type: 'bug' | 'suggestion'; content: string; contact: string }): Promise<{ id: string }>
     windowAction(action: 'minimize' | 'maximize' | 'close'): void
+    syncTheme?(theme: 'light' | 'dark' | 'system'): void
   }
 }
 

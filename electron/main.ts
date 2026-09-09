@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { release } from 'node:os'
@@ -143,6 +143,13 @@ async function submitFeedback(payload: { type?: unknown; content?: unknown; cont
   return { id: result.id }
 }
 
+// 与 src/styles.css 中两套主题的 --bg 保持一致，避免窗口原生背景与页面底色出现色差。
+const WINDOW_BACKGROUND = { light: '#f3f6fb', dark: '#0f1420' } as const
+
+function windowBackgroundColor() {
+  return nativeTheme.shouldUseDarkColors ? WINDOW_BACKGROUND.dark : WINDOW_BACKGROUND.light
+}
+
 function createWindow() {
   const isMac = process.platform === 'darwin'
   mainWindow = new BrowserWindow({
@@ -156,7 +163,7 @@ function createWindow() {
       trafficLightPosition: { x: 14, y: 12 },
     } : {}),
     show: false,
-    backgroundColor: '#f4f7fb',
+    backgroundColor: windowBackgroundColor(),
     icon: path.join(
       app.getAppPath(),
       'assets',
@@ -177,6 +184,12 @@ function createWindow() {
 
 function registerIpc() {
   ipcMain.handle('bridge:invoke', (_event, method: string, params = {}) => bridge.invoke(method, params))
+  ipcMain.on('theme:sync', (_event, theme: string) => {
+    if (theme === 'light' || theme === 'dark' || theme === 'system') nativeTheme.themeSource = theme
+  })
+  nativeTheme.on('updated', () => {
+    mainWindow?.setBackgroundColor(windowBackgroundColor())
+  })
   ipcMain.handle('system:select-directory', async (_event, defaultPath?: string) => {
     const result = await dialog.showOpenDialog(mainWindow!, {
       title: '选择保存位置', defaultPath, properties: ['openDirectory', 'createDirectory'],
