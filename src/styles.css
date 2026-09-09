@@ -244,6 +244,7 @@
 .modal-backdrop.modal-wide .modal{width:min(780px,calc(100vw - 60px));text-align:left;max-height:calc(100vh - 120px);display:flex;flex-direction:column}
 .modal-backdrop.modal-wide .modal>h2{flex:0 0 auto}
 .modal-backdrop.modal-wide .modal>*:not(h2){overflow-y:auto}
+.modal-backdrop.modal-wide .modal>.manager-tabs{flex:0 0 auto;overflow:visible}
 .modal-wide .modal-actions{flex:0 0 auto;overflow:visible}
 .pending-badge{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--amber);color:#fff;font-size:10px;font-weight:700}
 .course-detail-actions{justify-content:center}
