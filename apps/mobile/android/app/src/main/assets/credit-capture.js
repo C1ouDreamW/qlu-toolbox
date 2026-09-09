@@ -18,8 +18,17 @@
     const items = [];
     for (let page = 1; page <= 20; page++) {
       const data = JSON.parse(await request(path, body + '&queryModel.showCount=1000&queryModel.currentPage=' + page));
-      if (!data || !Array.isArray(data.items) || data.items.some(item => !item || typeof item !== 'object' || Array.isArray(item))) throw Error('教务数据格式变化或登录已失效，请重新登录');
-      items.push(...data.items);
+      // 只兼容分页信息明确为空的首个结果，不能把异常响应或缺失的后续页当作空成绩。
+      if (page === 1 && data?.items == null && [0, '0'].includes(data?.totalResult) && [0, '0'].includes(data?.totalPage)) return items;
+      if (!data || !Array.isArray(data.items)) {
+        const shape = data == null ? 'null' : Array.isArray(data) ? '数组' : typeof data;
+        const listShape = data?.items === undefined ? '缺失' : data.items === null ? 'null' : typeof data.items;
+        throw Error('教务响应格式异常（响应类型：' + shape + '，items：' + listShape + '），请重试；若仍失败，请反馈此提示');
+      }
+      // 学校覆盖了 Array.filter/some（回调先传下标），页面内必须用原生循环筛选。
+      for (const item of data.items) {
+        if (item && typeof item === 'object' && !Array.isArray(item)) items.push(item);
+      }
       if (data.items.length < 1000 && !(Number(data.totalPage) > page)) return items;
       if (Number(data.totalPage) > 0 && page >= Number(data.totalPage)) return items;
     }
@@ -28,31 +37,43 @@
   async function run() {
     if (location.origin !== 'https://jw.qlu.edu.cn') throw Error('请在学校教务页面完成登录');
     let html = '', course_map = {};
-    try {
-      const plans = await query('jxzxjhgl/jxzxjhck_cxJxzxjhckIndex.html?doType=query&gnmkdm=N153540', '_search=false&queryModel.sortName=&queryModel.sortOrder=asc');
-      const id = plans[0]?.jxzxjhxx_id;
-      if (!id) throw Error('培养方案列表缺少计划');
-      html = await request('jxzxjhgl/jxzxjhck_cxJxzxjhxdyqIndex.html?jxzxjhxx_id=' + encodeURIComponent(id) + '&gnmkdm=N153540&layout=default');
-      const starts = [...html.matchAll(/li id='li([0-9A-Fa-f]{32})'/g)];
-      for (let index = 0; index < starts.length; index++) {
-        const nodeId = starts[index][1];
-        if (Object.prototype.hasOwnProperty.call(course_map, nodeId)) continue;
-        const chunk = html.slice(starts[index].index, starts[index + 1]?.index ?? starts[index].index + 6000);
-        const title = chunk.match(/id='p[0-9A-Fa-f]{32}'\s+yqzdxf='[\d.]+'\s*>([^<]*)/)?.[1] || '';
-        if (!/思想政治理论|安全教育|艺术体育|四史|文化/.test(title)) continue;
-        const type = chunk.match(/class='more' jdkcsx='([^']*)'/)?.[1] || '1';
-        course_map[nodeId] = [];
-        try {
-          const courses = JSON.parse(await request('jxzxjhgl/jxzxjhxfyq_cxJxzxjhxfyqKcxx.html', 'xfyqjd_id=' + nodeId + '&jdkcsx=' + encodeURIComponent(type)));
-          if (!Array.isArray(courses)) throw Error('课程映射格式变化');
-          course_map[nodeId] = courses.filter(item => item && typeof item === 'object').map(item => ({ code: String(item.KCH || '').trim(), name: String(item.KCMC || '').trim() }));
-        } catch { warnings.push('部分官方课程映射未读取到，对应课程使用关键词归类，请核对结果。'); }
-      }
-    } catch { warnings.push('培养方案读取失败，使用内置 24/25 级要求与已保存的调整值。'); html = ''; course_map = {}; }
+    const planPage = location.pathname.endsWith('/jxzxjhck_cxJxzxjhckIndex.html');
+    if (planPage) {
+      try {
+        // 先进入培养方案，等待页面自己的列表请求，与桌面端的响应监听一致。
+        for (let attempt = 0; attempt < 3 && !window.__LUMATILE_PLAN_LIST__?.items; attempt++) await new Promise(resolve => setTimeout(resolve, 3500));
+        const plans = window.__LUMATILE_PLAN_LIST__?.items || [];
+        const id = plans[0]?.jxzxjhxx_id;
+        if (!id) throw Error('培养方案列表缺少计划');
+        html = await request('jxzxjhgl/jxzxjhck_cxJxzxjhxdyqIndex.html?jxzxjhxx_id=' + encodeURIComponent(id) + '&gnmkdm=N153540&layout=default');
+        const starts = [...html.matchAll(/li id='li([0-9A-Fa-f]{32})'/g)];
+        for (let index = 0; index < starts.length; index++) {
+          const nodeId = starts[index][1];
+          if (Object.prototype.hasOwnProperty.call(course_map, nodeId)) continue;
+          const chunk = html.slice(starts[index].index, starts[index + 1]?.index ?? starts[index].index + 6000);
+          const title = chunk.match(/id='p[0-9A-Fa-f]{32}'\s+yqzdxf='[\d.]+'\s*>([^<]*)/)?.[1] || '';
+          if (!/思想政治理论|安全教育|艺术体育|四史|文化/.test(title)) continue;
+          const type = chunk.match(/class='more' jdkcsx='([^']*)'/)?.[1] || '1';
+          course_map[nodeId] = [];
+          try {
+            const courses = JSON.parse(await request('jxzxjhgl/jxzxjhxfyq_cxJxzxjhxfyqKcxx.html', 'xfyqjd_id=' + nodeId + '&jdkcsx=' + encodeURIComponent(type)));
+            if (!Array.isArray(courses)) throw Error('课程映射格式变化');
+            for (const item of courses) {
+              if (item && typeof item === 'object' && !Array.isArray(item)) course_map[nodeId].push({ code: String(item.KCH || '').trim(), name: String(item.KCMC || '').trim() });
+            }
+          } catch { warnings.push('部分官方课程映射未读取到，对应课程使用关键词归类，请核对结果。'); }
+        }
+      } catch { warnings.push('培养方案读取失败，使用内置 24/25 级要求与已保存的调整值。'); html = ''; course_map = {}; }
+      await transfer({ html, course_map, items: [], warnings });
+      return;
+    }
+    if (!location.pathname.endsWith('/cjcx_cxDgXscj.html') || !window.__LUMATILE_CREDIT_PLAN_READY__) throw Error('请先读取培养方案，再进入成绩查询');
     state.message = '正在读取全部学期成绩…';
     // 成绩页本身提供查询范围；不猜测用户的入学年份或学期代码。
-    const years = [...document.querySelectorAll('#xnm option')].map(option => option.value).filter(value => /^\d+$/.test(value)).sort((a,b) => Number(b) - Number(a)).slice(0,8);
-    const semesters = [...document.querySelectorAll('#xqm option')].map(option => option.value).filter(Boolean);
+    const yearOptions = [], semesters = [];
+    for (const option of document.querySelectorAll('#xnm option')) if (/^\d+$/.test(option.value)) yearOptions.push(option.value);
+    const years = yearOptions.sort((a,b) => Number(b) - Number(a)).slice(0,8);
+    for (const option of document.querySelectorAll('#xqm option')) if (option.value) semesters.push(option.value);
     if (!years.length || !semesters.length) throw Error('成绩页面缺少学年或学期，请重新打开统计');
     const items = [], seen = new Set();
     for (const year of years) for (const semester of semesters) {
@@ -79,7 +100,10 @@
       } catch { warnings.push('部分在修课程读取失败，在修学分与选课建议可能不完整，请核对学校选课名单。'); }
     }
     if (!items.length) throw Error('没有读取到任何成绩记录');
-    const bytes = new TextEncoder().encode(JSON.stringify({ html, course_map, items, warnings: [...new Set(warnings)] }));
+    await transfer({ html, course_map, items, warnings: [...new Set(warnings)] });
+  }
+  async function transfer(data) {
+    const bytes = new TextEncoder().encode(JSON.stringify(data));
     if (bytes.length > 20 * 1024 * 1024) throw Error('统计数据超过安全限制');
     const digest = await crypto.subtle.digest('SHA-256', bytes);
     let binary = ''; for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
@@ -87,6 +111,6 @@
     state.started = true;
     state.result = JSON.stringify({ ok: true, total: bytes.length, base64Length: state.base64.length, sha256: [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2,'0')).join('') });
   }
-  run().catch(error => { state.result = JSON.stringify({ ok: false, message: String(error.message || error) }); });
+  run().catch(error => { state.result = JSON.stringify({ ok: false, message: state.message + '失败：' + String(error.message || error) }); });
   return true;
 })()

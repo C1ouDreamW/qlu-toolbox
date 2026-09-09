@@ -32,6 +32,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -56,6 +58,7 @@ class ScheduleImportActivity : AppCompatActivity() {
     private var completed = false
     private var resultDelivered = false
     private var temporaryFile: File? = null
+    private var creditPlan: JSONObject? = null
 
     private val accessTimeout = Runnable {
         if (!pageLoaded) fail(SCHOOL_NETWORK_MESSAGE)
@@ -131,18 +134,31 @@ class ScheduleImportActivity : AppCompatActivity() {
         CookieManager.getInstance().apply { setAcceptCookie(true); setAcceptThirdPartyCookies(webView, false) }
         webView.webChromeClient = WebChromeClient()
         webView.webViewClient = RestrictedClient()
+        if (creditMode && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            WebViewCompat.addDocumentStartJavaScript(webView, assets.open("credit-plan-observer.js").bufferedReader().use { it.readText() }, setOf("https://jw.qlu.edu.cn"))
+        }
     }
 
     private inner class RestrictedClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = handleNavigation(request.url.toString(), request.isForMainFrame)
         @Deprecated("Deprecated in Android") override fun shouldOverrideUrlLoading(view: WebView, url: String) = handleNavigation(url, true)
 
+        override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+            if (creditMode && isPlanPage(url) && !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                view.evaluateJavascript(assets.open("credit-plan-observer.js").bufferedReader().use { it.readText() }, null)
+            }
+        }
+
         override fun onPageFinished(view: WebView, url: String) {
             if (!GradeExportSecurity.isAllowedUrl(url) || completed) return
             if (!pageLoaded) { pageLoaded = true; handler.removeCallbacks(accessTimeout) }
-            if (creditMode && isCreditPage(url)) {
+            if (creditMode && isPlanPage(url) && creditPlan == null) {
                 actionButton.visibility = View.GONE
-                status("正在准备读取培养方案与全部成绩…")
+                status("正在读取培养方案修读要求与官方课程映射…")
+                installExportInterceptor()
+            } else if (creditMode && isCreditPage(url) && creditPlan != null) {
+                actionButton.visibility = View.GONE
+                status("培养方案读取结束，正在准备读取全部成绩…")
                 waitForCreditPage(0)
             } else if (!creditMode && ScheduleImportSecurity.isSchedulePage(url)) {
                 actionButton.visibility = View.GONE
@@ -180,7 +196,7 @@ class ScheduleImportActivity : AppCompatActivity() {
     }
 
     private fun verifyLoginAndContinue(manual: Boolean) {
-        if (completed || (if (creditMode) isCreditPage(webView.url) else ScheduleImportSecurity.isSchedulePage(webView.url))) return
+        if (completed || (creditMode && polling) || (if (creditMode) isPlanPage(webView.url) || (creditPlan != null && isCreditPage(webView.url)) else ScheduleImportSecurity.isSchedulePage(webView.url))) return
         if (GradeExportSecurity.isLoggedInUrl(webView.url)) { openSchedulePage(); return }
         webView.evaluateJavascript("(() => Boolean(document.querySelector('#sessionUser') || document.querySelector('#sessionUserKey') || document.querySelector('a[href*=\\\"logout\\\"]')))()") { result ->
             if (result == "true" && GradeExportSecurity.isAllowedUrl(webView.url)) openSchedulePage()
@@ -190,9 +206,12 @@ class ScheduleImportActivity : AppCompatActivity() {
 
     private fun openSchedulePage() {
         actionButton.visibility = View.GONE
-        status("登录已验证，正在打开${if (creditMode) "成绩查询" else "个人课表"}…")
-        webView.loadUrl(if (creditMode) CREDIT_URL else ScheduleImportSecurity.SCHEDULE_URL)
+        status("登录已验证，正在打开${if (creditMode) "培养方案" else "个人课表"}…")
+        webView.loadUrl(if (creditMode) PLAN_URL else ScheduleImportSecurity.SCHEDULE_URL)
     }
+
+    private fun isPlanPage(url: String?) = GradeExportSecurity.isAllowedUrl(url) &&
+        url?.substringBefore('?') == PLAN_URL.substringBefore('?')
 
     private fun isCreditPage(url: String?) = GradeExportSecurity.isAllowedUrl(url) &&
         url?.substringBefore('?') == CREDIT_URL.substringBefore('?')
@@ -209,7 +228,8 @@ class ScheduleImportActivity : AppCompatActivity() {
     }
 
     private fun installExportInterceptor() {
-        val script = if (creditMode) assets.open("credit-capture.js").bufferedReader().use { it.readText() } else buildInterceptorScript()
+        if (completed || (creditMode && polling)) return
+        val script = if (creditMode) "window.__LUMATILE_CREDIT_PLAN_READY__ = ${creditPlan != null};\n" + assets.open("credit-capture.js").bufferedReader().use { it.readText() } else buildInterceptorScript()
         webView.evaluateJavascript(script) { installed ->
             if (installed != "true") fail("无法启动$toolName，教务页面可能已更新。")
             else if (!polling) {
@@ -272,12 +292,33 @@ class ScheduleImportActivity : AppCompatActivity() {
                 if (!digest.equals(expectedSha256, true)) throw IOException("文件摘要不一致")
                 val header = ByteArray(4)
                 file.inputStream().use { java.io.DataInputStream(it).readFully(header) }
-                if (creditMode) {
-                    val data = JSONObject(file.readText(Charsets.UTF_8))
+                val data = if (creditMode) JSONObject(file.readText(Charsets.UTF_8)) else null
+                if (data != null) {
                     if (data.optJSONArray("items") == null || data.optJSONObject("course_map") == null || !data.has("html")) throw IOException("学分数据格式无效")
+                    creditPlan?.let { plan ->
+                        data.put("html", plan.getString("html"))
+                        data.put("course_map", plan.getJSONObject("course_map"))
+                        val warnings = data.getJSONArray("warnings")
+                        val planWarnings = plan.getJSONArray("warnings")
+                        for (index in 0 until planWarnings.length()) warnings.put(planWarnings.getString(index))
+                        file.writeText(data.toString(), Charsets.UTF_8)
+                        if (file.length() > MAX_FILE_SIZE) throw IOException("合并后的学分数据超过安全限制")
+                    }
                 } else if (!header.contentEquals(XLS_MAGIC) && !header.contentEquals(XLSX_MAGIC)) throw IOException("响应不是 Excel 文件")
                 runOnUiThread {
                     if (isDestroyed || isFinishing || completed) { file.delete(); return@runOnUiThread }
+                    if (creditMode && creditPlan == null && data != null) {
+                        creditPlan = data
+                        file.delete()
+                        temporaryFile = null
+                        handler.removeCallbacks(captureTimeout)
+                        handler.removeCallbacks(transferTimeout)
+                        polling = false
+                        transferStarted = false
+                        status("培养方案读取结束，正在打开成绩查询…")
+                        webView.loadUrl(CREDIT_URL)
+                        return@runOnUiThread
+                    }
                     completed = true
                     resultDelivered = true
                     setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_FILE_PATH, file.absolutePath).putExtra(EXTRA_FILE_NAME, if (creditMode) "学分修读情况.json" else "教务课表.xls"))
@@ -400,6 +441,7 @@ class ScheduleImportActivity : AppCompatActivity() {
         const val EXTRA_FILE_PATH = "filePath"
         const val EXTRA_FILE_NAME = "fileName"
         const val EXTRA_CREDIT_REPORT = "creditReport"
+        private const val PLAN_URL = "https://jw.qlu.edu.cn/jwglxt/jxzxjhgl/jxzxjhck_cxJxzxjhckIndex.html?gnmkdm=N153540&layout=default"
         private const val CREDIT_URL = "https://jw.qlu.edu.cn/jwglxt/cjcx/cjcx_cxDgXscj.html?gnmkdm=N305005&layout=default"
         private const val BASE_URL = "https://jw.qlu.edu.cn/"
         private const val MAX_FILE_SIZE = 20L * 1024 * 1024
