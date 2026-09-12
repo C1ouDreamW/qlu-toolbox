@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色模式配色，基准参考 WakeUp 课表组件的暗色卡片 -->
+    <color name="schedule_widget_background">#F2141519</color>
+    <color name="schedule_widget_text_primary">#FFF2F4F7</color>
+    <color name="schedule_widget_text_secondary">#FFAAB1BA</color>
+    <color name="schedule_widget_text_tertiary">#FF7A818C</color>
+    <color name="schedule_widget_text_meta">#FFD1D7DF</color>
+    <color name="schedule_widget_text_time">#FFAFC8EF</color>
+    <!-- 实心卡片：比深色背景略亮的灰，参考 WakeUp 深色模式卡片 -->
+    <color name="schedule_widget_card">#FF38373C</color>
+    <color name="schedule_widget_divider">#2EFFFFFF</color>
+</resources>

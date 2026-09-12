@@ -22,6 +22,21 @@ describe('schedule input boundaries', () => {
     expect(preview(cell('甲','20-22')).schedule.courses[0].meetings[0].weeks).toEqual([20,21,22])
     expect(preview(cell('甲')+'\n'+cell('乙')).schedule.courses).toHaveLength(2)
   })
+  it('splits real教务 cells where course name is followed by a newline before ◇', () => {
+    // 真实教务导出格式：课程名\r\n◇周次◇...，同一单元格可含多门课（单双周交替）
+    const realCell = (name: string, weeks = '1-16周(1-2节)') =>
+      `${name}\r\n◇${weeks}◇教室◇教师◇教学班：${name}`
+    const single = preview(realCell('马克思主义基本原理', '1-14周(1-2节)')).schedule
+    expect(single.courses).toHaveLength(1)
+    expect(single.courses[0].meetings[0].weeks).toEqual(Array.from({ length: 14 }, (_, i) => i + 1))
+    // 同一单元格两门课（单双周交替）
+    const two = preview(
+      realCell('毛概', '1-13周(单)(7-8节)') + '\r\n' + realCell('概率论', '2-16周(双)(7-8节)'),
+    ).schedule
+    expect(two.courses.map(c => c.name)).toEqual(['毛概', '概率论'])
+    expect(two.courses[0].meetings[0].weeks).toEqual([1, 3, 5, 7, 9, 11, 13])
+    expect(two.courses[1].meetings[0].weeks).toEqual([2, 4, 6, 8, 10, 12, 14, 16])
+  })
   it('accepts 第N周 expressions and degrades bad other-course items to warnings', () => {
     expect(parseWeekExpression('第18周')).toEqual([18])
     expect(parseWeekExpression('第1-3周,第5周')).toEqual([1,2,3,5])

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 浅色模式配色；深色版本在 values-night/schedule_widget_colors.xml -->
+    <color name="schedule_widget_background">#F7FBFBFD</color>
+    <color name="schedule_widget_text_primary">#FF20242A</color>
+    <color name="schedule_widget_text_secondary">#FF5C626B</color>
+    <color name="schedule_widget_text_tertiary">#FF98A0AA</color>
+    <color name="schedule_widget_text_meta">#FF4E5966</color>
+    <color name="schedule_widget_text_time">#FF2F5F92</color>
+    <!-- 实心卡片：浅色模式下比背景略深的浅灰，形成对比 -->
+    <color name="schedule_widget_card">#FFEDF1F5</color>
+    <color name="schedule_widget_divider">#1E1F2937</color>
+</resources>

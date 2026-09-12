@@ -252,7 +252,10 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
       const value = (row[column] || '').trim()
       if (!value) continue
       // A new course block starts with its name followed by a week expression.
-      const blocks = value.split(/(?:\r?\n|[;；])+\s*(?=[^◇\r\n]+◇\s*\d[^◇]*周)/)
+      // 教务导出的单元格内，课程名与 ◇ 之间带换行（"课程名\r\n◇周次"），
+      // 手动构造的数据则可能是"课程名◇周次"，两种格式都要能正确切分，
+      // 否则同一单元格含多门课（如单双周交替）时会被整体丢弃。
+      const blocks = value.split(/(?:\r?\n|[;；])+\s*(?=[^◇\r\n]+(?:\r?\n)*◇\s*\d[^◇]*周)/)
       for (const block of blocks) {
         try {
           if ((block.match(/周[^◇]*节/g) || []).length > 1) throw new ScheduleParseError('同一单元格含多个时段，请核对原文件')
