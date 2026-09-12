@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="schedule_widget_label">Schedule</string>
+    <string name="schedule_widget_description">See today\'s and tomorrow\'s classes on your home screen</string>
+    <string name="schedule_widget_today">Today</string>
+    <string name="schedule_widget_tomorrow">Tomorrow</string>
+    <string name="schedule_widget_no_class">No class</string>
+    <string name="schedule_widget_done_today">All done for today</string>
+    <string name="schedule_widget_done_tomorrow">All done for tomorrow</string>
+    <string name="schedule_widget_missing">No schedule yet. Tap to open the app</string>
+</resources>
