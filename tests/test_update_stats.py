@@ -156,10 +156,32 @@ class WatermarkTests(unittest.TestCase):
                     (f"{day}T12:00:00", day),
                 )
         report = collect.collect_report(self.conn, days=30)
-        self.assertEqual(report["dau"][-1], 2)  # 09-05 去重后 abc + other
-        self.assertEqual(report["dau"][-2], 1)
-        self.assertEqual(report["downloads"][-1], 1)
+        sep_05 = report["days"].index("2026-09-05")
+        sep_04 = report["days"].index("2026-09-04")
+        self.assertEqual(report["dau"][sep_05], 2)  # 09-05 去重后 abc + other
+        self.assertEqual(report["dau"][sep_04], 1)
+        self.assertEqual(report["downloads"][sep_05], 1)
         self.assertEqual(report["totals"]["installs"], 2)
+        self.assertEqual(report["arch_dist"], [{"label": "x64", "count": 2}])
+        self.assertEqual(report["top_files"], [{"label": "v2.0.0 / a.exe", "count": 2}])
+
+    def test_rendered_report_includes_feedback_link_and_exact_values(self):
+        today = collect.datetime.now().strftime("%Y-%m-%d")
+        self.conn.execute(
+            "INSERT INTO beacon_hits (ts, day, client, version, os, arch, install_id) "
+            "VALUES (?, ?, 'android', '2.0.2', 'android', 'arm64', 'install-1')",
+            (f"{today}T12:00:00", today),
+        )
+        report = collect.collect_report(self.conn)
+        page = collect.render_html(report, {"new": 2, "resolved": 3, "recent": 1})
+
+        self.assertIn('href="/admin/"', page)
+        self.assertIn("<strong>2</strong> 条待处理", page)
+        self.assertIn("已处理 3 条 · 近 7 天新增 1 条", page)
+        self.assertIn("架构分布（近 30 天）", page)
+        self.assertIn("arm64", page)
+        self.assertIn("每日精确数据", page)
+        self.assertIn(f'<time datetime="{today}">{today}</time>', page)
 
 
 class AnnouncementSchemaTests(unittest.TestCase):

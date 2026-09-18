@@ -15,7 +15,7 @@
 /etc/nginx/conf.d/lumatile-update.conf  # lumatile 站点，含 access_log 与 /stats/ location
 ```
 
-统计页：<https://lumatile.ishua.cloud/stats/>（账号 `admin`，密码在首次部署时生成，忘记可重建 htpasswd）。页面底部会展示反馈概览（未处理/已处理/近 7 天新增），只读访问 `config.json` 中 `feedback_db_path` 指向的反馈库，读不到时自动跳过；详细查看与标记处理在 <https://lumatile.ishua.cloud/admin/>，两处使用同一账号。
+统计页：<https://lumatile.ishua.cloud/stats/>（账号 `admin`，密码在首次部署时生成，忘记可重建 htpasswd）。页面顶部会展示反馈概览（未处理/已处理/近 7 天新增）并提供管理入口，只读访问 `config.json` 中 `feedback_db_path` 指向的反馈库；读不到时显示不可用提示，但仍保留管理入口。详细查看与标记处理在 <https://lumatile.ishua.cloud/admin/>，两处使用同一账号。
 
 ## 日常操作
 

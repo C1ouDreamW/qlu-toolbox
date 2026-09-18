@@ -315,11 +315,11 @@ def collect_report(conn: sqlite3.Connection, days: int = 30) -> dict:
         "UNION SELECT day FROM manifest_checks WHERE day BETWEEN ? AND ? "
         "ORDER BY day", (start, today, start, today, start, today)
     )]
-    # 补全连续日期序列，图表不断档
+    # 从首个有数据的日期补到今天，避免停报时图表看起来仍是最新状态。
     all_days: list[str] = []
     if daily_days:
         cursor = datetime.strptime(daily_days[0], "%Y-%m-%d")
-        end = datetime.strptime(daily_days[-1], "%Y-%m-%d")
+        end = datetime.strptime(today, "%Y-%m-%d")
         while cursor <= end:
             all_days.append(cursor.strftime("%Y-%m-%d"))
             cursor += timedelta(days=1)
@@ -360,9 +360,15 @@ def collect_report(conn: sqlite3.Connection, days: int = 30) -> dict:
         "WHERE day BETWEEN ? AND ? AND install_id IS NOT NULL GROUP BY client ORDER BY 2 DESC",
         (start, today),
     )]
+    arch_dist = [{"label": row[0] or "未知", "count": row[1]} for row in conn.execute(
+        "SELECT COALESCE(arch, ''), COUNT(DISTINCT install_id) FROM beacon_hits "
+        "WHERE day BETWEEN ? AND ? AND install_id IS NOT NULL GROUP BY arch ORDER BY 2 DESC",
+        (start, today),
+    )]
     top_files = [{"label": row[0], "count": row[1]} for row in conn.execute(
-        "SELECT filename, COUNT(*) FROM download_hits WHERE day BETWEEN ? AND ? "
-        "GROUP BY filename ORDER BY 2 DESC LIMIT 10", (start, today),
+        "SELECT CASE WHEN tag = '' THEN filename ELSE tag || ' / ' || filename END, COUNT(*) "
+        "FROM download_hits WHERE day BETWEEN ? AND ? "
+        "GROUP BY tag, filename ORDER BY 2 DESC LIMIT 10", (start, today),
     )]
 
     total_installs = conn.execute(
@@ -370,9 +376,13 @@ def collect_report(conn: sqlite3.Connection, days: int = 30) -> dict:
     ).fetchone()[0]
     total_downloads = conn.execute("SELECT COUNT(*) FROM download_hits").fetchone()[0]
     total_beacons = conn.execute("SELECT COUNT(*) FROM beacon_hits").fetchone()[0]
+    total_manifest_checks = conn.execute(
+        "SELECT COALESCE(SUM(count), 0) FROM manifest_checks"
+    ).fetchone()[0]
 
+    github_snapshot_day = conn.execute("SELECT MAX(day) FROM github_downloads").fetchone()[0]
     github_total = conn.execute("SELECT COALESCE(SUM(count), 0) FROM github_downloads g "
-                                "WHERE day = (SELECT MAX(day) FROM github_downloads)").fetchone()[0]
+                                "WHERE day = ?", (github_snapshot_day,)).fetchone()[0]
     github_by_asset = [{"label": f"{row[0]} / {row[1]}", "count": row[2]} for row in conn.execute(
         "SELECT tag, filename, count FROM github_downloads "
         "WHERE day = (SELECT MAX(day) FROM github_downloads) ORDER BY count DESC LIMIT 10"
@@ -389,13 +399,17 @@ def collect_report(conn: sqlite3.Connection, days: int = 30) -> dict:
         "version_dist": version_dist,
         "os_dist": os_dist,
         "client_dist": client_dist,
+        "arch_dist": arch_dist,
         "top_files": top_files,
         "totals": {
             "installs": total_installs,
             "downloads_selfhosted": total_downloads,
             "beacons": total_beacons,
+            "manifest_checks": total_manifest_checks,
+            "update_checks": total_beacons + total_manifest_checks,
             "downloads_github": github_total,
         },
+        "github_snapshot_day": github_snapshot_day,
         "github_by_asset": github_by_asset,
     }
 
@@ -411,15 +425,21 @@ def svg_line(values: list[int], labels: list[str], color: str, title: str) -> st
     ]
     polyline = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
     area = f"{pad},{height - pad} " + polyline + f" {pad + (count - 1) * step:.1f},{height - pad}"
+    dots = "".join(
+        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{color}" tabindex="0">'
+        f'<title>{html.escape(label)}：{value}</title></circle>'
+        for (x, y), label, value in zip(points, labels, values)
+    )
     every = max(count // 6, 1)
     text_points = " ".join(
         f'<text x="{x:.1f}" y="{height - 8}" font-size="9" fill="#889" text-anchor="middle">{label[5:]}</text>'
         for i, ((x, _), label) in enumerate(zip(points, labels))
         if i % every == 0
     )
-    return f"""<svg viewBox="0 0 {width} {height}" role="img" aria-label="{title}">
+    return f"""<svg viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(title)}">
       <polyline fill="{color}22" stroke="none" points="{area}" />
       <polyline fill="none" stroke="{color}" stroke-width="2" points="{polyline}" />
+      {dots}
       {text_points}
     </svg>"""
 
@@ -464,6 +484,26 @@ def dist_table(title: str, rows: list[dict], total: int | None = None) -> str:
       <table><tbody>{body}</tbody></table>{suffix}</section>"""
 
 
+def daily_table(report: dict) -> str:
+    rows = "".join(
+        f'<tr><td><time datetime="{day}">{day}</time></td><td>{dau}</td><td>{new}</td>'
+        f'<td>{checks}</td><td>{downloads}</td></tr>'
+        for day, dau, new, checks, downloads in reversed(list(zip(
+            report["days"], report["dau"], report["new_installs"],
+            report["raw_checks"], report["downloads"],
+        )))
+    )
+    if not rows:
+        rows = '<tr><td colspan="5" class="empty">暂无每日数据</td></tr>'
+    return f"""<details class="card daily-detail">
+      <summary>每日精确数据 <span>展开查看 {len(report['days'])} 天明细</span></summary>
+      <div class="table-scroll"><table>
+        <thead><tr><th>日期</th><th>日活</th><th>新增安装</th><th>更新检查</th><th>下载</th></tr></thead>
+        <tbody>{rows}</tbody>
+      </table></div>
+    </details>"""
+
+
 def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
     labels = report["days"]
     totals = report["totals"]
@@ -473,60 +513,115 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
     new_chart = svg_bars(report["new_installs"], labels, "#8a63f4", "新增安装")
 
     card_rows = [
-        ("识别的安装数", totals["installs"]),
-        ("自建源下载", totals["downloads_selfhosted"]),
-        ("GitHub 下载", totals["downloads_github"]),
-        ("心跳总数", totals["beacons"]),
+        ("识别的安装", totals["installs"], "累计去重"),
+        ("更新检查", totals["update_checks"], f'含匿名心跳 {totals["beacons"]} 次'),
+        ("自建源下载", totals["downloads_selfhosted"], "累计请求"),
+        ("GitHub 下载", totals["downloads_github"], report["github_snapshot_day"] or "暂无快照"),
     ]
-    if feedback is not None:
-        card_rows.append(("未处理反馈", feedback["new"]))
     cards = "".join(
-        f'<div class="stat"><div class="stat-num">{value}</div><div class="stat-label">{label}</div></div>'
-        for label, value in card_rows
+        f'<div class="stat"><div class="stat-label">{label}</div>'
+        f'<div class="stat-num">{value}</div><div class="stat-note">{note}</div></div>'
+        for label, value, note in card_rows
     )
-    feedback_line = ""
     if feedback is not None:
-        feedback_line = (
-            f'<p class="muted">反馈：未处理 {feedback["new"]} 条，已处理 {feedback["resolved"]} 条，'
-            f'近 7 天新增 {feedback["recent"]} 条 · <a href="/admin/">打开反馈管理页</a></p>'
+        feedback_panel = (
+            '<section class="feedback-panel"><div><p class="eyebrow">反馈队列</p>'
+            f'<h2><strong>{feedback["new"]}</strong> 条待处理</h2>'
+            f'<p>已处理 {feedback["resolved"]} 条 · 近 7 天新增 {feedback["recent"]} 条</p></div>'
+            '<a class="button" href="/admin/">查看全部反馈 <span aria-hidden="true">→</span></a></section>'
         )
+    else:
+        feedback_panel = (
+            '<section class="feedback-panel unavailable"><div><p class="eyebrow">反馈队列</p>'
+            '<h2>反馈统计暂不可用</h2><p>统计任务未能读取反馈数据库，仍可直接进入管理页。</p></div>'
+            '<a class="button" href="/admin/">打开反馈管理 <span aria-hidden="true">→</span></a></section>'
+        )
+    range_days = report["range_days"]
+    github_title = (
+        f'GitHub 下载（{report["github_snapshot_day"]} 快照）'
+        if report["github_snapshot_day"] else "GitHub 下载（暂无快照）"
+    )
     return f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>LumaTile 统计</title>
 <style>
-  body {{ font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background: #f4f7fb; color: #1c2430; }}
-  main {{ max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }}
-  h1 {{ font-size: 20px; }} h3 {{ font-size: 14px; margin: 0 0 10px; }}
-  a {{ color: #4f6ef7; }}
-  .cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0; }}
-  .stat {{ background: #fff; border-radius: 10px; padding: 14px 16px; }}
-  .stat-num {{ font-size: 24px; font-weight: 700; }}
-  .stat-label {{ font-size: 12px; color: #667; margin-top: 2px; }}
-  .card {{ background: #fff; border-radius: 10px; padding: 14px 16px; margin: 12px 0; }}
-  svg {{ width: 100%; height: auto; }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-  td {{ padding: 4px 6px; }}
-  .bar-cell {{ width: 60%; }}
-  .bar {{ height: 10px; border-radius: 5px; background: #4f6ef7; min-width: 2px; }}
-  .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
-  .muted {{ color: #667; font-size: 12px; }}
-  .updated {{ color: #667; font-size: 12px; }}
+  :root {{ --ink: #172038; --muted: #657089; --line: #dbe2ec; --paper: #fff;
+    --canvas: #eef3f8; --blue: #3559e0; --green: #0f9d78; --amber: #d48222; --violet: #7651c9; }}
+  * {{ box-sizing: border-box; }}
+  body {{ font-family: "Segoe UI Variable", "Microsoft YaHei UI", system-ui, sans-serif; margin: 0;
+    background: var(--canvas); color: var(--ink); }}
+  body::before {{ content: ""; position: fixed; inset: 0 0 auto; height: 4px;
+    background: linear-gradient(90deg, var(--blue) 0 42%, var(--green) 42% 67%, var(--amber) 67% 84%, var(--violet) 84%); }}
+  main {{ max-width: 1120px; margin: 0 auto; padding: 48px 24px 64px; }}
+  h1 {{ font: 700 clamp(30px, 5vw, 52px)/1.05 "Segoe UI Variable Display", "Microsoft YaHei UI", sans-serif;
+    letter-spacing: -.04em; margin: 7px 0 12px; }}
+  h2 {{ font-size: 20px; margin: 4px 0; }} h3 {{ font-size: 14px; margin: 0 0 14px; }}
+  p {{ margin: 0; }} a {{ color: var(--blue); }}
+  .masthead {{ display: flex; justify-content: space-between; gap: 32px; align-items: end; margin-bottom: 28px; }}
+  .eyebrow {{ color: var(--blue); font: 700 11px/1.2 ui-monospace, Consolas, monospace; letter-spacing: .13em; text-transform: uppercase; }}
+  .updated {{ max-width: 430px; color: var(--muted); font-size: 13px; line-height: 1.6; }}
+  .live {{ flex: 0 0 auto; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.7);
+    padding: 8px 12px; color: var(--muted); font: 600 12px ui-monospace, Consolas, monospace; }}
+  .live::before {{ content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px;
+    border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px #0f9d7822; }}
+  .cards {{ display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line);
+    border-radius: 16px; overflow: hidden; background: var(--paper); box-shadow: 0 16px 40px rgba(23,32,56,.06); }}
+  .stat {{ min-width: 0; padding: 20px; border-right: 1px solid var(--line); }} .stat:last-child {{ border-right: 0; }}
+  .stat-num {{ margin: 8px 0 3px; font: 720 30px/1 ui-monospace, Consolas, monospace; letter-spacing: -.06em; }}
+  .stat-label, .stat-note {{ color: var(--muted); font-size: 12px; }} .stat-label {{ font-weight: 650; color: var(--ink); }}
+  .feedback-panel {{ display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 16px 0 38px;
+    padding: 20px 22px; border: 1px solid #cbd6ff; border-radius: 16px; background: #f7f9ff; }}
+  .feedback-panel h2 strong {{ color: var(--blue); font: 750 28px ui-monospace, Consolas, monospace; }}
+  .feedback-panel p:not(.eyebrow) {{ color: var(--muted); font-size: 13px; }}
+  .feedback-panel.unavailable {{ border-color: var(--line); background: var(--paper); }}
+  .button {{ flex: 0 0 auto; border-radius: 10px; background: var(--blue); color: #fff; padding: 10px 14px;
+    font-size: 13px; font-weight: 650; text-decoration: none; }} .button:focus-visible, summary:focus-visible {{ outline: 3px solid #3559e055; outline-offset: 3px; }}
+  .section-head {{ display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 34px 0 12px; }}
+  .section-head h2 {{ margin: 0; }} .section-head p {{ color: var(--muted); font-size: 12px; }}
+  .chart-grid, .dist-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }}
+  .card {{ min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }}
+  svg {{ display: block; width: 100%; height: auto; overflow: visible; }} svg circle:focus {{ outline: none; stroke: #fff; stroke-width: 2; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }} th {{ color: var(--muted); font-size: 11px; text-align: left; }}
+  td, th {{ padding: 7px 6px; border-bottom: 1px solid #edf0f5; }} tbody tr:last-child td {{ border-bottom: 0; }}
+  td:not(:first-child), th:not(:first-child) {{ text-align: right; }}
+  .bar-cell {{ width: 52%; }} .bar {{ height: 9px; border-radius: 2px; background: var(--blue); min-width: 2px; }}
+  .num {{ text-align: right; font: 600 12px ui-monospace, Consolas, monospace; }}
+  .muted {{ color: var(--muted); font-size: 12px; margin-top: 10px; }}
+  .daily-detail {{ margin-top: 14px; padding: 0; }} .daily-detail summary {{ cursor: pointer; padding: 16px 18px; font-size: 13px; font-weight: 650; }}
+  .daily-detail summary span {{ float: right; color: var(--muted); font-weight: 400; }} .daily-detail[open] summary {{ border-bottom: 1px solid var(--line); }}
+  .table-scroll {{ max-height: 390px; overflow: auto; padding: 8px 14px 14px; }} .empty {{ color: var(--muted); text-align: center !important; }}
+  footer {{ margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.6; }}
+  @media (max-width: 760px) {{ main {{ padding: 36px 14px 48px; }} .masthead {{ align-items: start; flex-direction: column; gap: 14px; }}
+    .cards {{ grid-template-columns: repeat(2, 1fr); }} .stat:nth-child(2) {{ border-right: 0; }} .stat:nth-child(-n+2) {{ border-bottom: 1px solid var(--line); }}
+    .chart-grid, .dist-grid {{ grid-template-columns: 1fr; }} .feedback-panel {{ align-items: stretch; flex-direction: column; }} .button {{ text-align: center; }} }}
+  @media (max-width: 420px) {{ .cards {{ grid-template-columns: 1fr; }} .stat {{ border-right: 0; border-bottom: 1px solid var(--line); }}
+    .stat:nth-child(3) {{ border-bottom: 1px solid var(--line); }} .stat:last-child {{ border-bottom: 0; }} .daily-detail summary span {{ display: none; }} }}
 </style></head><body><main>
-<h1>LumaTile 更新源统计</h1>
-<p class="updated">生成于 {report['generated_at']} · 统计区间近 {report['range_days']} 天 · 仅匿名计数，无个人信息</p>
+<header class="masthead"><div><p class="eyebrow">LumaTile / Operations</p><h1>更新源统计</h1>
+<p class="updated">匿名观测安装、更新与下载状态，不包含账号、成绩或网络地址。</p></div>
+<div class="live">生成于 {report['generated_at']}</div></header>
 <div class="cards">{cards}</div>
-<section class="card"><h3>日活（去重安装数）</h3>{dau_chart}</section>
-<section class="card"><h3>自建源每日下载</h3>{download_chart}</section>
-<section class="card"><h3>更新检查请求（含旧版客户端）</h3>{check_chart}</section>
-<section class="card"><h3>每日新增安装</h3>{new_chart}</section>
-{dist_table("版本分布（近 30 天去重安装）", report["version_dist"])}
-{dist_table("平台分布（近 30 天去重安装）", report["os_dist"])}
-{dist_table("客户端分布", report["client_dist"])}
-{dist_table("自建源热门文件（近 30 天）", report["top_files"])}
-{dist_table("GitHub 下载（最新快照）", report["github_by_asset"], totals["downloads_github"])}
-<p class="muted">口径：日活按 beacon 随机安装号去重；旧版客户端（v2.0.0 之前）只体现在“更新检查请求”中；GitHub 下载为官方 API 累计值快照。</p>
+{feedback_panel}
+<div class="section-head"><h2>最近 {range_days} 天趋势</h2><p>悬停数据点，或展开下方精确数据</p></div>
+<div class="chart-grid">
+  <section class="card"><h3>日活 · 去重安装</h3>{dau_chart}</section>
+  <section class="card"><h3>每日新增安装</h3>{new_chart}</section>
+  <section class="card"><h3>更新检查 · 含旧版客户端</h3>{check_chart}</section>
+  <section class="card"><h3>自建源每日下载</h3>{download_chart}</section>
+</div>
+{daily_table(report)}
+<div class="section-head"><h2>构成与下载</h2><p>安装分布按随机安装编号去重</p></div>
+<div class="dist-grid">
+  {dist_table(f"版本分布（近 {range_days} 天）", report["version_dist"])}
+  {dist_table(f"系统分布（近 {range_days} 天）", report["os_dist"])}
+  {dist_table(f"客户端分布（近 {range_days} 天）", report["client_dist"])}
+  {dist_table(f"架构分布（近 {range_days} 天）", report["arch_dist"])}
+  {dist_table(f"自建源下载明细（近 {range_days} 天）", report["top_files"])}
+  {dist_table(github_title, report["github_by_asset"], totals["downloads_github"])}
+</div>
+<footer>口径：日活按匿名安装编号每日去重；“识别的安装”按全量历史去重；旧版客户端（v2.0.0 之前）仅计入更新检查；自建源 206 断点续传按请求计数；GitHub 数据为官方 API 累计快照。</footer>
 </main></body></html>"""
 
 
