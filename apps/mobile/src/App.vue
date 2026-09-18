@@ -20,6 +20,7 @@ import { BACK_EXIT_WINDOW_MS, isSecondBackPress } from './backNavigation'
 type Page = 'schedule' | 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about' | 'credit'
 type StartPage = 'schedule' | 'toolbox' | 'last'
 const legalNoticeVersion = '2026-07-19'
+const loginHintDuration = 2600
 const savedStartPage = localStorage.getItem('scheduleStartPage')
 const startPage = ref<StartPage>(savedStartPage === 'toolbox' || savedStartPage === 'last' ? savedStartPage : 'schedule')
 const startPageDialogOpen = ref(false)
@@ -46,6 +47,8 @@ const keepLoginState = ref(localStorage.getItem('keepLoginState') !== 'false')
 const task = ref<GradeTaskSnapshot | null>(null)
 const tasks = ref<GradeTaskSnapshot[]>([])
 const uiError = ref('')
+const loginClearing = ref(false)
+const loginHint = ref<{ message: string; error: boolean } | null>(null)
 const gpaWorkbook = ref<GPAWorkbook | null>(null)
 const gpaLoading = ref(false)
 const gpaError = ref('')
@@ -74,6 +77,7 @@ let updateListener: PluginListenerHandleLike | undefined
 let backButtonListener: PluginListenerHandleLike | undefined
 let lastBackPressedAt = 0
 let exitHintTimer: ReturnType<typeof setTimeout> | undefined
+let loginHintTimer: ReturnType<typeof setTimeout> | undefined
 
 interface PluginListenerHandleLike { remove: () => Promise<void> }
 
@@ -114,7 +118,24 @@ async function cancel() { if (task.value) await gradeExport.cancel(task.value.ta
 async function retrySave(item = task.value) { if (item) try { uiError.value = ''; await gradeExport.retrySave(item.taskId) } catch (error) { uiError.value = error instanceof Error ? error.message : String(error) } }
 async function openSaved(item: GradeTaskSnapshot) { try { uiError.value = ''; await gradeExport.openSavedArtifact(item.taskId) } catch (error) { uiError.value = error instanceof Error ? error.message : String(error) } }
 async function share(item: GradeTaskSnapshot) { if (item.artifact) try { uiError.value = ''; await gradeExport.shareArtifact(item.artifact) } catch (error) { uiError.value = error instanceof Error ? error.message : String(error) } }
-async function clearLogin() { try { uiError.value = ''; await gradeExport.clearLoginState() } catch (error) { uiError.value = error instanceof Error ? error.message : String(error) } }
+function showLoginHint(message: string, isError = false) {
+  loginHint.value = { message, error: isError }
+  if (loginHintTimer) clearTimeout(loginHintTimer)
+  loginHintTimer = setTimeout(() => { loginHint.value = null; loginHintTimer = undefined }, loginHintDuration)
+}
+
+async function clearLogin() {
+  if (loginClearing.value) return
+  loginClearing.value = true
+  uiError.value = ''
+  try {
+    await gradeExport.clearLoginState()
+    showLoginHint('已清除教务登录状态，下次使用需重新登录')
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    showLoginHint(detail ? `清除失败：${detail}` : '清除失败，请稍后重试', true)
+  } finally { loginClearing.value = false }
+}
 function persistKeepLoginState() { window.localStorage.setItem('keepLoginState', String(keepLoginState.value)) }
 function acceptLegalNotice() {
   if (!legalNoticeConfirmed.value) return
@@ -296,6 +317,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   clearExitHint()
+  if (loginHintTimer) clearTimeout(loginHintTimer)
   void listener?.remove()
   void updateListener?.remove()
   void backButtonListener?.remove()
@@ -385,7 +407,7 @@ onBeforeUnmount(() => {
     <section v-else-if="page === 'settings'" class="page">
       <div class="page-title"><p class="eyebrow">PRIVACY & DATA</p><h1>设置</h1><p>管理学校登录状态和本地数据。</p></div>
       <button class="setting-card start-page-setting" type="button" aria-haspopup="dialog" :aria-expanded="startPageDialogOpen" @click="startPageDialogOpen = true"><CalendarDays /><span><strong>应用启动页</strong><small>可单独选择课表、工具箱或上次页面</small></span><span class="start-page-current">{{ selectedStartPage.label }}<ChevronRight /></span></button>
-      <button class="setting-card" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>清除 Cookie、缓存与站点数据</small></span></button>
+      <button class="setting-card" :disabled="loginClearing" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>{{ loginClearing ? '正在清除 Cookie、缓存与站点数据…' : '清除 Cookie、缓存与站点数据' }}</small></span></button>
       <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
       <button class="setting-card switch-card" type="button" role="switch" :aria-checked="autoUpdateCheck" @click="toggleAutoUpdateCheck"><RefreshCw /><span><strong>自动检查更新</strong><small>启动时访问公开更新源，获取新版本提醒</small></span><span class="switch-track" :class="{ on: autoUpdateCheck }"><i class="switch-thumb"></i></span></button>
       <button class="setting-card switch-card" type="button" role="switch" :aria-checked="anonymousStats" @click="toggleAnonymousStats"><ShieldCheck /><span><strong>匿名使用统计</strong><small>发送随机安装编号、软件版本和系统类型；不含任何个人信息</small></span><span class="switch-track" :class="{ on: anonymousStats }"><i class="switch-thumb"></i></span></button>
@@ -421,6 +443,7 @@ onBeforeUnmount(() => {
     <nav v-if="['schedule', 'home', 'settings'].includes(page)" class="primary-nav"><button :class="{active:page==='schedule'}" @click="selectPage('schedule')"><CalendarDays />课表</button><button :class="{active:page==='home'}" @click="selectPage('home')"><Grid2X2 />工具箱</button><button :class="{active:page==='settings'}" @click="selectPage('settings')"><Settings />我的</button></nav>
 
     <Transition name="fade"><div v-if="exitHintVisible" class="exit-hint" role="status">再按一次返回键退出应用</div></Transition>
+    <Transition name="fade"><div v-if="loginHint" class="soft-toast" :class="{ error: loginHint.error }" :role="loginHint.error ? 'alert' : 'status'">{{ loginHint.message }}</div></Transition>
 
     <FeedbackSheet v-if="feedbackOpen" :version="mobilePackage.version" @close="feedbackOpen = false" />
 
