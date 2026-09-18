@@ -58,6 +58,15 @@ it('splits wrapped course names in multi-course cells', () => {
     expect(singleWeeks.warnings).toEqual([])
     expect(singleWeeks.schedule.courses.map(item => item.name)).toEqual(['形势与政策', '劳动教育'])
     expect(singleWeeks.schedule.courses[1].meetings[0].weeks).toEqual([12])
+    // 同一单元格混合两种形态：直接跟 ◇ 与换行后跟 ◇ 混用
+    const mixed = preview(['数据结构◇1-15周(1-2节)◇教室◇教师', realCell('操作系统', '2-16周(双)(3-4节)')].join('\r\n'))
+    expect(mixed.warnings).toEqual([])
+    expect(mixed.schedule.courses.map(item => item.name)).toEqual(['数据结构', '操作系统'])
+    // 备注换行里的「… 3周 …」不得被误判为新课程块，仍按单门课解析
+    const noted = preview(`${cell('甲')}\r\n备注：实习 3周 另行安排`)
+    expect(noted.schedule.courses.map(item => item.name)).toEqual(['甲'])
+    expect(singleWeeks.schedule.courses[0].meetings[0].weeks).toEqual([3])
+    // 「◇ 前有空格」不得被误判为新课程块（英文说明里的 "xxx 3周" 不能触发切分）
     // 课程名后有行尾空格
     const trailing = preview([realCell('高等数学', '1-15周(单)(1-2节)', ' '), realCell('线性代数', '2-16周(双)(1-2节)')].join('\r\n'))
     expect(trailing.warnings).toEqual([])
