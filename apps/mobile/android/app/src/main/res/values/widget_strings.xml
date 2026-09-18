@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="schedule_widget_label">课表</string>
+    <string name="schedule_widget_description">在桌面查看今天和明天的课程</string>
+    <string name="schedule_widget_today">今天</string>
+    <string name="schedule_widget_tomorrow">明天</string>
+    <string name="schedule_widget_no_class">无课</string>
+    <string name="schedule_widget_done_today">今天没课啦</string>
+    <string name="schedule_widget_done_tomorrow">明天没课啦</string>
+    <string name="schedule_widget_missing">暂无课表，点击打开应用导入</string>
+    <string name="schedule_widget_preview_name" translatable="false">课表</string>
+    <string name="schedule_widget_preview_info" translatable="false">今天 · 明天</string>
+</resources>

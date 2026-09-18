@@ -17,6 +17,8 @@ class MainActivity : BridgeActivity() {
         super.onCreate(savedInstanceState)
         installSystemBarInsets()
         lockWebViewTextZoom()
+        // 打开应用时同步刷新桌面小组件：覆盖升级不会自动重绘旧组件，这里兜底触发一次
+        ScheduleWidgetProvider.requestUpdate(this)
     }
 
     /**

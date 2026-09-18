@@ -53,6 +53,7 @@ class SchedulePlugin : Plugin() {
             isActive = previous?.isActive == true,
         )
         dao.save(entity, makeActive)
+        ScheduleWidgetProvider.requestUpdate(context)
         dao.get(id)?.toJson() ?: throw IOException("课表保存失败")
     }
 
@@ -61,6 +62,7 @@ class SchedulePlugin : Plugin() {
         val id = call.getString("id", "")!!.trim()
         if (dao.get(id) == null) throw IOException("课表不存在")
         dao.activate(id)
+        ScheduleWidgetProvider.requestUpdate(context)
         JSObject().apply { put("ok", true) }
     }
 
@@ -70,6 +72,7 @@ class SchedulePlugin : Plugin() {
         val wasActive = dao.get(id)?.isActive == true
         dao.delete(id)
         if (wasActive) dao.list().firstOrNull()?.let { dao.activate(it.scheduleId) }
+        ScheduleWidgetProvider.requestUpdate(context)
         JSObject().apply { put("ok", true) }
     }
 
