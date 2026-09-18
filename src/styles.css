@@ -1684,7 +1684,7 @@ select {
 .update-notes .md-heading {
     margin: 0 0 6px;
     color: var(--text);
-    font-size: var(--font-caption);
+    font-size: 13px;
     font-weight: 700
 }
 
