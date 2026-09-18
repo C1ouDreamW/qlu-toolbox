@@ -6,6 +6,7 @@ import {
 import TitleBar from '@/components/TitleBar.vue'
 import Sidebar from '@/components/Sidebar.vue'
 import BaseModal from '@/components/BaseModal.vue'
+import MarkdownNotes from '@/components/MarkdownNotes.vue'
 import FeedbackModal from '@/components/FeedbackModal.vue'
 import HomePage from '@/pages/HomePage.vue'
 import ToolsPage from '@/pages/ToolsPage.vue'
@@ -110,7 +111,7 @@ onMounted(async () => {
       <label class="disclaimer-confirm"><input v-model="disclaimerConfirmed" type="checkbox" /><span>我已阅读并理解上述免责声明与使用须知</span></label>
       <button class="primary-button wide" :disabled="!disclaimerConfirmed" @click="acceptWelcome">确认并开始使用</button>
     </BaseModal>
-    <BaseModal v-if="update" title="发现新版本" dismissible @close="update = null"><span class="update-version">{{ update.version }}</span><p class="modal-lead">{{ update.name || '一格有光更新' }}</p><p class="update-notes">{{ update.notes || '本次发布暂无详细说明。' }}</p><div class="modal-actions"><button class="secondary-button" @click="update = null">稍后再说</button><button class="primary-button" @click="api.openExternal(update!.url)">查看新版本</button></div></BaseModal>
+    <BaseModal v-if="update" title="发现新版本" dismissible @close="update = null"><span class="update-version">{{ update.version }}</span><p class="modal-lead">{{ update.name || '一格有光更新' }}</p><MarkdownNotes class="update-notes" :text="update.notes || '本次发布暂无详细说明。'" /><div class="modal-actions"><button class="secondary-button" @click="update = null">稍后再说</button><button class="primary-button" @click="api.openExternal(update!.url)">查看新版本</button></div></BaseModal>
     <BaseModal v-if="announcement" :title="announcement.level === 'warning' ? '重要通知' : '公告'" dismissible @close="dismissAnnouncement"><span class="update-version">{{ announcement.title }}</span><p class="modal-lead announcement-body">{{ announcement.body }}</p><div class="modal-actions"><button v-if="announcement.url" class="secondary-button" @click="api.openExternal(announcement.url!)">查看详情</button><button class="primary-button" @click="dismissAnnouncement">知道了</button></div></BaseModal>
     <FeedbackModal v-if="boot && feedbackOpen" :version="boot.version" @close="feedbackOpen = false" />
     <BaseModal v-if="browser.required" :title="browser.error ? '浏览器组件下载未完成' : browser.installing ? '正在准备备用浏览器' : '需要备用浏览器组件'">

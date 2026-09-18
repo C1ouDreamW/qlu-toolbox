@@ -1656,7 +1656,7 @@ select {
 }
 
 .update-notes {
-    max-height: 160px;
+    max-height: 220px;
     overflow: auto;
     padding: 12px;
     text-align: left;
@@ -1667,6 +1667,84 @@ select {
     font-size: 9px;
     line-height: 1.6;
     user-select: text
+}
+
+.update-notes p,
+.update-notes ul,
+.update-notes ol,
+.update-notes blockquote,
+.update-notes pre {
+    margin: 0 0 8px
+}
+
+.update-notes>:last-child {
+    margin-bottom: 0
+}
+
+.update-notes .md-heading {
+    margin: 0 0 6px;
+    color: var(--text);
+    font-size: var(--font-caption);
+    font-weight: 700
+}
+
+.update-notes .md-heading:not(:first-child) {
+    margin-top: 12px
+}
+
+.update-notes ul,
+.update-notes ol {
+    padding-left: 17px
+}
+
+.update-notes li {
+    margin-bottom: 4px
+}
+
+.update-notes li:last-child {
+    margin-bottom: 0
+}
+
+.update-notes code {
+    padding: 1px 4px;
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: .95em
+}
+
+.update-notes pre {
+    padding: 9px 10px;
+    overflow: auto;
+    border-radius: 8px;
+    background: var(--surface)
+}
+
+.update-notes pre code {
+    padding: 0;
+    background: none
+}
+
+.update-notes a {
+    color: var(--primary);
+    text-decoration: none;
+    overflow-wrap: anywhere
+}
+
+.update-notes a:hover {
+    text-decoration: underline
+}
+
+.update-notes blockquote {
+    padding-left: 9px;
+    border-left: 2px solid var(--line)
+}
+
+.update-notes hr {
+    height: 1px;
+    margin: 11px 0;
+    border: 0;
+    background: var(--line)
 }
 
 .modal-actions {
