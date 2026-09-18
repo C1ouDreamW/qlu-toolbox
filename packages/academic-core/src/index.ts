@@ -251,7 +251,9 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
     for (const [column, weekday] of dayColumns) {
       const value = (row[column] || '').trim()
       if (!value) continue
-      // 教务导出的 XLS 可能把课程名和后面的 ◇周次再拆成两行。
+      // 教务导出的 XLS 可能把课程名和后面的 ◇周次再拆成两行（"课程名\r\n◇周次"），
+      // 手动构造或旧格式则是"课程名◇周次"，两种都要能切分：课程名后可跟任意空白/换行，
+      // 周次可为"第N周/单/双/N-M周"等形态。否则同一单元格含多门课时会被整体丢弃。
       const blocks = value.split(/(?:\r?\n|[;；])+\s*(?=[^◇\r\n]+(?:\r?\n\s*)?◇\s*(?:第|单|双|\d)[^◇]*周)/)
       for (const block of blocks) {
         try {

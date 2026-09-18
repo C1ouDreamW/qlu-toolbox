@@ -22,7 +22,7 @@ describe('schedule input boundaries', () => {
     expect(preview(cell('甲','20-22')).schedule.courses[0].meetings[0].weeks).toEqual([20,21,22])
     expect(preview(cell('甲')+'\n'+cell('乙')).schedule.courses).toHaveLength(2)
   })
-  it('splits wrapped course names in multi-course cells', () => {
+it('splits wrapped course names in multi-course cells', () => {
     const course = (name: string, schedule: string, wrapped = false) =>
       `${name}${wrapped ? '\r\n' : ''}◇${schedule}(1-2节)◇教室◇教师◇教学班：${name}`
     const result = preview([
@@ -35,6 +35,33 @@ describe('schedule input boundaries', () => {
     expect(result.schedule.courses[0].meetings[0].weeks).toEqual([1,3,5,7,9,11,13,15])
     expect(result.schedule.courses[1].meetings[0].weeks).toEqual([2,4,6,8,10,12,14,16])
     expect(result.schedule.courses[2].meetings[0].weeks).toEqual([12])
+  })
+  it('splits real教务 cells where course name is followed by a newline before ◇', () => {
+    // 真实教务导出格式：课程名\r\n◇周次◇...，同一单元格可含多门课（单双周交替）
+    const realCell = (name: string, weeks = '1-16周(1-2节)') =>
+      `${name}\r\n◇${weeks}◇教室◇教师◇教学班：${name}`
+    const single = preview(realCell('马克思主义基本原理', '1-14周(1-2节)')).schedule
+    expect(single.courses).toHaveLength(1)
+    expect(single.courses[0].meetings[0].weeks).toEqual(Array.from({ length: 14 }, (_, i) => i + 1))
+    // 同一单元格两门课（单双周交替）
+    const two = preview(
+      realCell('毛概', '1-13周(单)(7-8节)') + '\r\n' + realCell('概率论', '2-16周(双)(7-8节)'),
+    ).schedule
+    expect(two.courses.map(c => c.name)).toEqual(['毛概', '概率论'])
+    expect(two.courses[0].meetings[0].weeks).toEqual([1, 3, 5, 7, 9, 11, 13])
+    expect(two.courses[1].meetings[0].weeks).toEqual([2, 4, 6, 8, 10, 12, 14, 16])
+  })
+  it('keeps 第N周 cells and trailing spaces before ◇ splittable', () => {
+    const realCell = (name: string, weeks: string, tail = '') => `${name}${tail}\r\n◇${weeks}◇教室◇教师◇教学班：${name}`
+    // 两门课都是「第N周」形态，不能被整体丢弃
+    const singleWeeks = preview([realCell('形势与政策', '第3周(1-2节)'), realCell('劳动教育', '第12周(3-4节)')].join('\r\n'))
+    expect(singleWeeks.warnings).toEqual([])
+    expect(singleWeeks.schedule.courses.map(item => item.name)).toEqual(['形势与政策', '劳动教育'])
+    expect(singleWeeks.schedule.courses[1].meetings[0].weeks).toEqual([12])
+    // 课程名后有行尾空格
+    const trailing = preview([realCell('高等数学', '1-15周(单)(1-2节)', ' '), realCell('线性代数', '2-16周(双)(1-2节)')].join('\r\n'))
+    expect(trailing.warnings).toEqual([])
+    expect(trailing.schedule.courses.map(item => item.name)).toEqual(['高等数学', '线性代数'])
   })
   it('accepts 第N周 expressions and degrades bad other-course items to warnings', () => {
     expect(parseWeekExpression('第18周')).toEqual([18])
