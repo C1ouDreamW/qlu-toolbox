@@ -22,6 +22,20 @@ describe('schedule input boundaries', () => {
     expect(preview(cell('甲','20-22')).schedule.courses[0].meetings[0].weeks).toEqual([20,21,22])
     expect(preview(cell('甲')+'\n'+cell('乙')).schedule.courses).toHaveLength(2)
   })
+  it('splits wrapped course names in multi-course cells', () => {
+    const course = (name: string, schedule: string, wrapped = false) =>
+      `${name}${wrapped ? '\r\n' : ''}◇${schedule}(1-2节)◇教室◇教师◇教学班：${name}`
+    const result = preview([
+      course('高等数学', '1-15周(单)'),
+      course('线性代数', '2-16周(双)', true),
+      course('劳动教育', '第12周', true),
+    ].join('\r\n'))
+    expect(result.warnings).toEqual([])
+    expect(result.schedule.courses.map(item => item.name)).toEqual(['高等数学', '线性代数', '劳动教育'])
+    expect(result.schedule.courses[0].meetings[0].weeks).toEqual([1,3,5,7,9,11,13,15])
+    expect(result.schedule.courses[1].meetings[0].weeks).toEqual([2,4,6,8,10,12,14,16])
+    expect(result.schedule.courses[2].meetings[0].weeks).toEqual([12])
+  })
   it('accepts 第N周 expressions and degrades bad other-course items to warnings', () => {
     expect(parseWeekExpression('第18周')).toEqual([18])
     expect(parseWeekExpression('第1-3周,第5周')).toEqual([1,2,3,5])

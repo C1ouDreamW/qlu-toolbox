@@ -251,8 +251,8 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
     for (const [column, weekday] of dayColumns) {
       const value = (row[column] || '').trim()
       if (!value) continue
-      // A new course block starts with its name followed by a week expression.
-      const blocks = value.split(/(?:\r?\n|[;；])+\s*(?=[^◇\r\n]+◇\s*\d[^◇]*周)/)
+      // 教务导出的 XLS 可能把课程名和后面的 ◇周次再拆成两行。
+      const blocks = value.split(/(?:\r?\n|[;；])+\s*(?=[^◇\r\n]+(?:\r?\n\s*)?◇\s*(?:第|单|双|\d)[^◇]*周)/)
       for (const block of blocks) {
         try {
           if ((block.match(/周[^◇]*节/g) || []).length > 1) throw new ScheduleParseError('同一单元格含多个时段，请核对原文件')

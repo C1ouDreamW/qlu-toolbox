@@ -601,7 +601,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </div>
         <p class="import-name">「{{ importPreview.schedule.name }}」 · {{ importPreview.schedule.academicYear }} 第 {{ importPreview.schedule.semester === '2' ? '二' : '一' }} 学期</p>
         <p v-if="importPreview.warnings.length" class="import-warnings">
-          {{ importPreview.warnings.length }} 个单元格未能识别（已在导入结果外忽略）：
+          {{ importPreview.warnings.length }} 条导入提醒：
           <span>{{ importPreview.warnings.slice(0, 3).join('；') }}</span>
         </p>
 
