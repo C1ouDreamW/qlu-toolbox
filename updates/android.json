@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "applicationId": "io.github.c1oudreamw.lumatile",
-  "versionCode": 13,
-  "versionName": "2.0.2",
+  "versionCode": 14,
+  "versionName": "2.0.3",
   "channel": "stable",
   "title": "一格有光版本更新",
-  "notes": "发现一格有光 / LumaTile 新版本，请安装更新。",
-  "publishedAt": "2026-09-09T08:39:42.509Z",
-  "apkUrl": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.2/LumaTile-Android-v2.0.2.apk",
-  "sha256": "5bbd98c740ffbee84f4ea2b279e8fcc5c92fc3ce3e2a3aa8f3839bdfce5bfa58",
-  "size": 6408718,
+  "notes": "这是以 Android 桌面课表小组件、双端更新说明渲染和课表导入修复为主的版本。\n\n### 新增\n\n- Android 端新增 3×2 桌面课表小组件：顶部显示当前课表名称与「日期 周次 星期」，下方左右两列分别是今天和明天的课程，每节课显示课程名、教室与上课时间并保留课程颜色标识；已上完的课自动从「今天」列隐藏（按当前时间过滤并在下一节课结束时精确刷新），无课时显示对应空状态，随系统深浅色模式切换；课表保存、切换或删除后在桌面主动刷新。数据与课表页同源（应用私有 Room 库），不新增依赖与权限。感谢 [@XiaoYu070310](https://github.com/XiaoYu070310) 贡献（#14，#15）。\n- 新增共享包 `@lumatile/update-notes`：更新说明的 Markdown 子集解析由桌面端与 Android 端共用。Android 端更新弹窗同步按标题、列表、加粗与行内代码渲染更新说明，说明区域高度受限并可滚动，底部弹窗仍保留整屏以上空间，不会占满屏幕。\n\n### 修复\n\n- Android 端「我的」设置页的「清除教务登录状态」补充操作反馈：清除期间按钮显示进行中状态，成功或失败后以底部软提示告知结果（#12）。\n- 修复双端课表导入时，同一单元格含多门课（如单双周交替）会被整体丢弃的问题：真实教务导出的单元格在课程名与「◇」之间带有换行，原切分规则无法识别，导致该时段课程缺失并误报「同一单元格含多个时段」；桌面端导入预览的提示文案同步由「N 个单元格未能识别」调整为「N 条导入提醒」（#13）。\n- 修复桌面端「发现新版本」弹窗直接显示 Markdown 原文的问题：更新说明现在按标题、列表、加粗、行内代码与链接渲染，链接改由系统浏览器打开；来源为 GitHub Release 的兜底文案同样适用。说明区小标题字号提升至 13px，与版本名同级，层级更清晰。\n\n### 更改\n\n- Android 更新清单的 `notes` 改为携带 CHANGELOG 中对应版本的更新说明（由 Release 工作流传入 `release-notes.md`），不再使用固定模板句；解析逻辑与桌面端共用同一份实现。\n- Android versionCode 提升至 `14`，versionName 提升至 `2.0.3`，保持应用 ID 与签名配置不变。",
+  "publishedAt": "2026-09-18T14:50:20.318Z",
+  "apkUrl": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.3/LumaTile-Android-v2.0.3.apk",
+  "sha256": "90f9c38decf2c6d7f4160d742f26ec099e2d2dbf54d6957dba7838424831bd74",
+  "size": 6436858,
   "mandatory": false
 }
