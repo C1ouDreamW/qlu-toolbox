@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import MarkdownLine from '@/components/MarkdownLine.vue'
 import { parseMarkdownNotes } from '@lumatile/update-notes'
+import MarkdownLine from './MarkdownLine.vue'
 
+// 移动端不提供外部链接跳转（更新包下载有独立入口），链接只展示文字。
 const props = defineProps<{ text: string }>()
 const blocks = computed(() => parseMarkdownNotes(props.text))
 </script>

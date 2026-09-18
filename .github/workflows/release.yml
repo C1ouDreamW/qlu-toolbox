@@ -272,7 +272,7 @@ jobs:
           mkdir -p "$release_dir" update-source/stable
           cp artifacts/* "$release_dir/"
           base_url="https://lumatile.ishua.cloud/releases/${GITHUB_REF_NAME}"
-          node scripts/generate-android-update-manifest.mjs "$apk" update-source/stable/android.json "$version_code" "$version" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" "$base_url"
+          node scripts/generate-android-update-manifest.mjs "$apk" update-source/stable/android.json "$version_code" "$version" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" release-notes.md "$base_url"
           node scripts/generate-desktop-update-manifest.mjs artifacts update-source/stable/desktop.json "$version" "$base_url" release-notes.md
 
       - name: Upload self-hosted update source bundle
@@ -292,7 +292,7 @@ jobs:
           test -n "$version_code"
           git fetch origin main
           git checkout -B main origin/main
-          node scripts/generate-android-update-manifest.mjs "$apk" updates/android.json "$version_code" "$version" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME"
+          node scripts/generate-android-update-manifest.mjs "$apk" updates/android.json "$version_code" "$version" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" release-notes.md
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add updates/android.json

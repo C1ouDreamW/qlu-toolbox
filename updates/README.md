@@ -1,6 +1,6 @@
 # Android 更新清单
 
-`android.json` is generated only after a signed APK has been uploaded to the GitHub Release. Do not hand-edit hashes, sizes, package IDs, or version codes.
+`android.json` is generated only after a signed APK has been uploaded to the GitHub Release. Do not hand-edit hashes, sizes, package IDs, version codes, or `notes`; the update notes come from the matching CHANGELOG section and are rendered as Markdown by both clients.
 
 The release workflow pushes the generated manifest to a dedicated branch and adds a pull-request link to the workflow summary. Open that link and create the pull request so that the protected `main` branch runs its required status checks. Merge it after CI passes to make the new update visible to installed apps.
 

@@ -15,6 +15,7 @@ import mobilePackage from '../package.json'
 import SchedulePage from './SchedulePage.vue'
 import CreditReportPage from './CreditReportPage.vue'
 import FeedbackSheet from './FeedbackSheet.vue'
+import MarkdownNotes from './MarkdownNotes.vue'
 import { BACK_EXIT_WINDOW_MS, isSecondBackPress } from './backNavigation'
 
 type Page = 'schedule' | 'home' | 'grade' | 'gpa' | 'tasks' | 'settings' | 'about' | 'credit'
@@ -499,7 +500,7 @@ onBeforeUnmount(() => {
         <p class="eyebrow">APP UPDATE</p>
         <h1 id="update-dialog-title">{{ availableUpdate.title }}</h1>
         <p class="update-version">v{{ availableUpdate.versionName }} · versionCode {{ availableUpdate.versionCode }} · {{ formatBytes(availableUpdate.size) }}</p>
-        <p class="update-notes">{{ availableUpdate.notes }}</p>
+        <MarkdownNotes class="update-notes" :text="availableUpdate.notes" />
         <div v-if="updateProgress" class="update-progress">
           <div><span>{{ updateProgress.message || (updateProgress.state === 'ready' ? '校验完成' : '正在下载并校验更新包') }}</span><strong v-if="updateProgress.percent !== undefined && updateProgress.percent >= 0">{{ updateProgress.percent }}%</strong></div>
           <progress v-if="updateProgress.percent !== undefined && updateProgress.percent >= 0" :value="updateProgress.percent" max="100" />

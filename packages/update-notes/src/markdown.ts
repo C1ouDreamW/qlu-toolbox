@@ -1,9 +1,9 @@
 /**
- * 更新说明用的极简 Markdown 子集解析。
+ * 更新说明用的极简 Markdown 子集解析，桌面端与 Android 端共用。
  *
- * 桌面端「发现新版本」的文案来自更新源清单或 GitHub Release，二者都是 Markdown
- * （CHANGELOG 片段、`### 修复`、`- ` 列表、`**加粗**`、链接等）。这里只解析弹窗
- * 需要的块级与行内结构，交给 Vue 模板渲染，不生成 HTML 字符串，避免注入风险。
+ * 更新文案来自更新源清单或 GitHub Release，二者都是 Markdown（CHANGELOG 片段、
+ * `### 修复`、`- ` 列表、`**加粗**`、链接等）。这里只解析弹窗需要的块级与行内结构，
+ * 由各端用 Vue 模板渲染，不生成 HTML 字符串，避免注入风险。
  */
 
 export type MarkdownInline =

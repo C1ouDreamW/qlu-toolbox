@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MarkdownInline } from '@/markdown'
+import type { MarkdownInline } from '@lumatile/update-notes'
 
 defineProps<{ tokens: MarkdownInline[] }>()
 

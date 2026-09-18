@@ -23,6 +23,24 @@
 
 @media(prefers-color-scheme:dark){.update-dialog{color:#e8f2fb;background:#142231}.update-version,.update-safety{color:#97abbd}.update-notes{color:#c9d8e4;background:#1b2e40}.update-progress{border-color:#324c63;background:#0f1c28}.update-progress>div,.update-progress small{color:#a9bac8}}
 
+/* 更新说明按共享 Markdown 子集渲染；限制高度，避免底部弹窗占满整屏。 */
+.update-notes{max-height:min(180px,26vh);white-space:pre-line}
+.update-notes h3{margin:0 0 6px;font-size:14px;color:#20415c}
+.update-notes .md-heading:not(:first-child){margin-top:11px}
+.update-notes p,.update-notes ul,.update-notes ol,.update-notes blockquote,.update-notes pre{margin:0 0 8px}
+.update-notes>:last-child{margin-bottom:0}
+.update-notes ul,.update-notes ol{padding-left:18px}
+.update-notes li{margin-bottom:4px}
+.update-notes li:last-child{margin-bottom:0}
+.update-notes code{padding:1px 4px;border-radius:5px;background:#e6eef6;font-size:.95em}
+.update-notes pre{padding:9px 10px;overflow:auto;border-radius:9px;background:#e6eef6}
+.update-notes pre code{padding:0;background:none}
+.update-notes blockquote{padding-left:9px;border-left:2px solid #d5e0ea}
+.update-notes hr{height:1px;margin:10px 0;border:0;background:#dbe5ee}
+@media(max-width:559px){.update-dialog{max-height:calc(100% - 18px)}}
+@media(max-height:560px){.update-icon{display:none}.update-dialog{padding-top:20px}.update-notes{max-height:min(150px,24vh)}}
+@media(prefers-color-scheme:dark){.update-notes h3{color:#dbe9f6}.update-notes code,.update-notes pre{background:#0f1c28}.update-notes blockquote{border-left-color:#324c63}.update-notes hr{background:#324c63}}
+
 /* Toolbox cards keep the generous, glanceable rhythm of the original home page. */
 .page>.tool-card{display:grid;grid-template-columns:54px minmax(0,1fr) auto;align-items:center;column-gap:16px;min-height:124px;margin-bottom:16px;padding:21px 19px;border-radius:20px}.page>.tool-card>.tool-icon{width:54px;height:54px;border-radius:16px}.page>.tool-card>.tool-icon svg{width:25px;height:25px}.page>.tool-card>span:nth-child(2){min-width:0;grid-column:auto;gap:0;padding:0}.page>.tool-card strong{font-size:17px;line-height:1.3}.page>.tool-card small{margin-top:6px;font-size:13px;line-height:1.6}.page>.tool-card em{align-self:center;margin:0}
 

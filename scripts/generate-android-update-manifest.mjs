@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 
-const [apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag, downloadBaseUrl] = process.argv.slice(2)
-if (![apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag].every(Boolean)) {
-  throw new Error('Usage: node scripts/generate-android-update-manifest.mjs <apk> <output> <versionCode> <versionName> <owner/repo> <tag>')
+const [apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag, notesPathArg, downloadBaseUrl] = process.argv.slice(2)
+if (![apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag, notesPathArg].every(Boolean)) {
+  throw new Error('Usage: node scripts/generate-android-update-manifest.mjs <apk> <output> <versionCode> <versionName> <owner/repo> <tag> <notes> [downloadBaseUrl]')
 }
 
 const versionCode = Number(versionCodeArg)
@@ -18,6 +18,8 @@ const apk = await readFile(apkPath)
 const details = await stat(apkPath)
 const fileName = apkPath.replaceAll('\\', '/').split('/').at(-1)
 const sha256 = createHash('sha256').update(apk).digest('hex')
+// 更新说明与桌面端同源：Release 工作流传入 CHANGELOG 中该版本的段落。
+const notes = (await readFile(resolve(notesPathArg), 'utf8')).trim()
 const manifest = {
   schemaVersion: 1,
   applicationId: 'io.github.c1oudreamw.lumatile',
@@ -25,9 +27,7 @@ const manifest = {
   versionName,
   channel: versionName.includes('-') ? 'beta' : 'stable',
   title: versionName.startsWith('1.') ? 'QLU 工具箱最终迁移版' : '一格有光版本更新',
-  notes: versionName.startsWith('1.')
-    ? '本版本完成 Android 应用身份、正式签名和双更新渠道迁移。后续版本将更名为一格有光 / LumaTile。'
-    : '发现一格有光 / LumaTile 新版本，请安装更新。',
+  notes,
   publishedAt: new Date().toISOString(),
   apkUrl: downloadBaseUrl
     ? `${downloadBaseUrl.replace(/\/$/, '')}/${fileName}`
