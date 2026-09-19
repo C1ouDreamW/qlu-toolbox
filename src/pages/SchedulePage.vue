@@ -10,7 +10,7 @@ import ScheduleCourseEditor from '@/pages/schedule/ScheduleCourseEditor.vue'
 import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
 import {
-  datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
+  datesForWeek, isNoClassDate, parseQluScheduleDom, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
   visibleWeekdays, weekForDate, validateSchedule, scheduleSegments,
 } from '@lumatile/academic-core'
 import type { ScheduleSegment, SchedulePlacement } from '@lumatile/academic-core'
@@ -295,7 +295,10 @@ function toggleMenu(target: 'import' | 'more') {
 }
 
 function openImportPreview(source: ScheduleImportSource) {
-  if (source.kind === 'backup') {
+  if (source.kind === 'qlu-dom') {
+    if (!source.dom) throw new Error('网页课表数据为空')
+    importPreview.value = parseQluScheduleDom(source.dom)
+  } else if (source.kind === 'backup') {
     const book = parseScheduleBackup(source.payload || '')
     const meetings = book.courses.flatMap(course => course.meetings)
     importPreview.value = {

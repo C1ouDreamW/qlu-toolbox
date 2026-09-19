@@ -124,6 +124,7 @@ async function initialize() {
             kind: event.kind || 'workbook',
             fileName: event.fileName || '教务课表.xls',
             rows: event.rows || [],
+            dom: event.dom,
           }
           notify('已获取教务课表，请确认导入预览', 'success')
           void refreshTasks()

@@ -11,7 +11,7 @@ analysis = Analysis(
     ["main.py"],
     pathex=[],
     binaries=playwright_binaries,
-    datas=playwright_datas,
+    datas=playwright_datas + [("assets/qlu-schedule-dom.js", "assets")],
     hiddenimports=playwright_hiddenimports,
     hookspath=[],
     hooksconfig={},

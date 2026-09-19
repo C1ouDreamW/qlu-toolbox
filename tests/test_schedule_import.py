@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import unittest
 
 from qlu_toolbox.modules.schedule_import.domain import (
     EXPORT_FORM_PATH_MARKER,
     MAX_EXPORT_BYTES,
     ScheduleImportError,
+    build_dom_capture_script,
     build_interceptor_script,
     is_export_action,
     is_schedule_page,
@@ -60,6 +62,13 @@ class ScheduleImportDomainTests(unittest.TestCase):
         self.assertIn("preventDefault()", script)
         self.assertIn("credentials: 'same-origin'", script)
 
+    def test_dom_capture_script_is_packaged_and_semantic(self):
+        script = build_dom_capture_script()
+        self.assertIn("#table1", script)
+        self.assertIn("节/周", script)
+        self.assertIn("上课地点", script)
+        self.assertIn("candidateCount", script)
+
     def test_verified_capture_accepts_matching_content(self):
         self.assertEqual(verified_capture(capture_for(XLSX_MAGIC), XLSX_MAGIC), ".xlsx")
         self.assertEqual(verified_capture(capture_for(XLS_MAGIC), XLS_MAGIC), ".xls")
@@ -108,10 +117,14 @@ class FakeFrame:
 
 
 class FakePage:
-    def __init__(self, frames):
+    def __init__(self, frames, dom_states=None):
         self.frames = frames
+        self.dom_states = list(dom_states or [])
         self.listeners = {}
         self.context = self
+
+    def evaluate(self, _script):
+        return self.dom_states.pop(0) if self.dom_states else None
 
     def on(self, event, handler):
         self.listeners[event] = handler
@@ -173,6 +186,18 @@ class WaitForCaptureTests(unittest.TestCase):
             result, extension = capture_service._wait_for_capture(page, self.work_root, self.emit, __import__("threading").Event())
         self.assertEqual(result, content)
         self.assertEqual(extension, ".xlsx")
+
+    def test_capture_semantic_dom_before_excel(self):
+        dom = {
+            "academicYear": "2026-2027", "semester": "1", "candidateCount": 1,
+            "records": [{"name": "高等数学", "weekday": 1, "scheduleText": "(1-2节)1-16周"}],
+        }
+        page = FakePage([FakeFrame([None])], [json.dumps({"requested": True, "result": dom, "error": ""})])
+        result, extension = capture_service._wait_for_capture(
+            page, self.work_root, self.emit, __import__("threading").Event()
+        )
+        self.assertEqual(json.loads(result), dom)
+        self.assertEqual(extension, ".qlu-dom.json")
 
     def test_capture_via_download_fallback(self):
         content = XLS_MAGIC

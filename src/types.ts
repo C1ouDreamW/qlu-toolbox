@@ -1,10 +1,10 @@
 export type PageName = 'home' | 'tools' | 'tasks' | 'settings' | 'about' | 'grade' | 'gpa' | 'schedule' | 'credit'
 export type Theme = 'light' | 'dark' | 'system'
 
-import type { StoredSchedule } from '@lumatile/contracts'
+import type { QluScheduleDomPayload, StoredSchedule } from '@lumatile/contracts'
 
 export type {
-  NoClassDate, PeriodTime, ScheduleBook, ScheduleCourse, ScheduleImportPreview,
+  NoClassDate, PeriodTime, QluScheduleDomPayload, ScheduleBook, ScheduleCourse, ScheduleImportPreview,
   ScheduleImportSource, ScheduleMeeting, StoredSchedule, WeekendMode,
 } from '@lumatile/contracts'
 
@@ -77,7 +77,7 @@ export interface GradeEvent {
 export interface ScheduleImportEvent {
   type: 'status' | 'log' | 'success' | 'error' | 'cancelled' | 'browser_required'
   stage?: string; message?: string; code?: string
-  kind?: 'workbook'; fileName?: string; rows?: string[][]
+  kind?: 'workbook' | 'qlu-dom'; fileName?: string; rows?: string[][]; dom?: QluScheduleDomPayload
 }
 
 export interface BrowserComponentEvent {

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from urllib.parse import urlparse
 
 from qlu_toolbox.modules.grade_export.domain import workbook_extension
@@ -14,6 +17,7 @@ SCHEDULE_URL = (
 EXPORT_FORM_PATH_MARKER = "/kbcx/xskbcx_cxDcExcelXskb.html"
 MAX_EXPORT_BYTES = 20 * 1024 * 1024
 CAPTURE_TIMEOUT_SECONDS = 15 * 60
+DOM_SOURCE_EXTENSION = ".qlu-dom.json"
 
 
 class ScheduleImportError(RuntimeError):
@@ -28,6 +32,12 @@ class CancelledError(ScheduleImportError):
 class ImportOptions:
     preferred_browser: str = "auto"
     keep_login_state: bool = True
+
+
+@lru_cache(maxsize=1)
+def build_dom_capture_script() -> str:
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[3]))
+    return (root / "assets" / "qlu-schedule-dom.js").read_text(encoding="utf-8")
 
 
 def is_schedule_page(url: str) -> bool:

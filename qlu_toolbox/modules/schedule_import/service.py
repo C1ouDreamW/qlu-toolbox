@@ -18,11 +18,13 @@ from qlu_toolbox.modules.schedule_io import parse_schedule_source
 
 from .domain import (
     CAPTURE_TIMEOUT_SECONDS,
+    DOM_SOURCE_EXTENSION,
     SCHEDULE_URL,
     CancelledError,
     ImportOptions,
     ScheduleImportError,
     build_interceptor_script,
+    build_dom_capture_script,
     is_schedule_page,
     verified_capture,
 )
@@ -63,7 +65,7 @@ def _wait_for_capture(
     emit: EventSink,
     cancel_event: threading.Event,
 ) -> tuple[bytes, str]:
-    """等待学校“输出EXCEL”触发导出。
+    """等待用户选择网页直读或学校“输出EXCEL”导出。
 
     双通道：向所有 frame 注入表单拦截脚本（覆盖导出表单在子 iframe 的情况），
     同时监听浏览器下载事件作为兜底（覆盖按钮走原生提交、拦截脚本无法劫持的
@@ -73,6 +75,7 @@ def _wait_for_capture(
     deadline = time.monotonic() + CAPTURE_TIMEOUT_SECONDS
     reminder_deadline = time.monotonic() + 30
     script = build_interceptor_script()
+    dom_script = build_dom_capture_script()
     downloaded: list[Path] = []
 
     def on_download(download) -> None:
@@ -86,12 +89,24 @@ def _wait_for_capture(
     context = page.context
     context.on("download", on_download)
     last_click = ""
+    last_dom_error = ""
     try:
         while time.monotonic() < deadline:
             _check_cancelled(cancel_event)
             if downloaded:
                 _event(emit, "status", stage="validate", message="已捕获浏览器下载的课表文件，正在校验…")
                 return downloaded[0].read_bytes(), ""
+            try:
+                dom_state = json.loads(page.evaluate(dom_script) or "null")
+                if isinstance(dom_state, dict) and isinstance(dom_state.get("result"), dict):
+                    _event(emit, "status", stage="validate", message="已读取网页课表，正在校验…")
+                    return json.dumps(dom_state["result"], ensure_ascii=False).encode("utf-8"), DOM_SOURCE_EXTENSION
+                dom_error = str(dom_state.get("error") or "") if isinstance(dom_state, dict) and dom_state.get("requested") else ""
+                if dom_error and dom_error != last_dom_error:
+                    last_dom_error = dom_error
+                    _event(emit, "log", message=f"网页课表读取失败：{dom_error}；仍可点击“输出EXCEL”回退。")
+            except Exception:
+                pass
             for frame in page.frames:
                 try:
                     state = frame.evaluate(script)
@@ -120,7 +135,7 @@ def _wait_for_capture(
                     emit,
                     "status",
                     stage="capture",
-                    message="请在浏览器中选择学年、学期并点击学校页面的“输出EXCEL”按钮。",
+                    message="请查询课表并点击页面右下角的“一格有光”导入按钮；也可点击“输出EXCEL”回退。",
                 )
             time.sleep(POLL_INTERVAL_SECONDS)
     finally:
@@ -199,9 +214,16 @@ def run_import(
                 emit,
                 "status",
                 stage="capture",
-                message="请在浏览器中选择学年、学期并点击学校页面的“输出EXCEL”按钮。",
+                message="请选择学年、学期并查询，然后点击页面右下角的“一格有光”导入按钮；也可点击“输出EXCEL”回退。",
             )
             content, extension = _wait_for_capture(login_page, work_root, emit, cancel_event)
+            if extension == DOM_SOURCE_EXTENSION:
+                try:
+                    dom = json.loads(content.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise ScheduleImportError("网页课表数据格式无效") from exc
+                _event(emit, "success", kind="qlu-dom", fileName="教务网页课表", dom=dom)
+                return 0
             if not extension:
                 try:
                     extension = workbook_extension(content)
