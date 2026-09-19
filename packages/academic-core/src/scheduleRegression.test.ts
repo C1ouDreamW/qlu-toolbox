@@ -28,9 +28,9 @@ describe('schedule input boundaries', () => {
       { weeks: [1,2,3,4,7,8,9], startPeriod: 1, endPeriod: 2 },
       { weeks: [1,2,3,4,7,8,9], startPeriod: 5, endPeriod: 6 },
     ])
-    expect(() => preview('坏课程◇1-4周(0-2节)◇教室◇教师')).toThrow('课表中没有可识别的课程')
-    const partial = preview(`${cell('正常课程')}\n坏课程◇1-4周(4-2节)◇教室◇教师`)
-    expect(partial.warnings.some(warning => warning.includes('节次需在 1-11 内：4-2'))).toBe(true)
+    expect(() => preview('坏课程◇1-4周(0-2节)◇教室◇教师')).toThrow('课表有 1 个课程块解析失败')
+    expect(() => preview(`${cell('正常课程')}\n坏课程◇1-4周(4-2节)◇教室◇教师`))
+      .toThrow('课表有 1 个课程块解析失败')
   })
 it('splits wrapped course names in multi-course cells', () => {
     const course = (name: string, schedule: string, wrapped = false) =>

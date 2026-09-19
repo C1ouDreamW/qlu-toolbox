@@ -402,6 +402,7 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
   const semester = term?.[3] || '1'
   const courses: ScheduleCourse[] = []
   const warnings: string[] = []
+  const scheduledFailures: string[] = []
   let meetingNumber = 0
 
   for (const row of source.rows.slice(headerIndex + 1)) {
@@ -421,12 +422,15 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
             const meetings = parsed.meetings.map(meeting => ({ ...meeting, id: `meeting-${++meetingNumber}` }))
             mergeCourse(courses, parsed, meetings)
           }
-          else warnings.push(`无法识别课程单元格：${block.slice(0, 40)}`)
-        } catch (error) { warnings.push(`${block.slice(0, 40)}：${error instanceof Error ? error.message : String(error)}`) }
+          else scheduledFailures.push(`无法识别课程单元格：${block.slice(0, 40)}`)
+        } catch (error) { scheduledFailures.push(`${block.slice(0, 40)}：${error instanceof Error ? error.message : String(error)}`) }
       }
     }
   }
 
+  if (scheduledFailures.length) {
+    throw new ScheduleParseError(`课表有 ${scheduledFailures.length} 个课程块解析失败：${scheduledFailures.join('；')}`)
+  }
   const other = source.rows.find(row => normalized(row[0] || '').startsWith('其他课程'))?.[0] || ''
   const pendingItems = other.replace(/^\s*其他课程[：:]?/, '').split(/\s*;\s*/).map(item => item.trim()).filter(Boolean)
   addPendingCourses(courses, pendingItems, warnings, meetingNumber)
