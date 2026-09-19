@@ -41,9 +41,17 @@
     for (const doc of docs) {
       for (const table of doc.querySelectorAll('#table1')) {
         for (const title of table.querySelectorAll('td .title')) {
+          const cell = title.closest('td');
           let container = title;
-          while (container.parentElement && container.parentElement.tagName !== 'TD') container = container.parentElement;
-          if (container.parentElement?.tagName === 'TD') containers.add(container);
+          while (container && container !== cell) {
+            const scheduleMarker = [...container.querySelectorAll('p [title],p [data-original-title]')].some(node => {
+              const label = clean(node.getAttribute('title') || node.getAttribute('data-original-title'));
+              return label === '节/周' || label === '周/节';
+            });
+            if (scheduleMarker) break;
+            container = container.parentElement;
+          }
+          if (container && container !== cell) containers.add(container);
         }
         const pending = [...table.querySelectorAll('td,tr')]
           .map(node => clean(node.innerText || node.textContent))
