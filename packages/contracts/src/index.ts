@@ -182,9 +182,31 @@ export interface StoredSchedule {
   isActive: boolean
 }
 
+export interface QluScheduleDomRecord {
+  name: string
+  weekday: number
+  scheduleText: string
+  location?: string
+  teacherText?: string
+  creditText?: string
+  note?: string
+  teachingClass?: string
+  code?: string
+  rawText?: string
+}
+
+export interface QluScheduleDomPayload {
+  academicYear: string
+  semester: string
+  candidateCount: number
+  records: QluScheduleDomRecord[]
+  pendingItems?: string[]
+}
+
 export interface ScheduleImportSource {
-  kind: 'workbook' | 'backup'
+  kind: 'workbook' | 'backup' | 'qlu-dom'
   fileName: string
   rows?: string[][]
   payload?: string
+  dom?: QluScheduleDomPayload
 }

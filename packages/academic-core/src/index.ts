@@ -6,6 +6,7 @@ import type {
   GradeWorkbookRows,
   NoClassDate,
   PeriodTime,
+  QluScheduleDomPayload,
   ScheduleBook,
   ScheduleCourse,
   ScheduleImportPreview,
@@ -161,10 +162,12 @@ function splitTeachers(value: string): string[] {
   return unique(value.split(/[,，、]/).map(item => item.trim()).filter(Boolean))
 }
 
-function parseCourseCell(value: string, weekday: number, totalWeeks: number): {
+type ParsedCourseCell = {
   course: Omit<ScheduleCourse, 'id' | 'color' | 'meetings'>
   meetings: Array<Omit<ScheduleMeeting, 'id'>>
-} | null {
+}
+
+function parseCourseCell(value: string, weekday: number, totalWeeks: number): ParsedCourseCell | null {
   const parts = value.replace(/\r?\n/g, '').split('◇').map(item => item.trim()).filter(Boolean)
   if (parts.length < 2) return null
   const schedulePart = parts.find(part => /周.*节/.test(part)) || ''
@@ -212,7 +215,7 @@ function pendingNameAndTeachers(value: string, knownNames: string[]): { name: st
   return single ? { name: single[1].trim(), teachers: [single[2]] } : { name: value.trim(), teachers: [] }
 }
 
-function mergeCourse(courses: ScheduleCourse[], parsed: ReturnType<typeof parseCourseCell> extends infer T ? Exclude<T, null> : never, meetings: ScheduleMeeting[]) {
+function mergeCourse(courses: ScheduleCourse[], parsed: ParsedCourseCell, meetings: ScheduleMeeting[]) {
   const key = parsed.course.teachingClass || parsed.course.code || parsed.course.name
   let course = courses.find(item => (item.teachingClass || item.code || item.name) === key)
   if (!course) {
@@ -235,6 +238,130 @@ export class ScheduleParseError extends Error {
   }
 }
 
+function addPendingCourses(courses: ScheduleCourse[], items: string[], warnings: string[], meetingNumber: number): void {
+  for (const item of items) {
+    try {
+      const [identity = '', weeksText = '', location = ''] = item.split('/').map(part => part.trim())
+      const withoutCount = identity.replace(/\(共\d+周\)$/, '')
+      const { name, teachers } = pendingNameAndTeachers(withoutCount, courses.map(course => course.name))
+      if (!name) throw new ScheduleParseError('课程名称为空')
+      let course = courses.find(candidate => candidate.name === name)
+      if (!course) {
+        course = {
+          id: `course-${courses.length + 1}`,
+          name,
+          code: '',
+          teachingClass: '',
+          teachers,
+          credit: null,
+          color: SCHEDULE_COLORS[courses.length % SCHEDULE_COLORS.length],
+          note: '',
+          meetings: [],
+        }
+        courses.push(course)
+      }
+      course.teachers = unique([...course.teachers, ...teachers])
+      course.meetings.push({
+        id: `meeting-${++meetingNumber}`,
+        weeks: parseWeekExpression(weeksText, 30),
+        weekday: null,
+        startPeriod: null,
+        endPeriod: null,
+        location: location === '无' ? '' : location,
+        teachers,
+        source: 'imported',
+      })
+    } catch (error) { warnings.push(`${item.slice(0, 40)}：${error instanceof Error ? error.message : String(error)}`) }
+  }
+}
+
+function schedulePreview(
+  courses: ScheduleCourse[], warnings: string[], academicYear: string, semester: string, now: Date,
+): ScheduleImportPreview {
+  if (!courses.length) throw new ScheduleParseError('课表中没有可识别的课程')
+  const defaults = defaultTermSettings(academicYear, semester)
+  const schedule: ScheduleBook = {
+    schemaVersion: 1,
+    id: `schedule-${now.getTime()}`,
+    name: `${academicYear} 第${semester}学期课表`,
+    academicYear,
+    semester,
+    ...defaults,
+    weekendMode: 'show',
+    periods: QLU_PERIODS.map(period => ({ ...period })),
+    noClassDates: [],
+    courses,
+    updatedAt: now.toISOString(),
+  }
+  const meetings = courses.flatMap(course => course.meetings)
+  const lastWeek = Math.max(0, ...meetings.flatMap(meeting => meeting.weeks))
+  if (lastWeek > schedule.totalWeeks) {
+    schedule.totalWeeks = lastWeek
+    warnings.push(`检测到第 ${lastWeek} 周课程，已扩展学期周数，请确认校历。`)
+  }
+  if (!(academicYear === '2026-2027' && semester === '1')) warnings.push('开学日期为估计值，请按学校校历确认；星期列按所在周的周一对齐。')
+  return {
+    schedule,
+    scheduledMeetings: meetings.filter(meeting => meeting.weekday !== null).length,
+    pendingMeetings: meetings.filter(meeting => meeting.weekday === null).length,
+    warnings,
+  }
+}
+
+export function parseQluScheduleDom(dom: QluScheduleDomPayload, now = new Date()): ScheduleImportPreview {
+  if (!dom || !Array.isArray(dom.records) || !Number.isInteger(dom.candidateCount) || dom.candidateCount < 1) {
+    throw new ScheduleParseError('网页课表数据不完整')
+  }
+  if (dom.records.length !== dom.candidateCount) throw new ScheduleParseError('网页课表课程块数量不一致')
+  if (!/^(20\d{2})-(20\d{2})$/.test(dom.academicYear) || !['1', '2'].includes(dom.semester)) {
+    throw new ScheduleParseError('网页课表学年或学期无效')
+  }
+  const courses: ScheduleCourse[] = []
+  const failures: string[] = []
+  let meetingNumber = 0
+  for (const record of dom.records) {
+    try {
+      const name = typeof record.name === 'string' ? record.name.trim() : ''
+      const scheduleText = typeof record.scheduleText === 'string' ? record.scheduleText.trim() : ''
+      if (!name) throw new ScheduleParseError('课程名称为空')
+      if (!Number.isInteger(record.weekday) || record.weekday < 1 || record.weekday > 7) throw new ScheduleParseError('星期无效')
+      const ranges = periodRanges(scheduleText)
+      const weeks = parseWeekExpression(scheduleText, 30)
+      if (!ranges.length || !weeks.length) throw new ScheduleParseError('周次或节次为空')
+      const teacherText = typeof record.teacherText === 'string' ? record.teacherText : ''
+      const teachers = splitTeachers(teacherText)
+      const parsed: ParsedCourseCell = {
+        course: {
+          name,
+          code: typeof record.code === 'string' ? record.code.trim() : '',
+          teachingClass: typeof record.teachingClass === 'string' ? record.teachingClass.trim() : '',
+          teachers,
+          credit: finiteNumber(typeof record.creditText === 'string' ? record.creditText : ''),
+          note: typeof record.note === 'string' ? record.note.trim() : '',
+        },
+        meetings: ranges.map(([startPeriod, endPeriod]) => ({
+          weeks,
+          weekday: record.weekday,
+          startPeriod,
+          endPeriod,
+          location: typeof record.location === 'string' ? record.location.trim() : '',
+          teachers,
+          source: 'imported',
+        })),
+      }
+      const meetings = parsed.meetings.map(meeting => ({ ...meeting, id: `meeting-${++meetingNumber}` }))
+      mergeCourse(courses, parsed, meetings)
+    } catch (error) {
+      const label = typeof record?.rawText === 'string' ? record.rawText : typeof record?.name === 'string' ? record.name : '未知课程块'
+      failures.push(`${label.slice(0, 40)}：${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  if (failures.length) throw new ScheduleParseError(`网页课表有 ${failures.length} 个课程块解析失败：${failures.join('；')}`)
+  const warnings: string[] = []
+  addPendingCourses(courses, Array.isArray(dom.pendingItems) ? dom.pendingItems : [], warnings, meetingNumber)
+  return schedulePreview(courses, warnings, dom.academicYear, dom.semester, now)
+}
+
 export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): ScheduleImportPreview {
   const headerIndex = source.rows.slice(0, 10).findIndex(row => row.some(cell => normalized(cell) === '星期一'))
   if (headerIndex < 0) throw new ScheduleParseError('课表中没有找到星期表头')
@@ -250,7 +377,6 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
   const term = heading.match(/(20\d{2})-(20\d{2})年第([12])学期/)
   const academicYear = term ? `${term[1]}-${term[2]}` : `${now.getFullYear()}-${now.getFullYear() + 1}`
   const semester = term?.[3] || '1'
-  const defaults = defaultTermSettings(academicYear, semester)
   const courses: ScheduleCourse[] = []
   const warnings: string[] = []
   let meetingNumber = 0
@@ -280,71 +406,8 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
 
   const other = source.rows.find(row => normalized(row[0] || '').startsWith('其他课程'))?.[0] || ''
   const pendingItems = other.replace(/^\s*其他课程[：:]?/, '').split(/\s*;\s*/).map(item => item.trim()).filter(Boolean)
-  for (const item of pendingItems) {
-    try {
-      const [identity = '', weeksText = '', location = ''] = item.split('/').map(part => part.trim())
-      const withoutCount = identity.replace(/\(共\d+周\)$/, '')
-      const { name, teachers } = pendingNameAndTeachers(withoutCount, courses.map(course => course.name))
-      const teachingClass = ''
-      const key = name
-      let course = courses.find(candidate => candidate.name === key)
-      if (!course) {
-        course = {
-          id: `course-${courses.length + 1}`,
-          name,
-          code: '',
-          teachingClass,
-          teachers,
-          credit: null,
-          color: SCHEDULE_COLORS[courses.length % SCHEDULE_COLORS.length],
-          note: '',
-          meetings: [],
-        }
-        courses.push(course)
-      }
-      meetingNumber += 1
-      course.teachers = unique([...course.teachers, ...teachers])
-      course.meetings.push({
-        id: `meeting-${meetingNumber}`,
-        weeks: parseWeekExpression(weeksText, 30),
-        weekday: null,
-        startPeriod: null,
-        endPeriod: null,
-        location: location === '无' ? '' : location,
-        teachers,
-        source: 'imported',
-      })
-    } catch (error) { warnings.push(`${item.slice(0, 40)}：${error instanceof Error ? error.message : String(error)}`) }
-  }
-
-  if (!courses.length) throw new ScheduleParseError('课表中没有可识别的课程')
-  const timestamp = now.toISOString()
-  const schedule: ScheduleBook = {
-    schemaVersion: 1,
-    id: `schedule-${now.getTime()}`,
-    name: `${academicYear} 第${semester}学期课表`,
-    academicYear,
-    semester,
-    ...defaults,
-    weekendMode: 'show',
-    periods: QLU_PERIODS.map(period => ({ ...period })),
-    noClassDates: [],
-    courses,
-    updatedAt: timestamp,
-  }
-  const meetings = courses.flatMap(course => course.meetings)
-  const lastWeek = Math.max(0, ...meetings.flatMap(meeting => meeting.weeks))
-  if (lastWeek > schedule.totalWeeks) {
-    schedule.totalWeeks = lastWeek
-    warnings.push(`检测到第 ${lastWeek} 周课程，已扩展学期周数，请确认校历。`)
-  }
-  if (!(academicYear === '2026-2027' && semester === '1')) warnings.push('开学日期为估计值，请按学校校历确认；星期列按所在周的周一对齐。')
-  return {
-    schedule,
-    scheduledMeetings: meetings.filter(meeting => meeting.weekday !== null).length,
-    pendingMeetings: meetings.filter(meeting => meeting.weekday === null).length,
-    warnings,
-  }
+  addPendingCourses(courses, pendingItems, warnings, meetingNumber)
+  return schedulePreview(courses, warnings, academicYear, semester, now)
 }
 
 export function weekForDate(schedule: ScheduleBook, date = new Date()): number {

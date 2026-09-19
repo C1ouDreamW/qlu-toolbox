@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { datesForWeek, parseScheduleBackup, parseScheduleRows, parseWeekExpression, validateSchedule, weekForDate } from './index'
+import { datesForWeek, parseQluScheduleDom, parseScheduleBackup, parseScheduleRows, parseWeekExpression, validateSchedule, weekForDate } from './index'
 
 const cell = (name: string, weeks = '1-16') => `${name}◇${weeks}周(1-2节)◇教室◇教师◇教学班：${name}`
 const preview = (value = cell('甲'), term = '2026-2027年第1学期') => parseScheduleRows({fileName:'test.xls',rows:[[term],['','星期一'],['',value]]})
@@ -93,6 +93,33 @@ it('splits wrapped course names in multi-course cells', () => {
     expect(practice?.meetings[0]?.weeks).toEqual([18])
     expect(result.pendingMeetings).toBe(1)
     expect(result.warnings.some(warning => warning.includes('错误周次'))).toBe(true)
+  })
+  it('parses semantic QLU DOM records strictly and keeps pending courses', () => {
+    const result = parseQluScheduleDom({
+      academicYear: '2026-2027', semester: '1', candidateCount: 1,
+      records: [{
+        name: '软件项目管理', weekday: 3, scheduleText: '(3-4节，7-8节)1-15周(单)',
+        location: '彩石校区 彩石南215216', teacherText: '张老师，李老师', creditText: '2.5', note: '校企合作',
+      }],
+      pendingItems: ['专业实践王老师(共1周)/第18周/无'],
+    }, new Date('2026-09-02T08:00:00Z'))
+    expect(result.scheduledMeetings).toBe(2)
+    expect(result.pendingMeetings).toBe(1)
+    expect(result.schedule.courses[0]).toMatchObject({
+      name: '软件项目管理', credit: 2.5, teachers: ['张老师', '李老师'], note: '校企合作',
+    })
+    expect(result.schedule.courses[0].meetings).toMatchObject([
+      { weekday: 3, startPeriod: 3, endPeriod: 4, weeks: [1,3,5,7,9,11,13,15] },
+      { weekday: 3, startPeriod: 7, endPeriod: 8, weeks: [1,3,5,7,9,11,13,15] },
+    ])
+    expect(() => parseQluScheduleDom({
+      academicYear: '2026-2027', semester: '1', candidateCount: 2,
+      records: [{ name: '只提取到一门', weekday: 1, scheduleText: '(1-2节)1-16周' }],
+    })).toThrow('课程块数量不一致')
+    expect(() => parseQluScheduleDom({
+      academicYear: '2026-2027', semester: '1', candidateCount: 1,
+      records: [{ name: '坏课程', weekday: 1, scheduleText: '(1-2节)错误周次', rawText: '坏课程原文' }],
+    })).toThrow('坏课程原文')
   })
   it('aligns to Monday and handles spring academic year', () => {
     const book = preview().schedule
