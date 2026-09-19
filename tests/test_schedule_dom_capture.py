@@ -23,7 +23,7 @@ MULTI_HTML = """
 <table id="table1"><tr><td id="1-1"><div class="wrapper">
   <div class="course"><a class="title">单周课程</a><p><span title="节/周"></span>(1-2节)1-15周(单)</p></div>
   <div class="course"><a class="title">双周课程</a><p><span title="节/周"></span>(1-2节)2-16周(双)</p></div>
-</div></td></tr></table>
+</div></td></tr><tr><td>其它课程：专业实践王老师(共1周)/第18周/无；</td></tr></table>
 """
 
 
@@ -41,7 +41,10 @@ class ScheduleDomCaptureTests(unittest.TestCase):
             try:
                 page = browser.new_page()
                 page.set_content(HTML)
-                page.evaluate("Array.prototype.some = function(callback, self) { for (let index = 0; index < this.length; index += 1) if (callback.call(self || window, index, this[index], this)) return true; return false }")
+                page.evaluate("""
+                  Array.prototype.some = function(callback, self) { for (let index = 0; index < this.length; index += 1) if (callback.call(self || window, index, this[index], this)) return true; return false }
+                  Array.prototype.filter = function(callback, self) { const values = []; for (let index = 0; index < this.length; index += 1) if (callback.call(self || window, index, this[index], this)) values.push(this[index]); return values }
+                """)
                 page.evaluate("window.__LUMATILE_QLU_DOM_FORCE__ = true")
                 state = json.loads(page.evaluate(build_dom_capture_script()))
                 self.assertEqual(state["error"], "")
@@ -71,6 +74,7 @@ class ScheduleDomCaptureTests(unittest.TestCase):
                 result = json.loads(page.evaluate(build_dom_capture_script()))["result"]
                 self.assertEqual(result["candidateCount"], 2)
                 self.assertEqual([record["name"] for record in result["records"]], ["单周课程", "双周课程"])
+                self.assertEqual(result["pendingItems"], ["专业实践王老师(共1周)/第18周/无"])
             finally:
                 browser.close()
 

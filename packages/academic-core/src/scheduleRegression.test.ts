@@ -101,10 +101,14 @@ it('splits wrapped course names in multi-course cells', () => {
         name: '软件项目管理', weekday: 3, scheduleText: '(3-4节，7-8节)1-15周(单)',
         location: '彩石校区 彩石南215216', teacherText: '张老师，李老师', creditText: '2.5', note: '校企合作',
       }],
-      pendingItems: ['专业实践王老师(共1周)/第18周/无'],
+      pendingItems: [
+        '专业实践王老师(共1周)/第18周/无',
+        '软件项目管理综合设计吕老师,史老师(共1周)/第16周/无',
+      ],
     }, new Date('2026-09-02T08:00:00Z'))
     expect(result.scheduledMeetings).toBe(2)
-    expect(result.pendingMeetings).toBe(1)
+    expect(result.pendingMeetings).toBe(2)
+    expect(result.schedule.courses.some(course => course.name === '软件项目管理综合设计')).toBe(true)
     expect(result.schedule.courses[0]).toMatchObject({
       name: '软件项目管理', credit: 2.5, teachers: ['张老师', '李老师'], note: '校企合作',
     })

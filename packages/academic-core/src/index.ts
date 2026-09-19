@@ -200,7 +200,11 @@ function parseCourseCell(value: string, weekday: number, totalWeeks: number): Pa
 }
 
 function pendingNameAndTeachers(value: string, knownNames: string[]): { name: string; teachers: string[] } {
-  const known = [...knownNames].sort((left, right) => right.length - left.length).find(name => value.startsWith(name))
+  const known = [...knownNames].sort((left, right) => right.length - left.length).find(name => {
+    if (!value.startsWith(name)) return false
+    const suffix = value.slice(name.length).trim()
+    return !suffix || suffix.split(/[,，、]/).every(part => /^[\u4e00-\u9fff·]{2,4}$/.test(part.trim()))
+  })
   if (known) return { name: known, teachers: splitTeachers(value.slice(known.length)) }
   const comma = value.search(/[,，、]/)
   if (comma > 3) {
@@ -406,7 +410,7 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
   let meetingNumber = 0
 
   for (const row of source.rows.slice(headerIndex + 1)) {
-    if (normalized(row[0] || '').startsWith('其他课程')) break
+    if (/^其[他它]课程/.test(normalized(row[0] || ''))) break
     for (const [column, weekday] of dayColumns) {
       const value = (row[column] || '').trim()
       if (!value) continue
@@ -431,8 +435,8 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
   if (scheduledFailures.length) {
     throw new ScheduleParseError(`课表有 ${scheduledFailures.length} 个课程块解析失败：${scheduledFailures.join('；')}`)
   }
-  const other = source.rows.find(row => normalized(row[0] || '').startsWith('其他课程'))?.[0] || ''
-  const pendingItems = other.replace(/^\s*其他课程[：:]?/, '').split(/\s*;\s*/).map(item => item.trim()).filter(Boolean)
+  const other = source.rows.find(row => /^其[他它]课程/.test(normalized(row[0] || '')))?.[0] || ''
+  const pendingItems = other.replace(/^\s*其[他它]课程[：:]?/, '').split(/\s*;\s*/).map(item => item.trim()).filter(Boolean)
   addPendingCourses(courses, pendingItems, warnings, meetingNumber)
   return schedulePreview(courses, warnings, academicYear, semester, now)
 }

@@ -54,11 +54,17 @@
           }
           if (container && container !== cell) containers.add(container);
         }
-        const pending = [...table.querySelectorAll('td,tr')]
-          .map(node => clean(node.innerText || node.textContent))
-          .filter(text => /^其他课程[：:]/.test(text))
-          .sort((left, right) => left.length - right.length)[0];
-        if (pending) pendingItems.push(...pending.replace(/^其他课程[：:]\s*/, '').split(/[;；]/).map(clean).filter(Boolean));
+        let pending = '';
+        for (const node of table.querySelectorAll('td,tr')) {
+          const text = clean(node.innerText || node.textContent);
+          if (/^其[他它]课程[：:]/.test(text) && (!pending || text.length < pending.length)) pending = text;
+        }
+        if (pending) {
+          for (const item of pending.replace(/^其[他它]课程[：:]\s*/, '').split(/[;；]/)) {
+            const value = clean(item);
+            if (value) pendingItems.push(value);
+          }
+        }
       }
     }
     for (const container of containers) {
