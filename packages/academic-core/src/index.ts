@@ -275,10 +275,33 @@ function addPendingCourses(courses: ScheduleCourse[], items: string[], warnings:
   }
 }
 
+function mergeAdjacentMeetings(courses: ScheduleCourse[]): void {
+  for (const course of courses) {
+    const merged: ScheduleMeeting[] = []
+    const meetings = [...course.meetings].sort((left, right) =>
+      (left.weekday ?? 8) - (right.weekday ?? 8) || (left.startPeriod ?? 99) - (right.startPeriod ?? 99))
+    for (const meeting of meetings) {
+      const previous = merged.at(-1)
+      const sameSlot = previous && previous.weekday !== null && meeting.weekday === previous.weekday
+        && previous.location === meeting.location
+        && JSON.stringify(previous.weeks) === JSON.stringify(meeting.weeks)
+        && JSON.stringify([...previous.teachers].sort()) === JSON.stringify([...meeting.teachers].sort())
+      if (sameSlot && previous.endPeriod !== null && meeting.startPeriod !== null && meeting.endPeriod !== null
+        && meeting.startPeriod <= previous.endPeriod + 1) {
+        previous.endPeriod = Math.max(previous.endPeriod, meeting.endPeriod)
+      } else {
+        merged.push({ ...meeting })
+      }
+    }
+    course.meetings = merged
+  }
+}
+
 function schedulePreview(
   courses: ScheduleCourse[], warnings: string[], academicYear: string, semester: string, now: Date,
 ): ScheduleImportPreview {
   if (!courses.length) throw new ScheduleParseError('课表中没有可识别的课程')
+  mergeAdjacentMeetings(courses)
   const defaults = defaultTermSettings(academicYear, semester)
   const schedule: ScheduleBook = {
     schemaVersion: 1,

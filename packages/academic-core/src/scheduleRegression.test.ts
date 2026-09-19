@@ -121,6 +121,22 @@ it('splits wrapped course names in multi-course cells', () => {
       records: [{ name: '坏课程', weekday: 1, scheduleText: '(1-2节)错误周次', rawText: '坏课程原文' }],
     })).toThrow('坏课程原文')
   })
+  it('merges only adjacent meetings with identical scheduling attributes', () => {
+    const result = parseQluScheduleDom({
+      academicYear: '2026-2027', semester: '1', candidateCount: 4,
+      records: [
+        { name: '合并课程', weekday: 1, scheduleText: '(1-2节)1-8周', location: 'A101', teacherText: '张老师' },
+        { name: '合并课程', weekday: 1, scheduleText: '(3-4节)1-8周', location: 'A101', teacherText: '张老师' },
+        { name: '合并课程', weekday: 1, scheduleText: '(6-7节)1-8周', location: 'A101', teacherText: '张老师' },
+        { name: '合并课程', weekday: 1, scheduleText: '(8节)1-8周', location: 'A102', teacherText: '张老师' },
+      ],
+    }).schedule.courses[0].meetings
+    expect(result).toMatchObject([
+      { startPeriod: 1, endPeriod: 4, location: 'A101' },
+      { startPeriod: 6, endPeriod: 7, location: 'A101' },
+      { startPeriod: 8, endPeriod: 8, location: 'A102' },
+    ])
+  })
   it('aligns to Monday and handles spring academic year', () => {
     const book = preview().schedule
     book.startDate='2026-09-01'
