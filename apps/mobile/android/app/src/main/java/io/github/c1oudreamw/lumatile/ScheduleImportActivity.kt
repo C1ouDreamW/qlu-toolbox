@@ -59,6 +59,7 @@ class ScheduleImportActivity : AppCompatActivity() {
     private var resultDelivered = false
     private var temporaryFile: File? = null
     private var creditPlan: JSONObject? = null
+    private val domCaptureScript by lazy { assets.open("qlu-schedule-dom.js").bufferedReader().use { it.readText() } }
 
     private val accessTimeout = Runnable {
         if (!pageLoaded) fail(SCHOOL_NETWORK_MESSAGE)
@@ -161,9 +162,12 @@ class ScheduleImportActivity : AppCompatActivity() {
                 status("培养方案读取结束，正在准备读取全部成绩…")
                 waitForCreditPage(0)
             } else if (!creditMode && ScheduleImportSecurity.isSchedulePage(url)) {
-                actionButton.visibility = View.GONE
+                actionButton.text = "导入当前课表"
+                actionButton.isEnabled = true
+                actionButton.visibility = View.VISIBLE
+                actionButton.setOnClickListener { captureDomSchedule() }
                 progressBar.visibility = View.GONE
-                status("请选择学年、学期并查询，然后点击页面中的“输出EXCEL”")
+                status("请选择学年、学期并查询，然后点击下方“导入当前课表”；若读取失败，也可点击页面中的“输出EXCEL”回退")
                 installExportInterceptor()
             } else {
                 status("请在学校页面手动登录，完成后 App 会自动进入${if (creditMode) "学分统计" else "个人课表"}")
@@ -250,6 +254,7 @@ class ScheduleImportActivity : AppCompatActivity() {
                 if (creditMode && state?.optString("message")?.isNotBlank() == true) status(state.optString("message"))
                 if (state?.optBoolean("started") == true && !transferStarted) {
                     transferStarted = true
+                    actionButton.visibility = View.GONE
                     handler.postDelayed(transferTimeout, 60_000L)
                     progressBar.visibility = View.VISIBLE
                     status("正在接收并校验${if (creditMode) "学分统计数据" else "教务课表"}…")
@@ -258,6 +263,39 @@ class ScheduleImportActivity : AppCompatActivity() {
                 if (result.isNullOrEmpty() || result == "null") handler.postDelayed(::pollExport, POLL_MS)
                 else receiveExport(JSONObject(result))
             } catch (_: Exception) { handler.postDelayed(::pollExport, POLL_MS) }
+        }
+    }
+
+    private fun captureDomSchedule() {
+        if (completed || transferStarted || !ScheduleImportSecurity.isSchedulePage(webView.url)) return
+        actionButton.isEnabled = false
+        progressBar.visibility = View.VISIBLE
+        status("正在读取并校验当前网页课表…")
+        val script = "window.__LUMATILE_QLU_DOM_NATIVE__=true;window.__LUMATILE_QLU_DOM_FORCE__=true;\n$domCaptureScript"
+        webView.evaluateJavascript(script) { raw ->
+            if (completed) return@evaluateJavascript
+            actionButton.isEnabled = true
+            try {
+                val encoded = JSONTokener(raw).nextValue() as? String
+                val state = encoded?.let(::JSONObject) ?: throw IOException("网页没有返回课表数据")
+                val dom = state.optJSONObject("result")
+                    ?: throw IOException(state.optString("error", "当前页面没有找到可导入的课程"))
+                val bytes = dom.toString().toByteArray(Charsets.UTF_8)
+                if (bytes.isEmpty() || bytes.size > MAX_DOM_BYTES) throw IOException("网页课表数据为空或超过安全限制")
+                val file = File(cacheDir, "school-schedule-${System.currentTimeMillis()}.qlu-dom.json")
+                file.writeBytes(bytes)
+                temporaryFile = file
+                completed = true
+                resultDelivered = true
+                setResult(Activity.RESULT_OK, Intent()
+                    .putExtra(EXTRA_FILE_PATH, file.absolutePath)
+                    .putExtra(EXTRA_FILE_NAME, "教务网页课表")
+                    .putExtra(EXTRA_SOURCE_KIND, SOURCE_QLU_DOM))
+                finish()
+            } catch (error: Exception) {
+                progressBar.visibility = View.GONE
+                status("网页课表读取失败：${error.message}。请点击页面中的“输出EXCEL”继续导入。")
+            }
         }
     }
 
@@ -440,11 +478,14 @@ class ScheduleImportActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_FILE_PATH = "filePath"
         const val EXTRA_FILE_NAME = "fileName"
+        const val EXTRA_SOURCE_KIND = "sourceKind"
         const val EXTRA_CREDIT_REPORT = "creditReport"
+        const val SOURCE_QLU_DOM = "qlu-dom"
         private const val PLAN_URL = "https://jw.qlu.edu.cn/jwglxt/jxzxjhgl/jxzxjhck_cxJxzxjhckIndex.html?gnmkdm=N153540&layout=default"
         private const val CREDIT_URL = "https://jw.qlu.edu.cn/jwglxt/cjcx/cjcx_cxDgXscj.html?gnmkdm=N305005&layout=default"
         private const val BASE_URL = "https://jw.qlu.edu.cn/"
         private const val MAX_FILE_SIZE = 20L * 1024 * 1024
+        private const val MAX_DOM_BYTES = 2 * 1024 * 1024
         private const val CHUNK_SIZE = 128 * 1024
         private const val ACCESS_TIMEOUT_MS = 60_000L
         private const val POLL_MS = 250L

@@ -6,7 +6,7 @@ import {
   SlidersHorizontal, Users, X,
 } from 'lucide-vue-next'
 import {
-  datesForWeek, isNoClassDate, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
+  datesForWeek, isNoClassDate, parseQluScheduleDom, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
   visibleWeekdays, weekForDate, validateSchedule, formatScheduleWeeks, scheduleSegments,
 } from '@lumatile/academic-core'
 import type { ScheduleSegment, SchedulePlacement } from '@lumatile/academic-core'
@@ -226,7 +226,10 @@ async function importFromSchool() {
 }
 
 function previewImport(source: ScheduleImportSource) {
-  if (source.kind === 'workbook' && source.rows) importPreview.value = parseScheduleRows({ fileName: source.fileName, rows: source.rows })
+  if (source.kind === 'qlu-dom') {
+    if (!source.dom) throw new Error('网页课表数据为空')
+    importPreview.value = parseQluScheduleDom(source.dom)
+  } else if (source.kind === 'workbook' && source.rows) importPreview.value = parseScheduleRows({ fileName: source.fileName, rows: source.rows })
   else if (source.kind === 'backup' && source.payload) {
     const imported = parseScheduleBackup(source.payload)
     const meetings = imported.courses.flatMap(course => course.meetings)
@@ -380,7 +383,7 @@ onMounted(() => { void loadSchedules() })
 
     <Transition name="fade"><button v-if="importMenuOpen" class="import-menu-scrim" aria-label="关闭导入菜单" @click="importMenuOpen = false" /></Transition>
     <Transition name="import-pop"><section v-if="importMenuOpen" class="import-menu">
-      <button :disabled="!nativeAndroid || busy" @click="importFromSchool"><School /><span><strong>从教务导入</strong><small>登录教务并导出 Excel</small></span></button>
+      <button :disabled="!nativeAndroid || busy" @click="importFromSchool"><School /><span><strong>从教务导入</strong><small>登录教务并读取当前课表</small></span></button>
       <button :disabled="!nativeAndroid || busy" @click="chooseImport"><FileSpreadsheet /><span><strong>从文件导入</strong><small>Excel 或课表备份</small></span></button>
     </section></Transition>
 

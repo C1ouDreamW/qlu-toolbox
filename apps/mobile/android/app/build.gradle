@@ -12,6 +12,11 @@ def releaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: release
 def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS') ?: releaseSigning.getProperty('keyAlias')
 def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: releaseSigning.getProperty('keyPassword')
 def hasReleaseSigning = [releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.isBlank() }
+def generatedScheduleAssetsDir = file("$buildDir/generated/qluScheduleAssets")
+def copyQluScheduleDom = tasks.register('copyQluScheduleDom', Copy) {
+    from rootProject.file('../../../assets/qlu-schedule-dom.js')
+    into generatedScheduleAssetsDir
+}
 
 kapt {
     arguments {
@@ -43,6 +48,7 @@ android {
         jvmTarget = '21'
     }
     sourceSets {
+        main.assets.srcDirs += generatedScheduleAssetsDir
         androidTest.assets.srcDirs += files("$projectDir/schemas")
     }
     signingConfigs {
@@ -63,6 +69,8 @@ android {
         }
     }
 }
+
+tasks.named('preBuild').configure { dependsOn copyQluScheduleDom }
 
 tasks.matching { it.name == 'packageRelease' || it.name == 'assembleRelease' }.configureEach {
     doFirst {

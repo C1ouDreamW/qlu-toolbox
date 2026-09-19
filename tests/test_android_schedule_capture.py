@@ -4,6 +4,15 @@ from pathlib import Path
 from test_schedule_capture_e2e import CONTENT, PAGES, ScheduleCaptureEndToEndTests
 
 class AndroidScheduleCaptureTests(ScheduleCaptureEndToEndTests):
+    def test_android_packages_the_shared_dom_capture(self):
+        activity = Path('apps/mobile/android/app/src/main/java/io/github/c1oudreamw/lumatile/ScheduleImportActivity.kt').read_text(encoding='utf-8')
+        plugin = Path('apps/mobile/android/app/src/main/java/io/github/c1oudreamw/lumatile/SchedulePlugin.kt').read_text(encoding='utf-8')
+        gradle = Path('apps/mobile/android/app/build.gradle').read_text(encoding='utf-8')
+        self.assertIn('assets.open("qlu-schedule-dom.js")', activity)
+        self.assertIn('SOURCE_QLU_DOM', activity)
+        self.assertIn('SOURCE_QLU_DOM', plugin)
+        self.assertIn("assets/qlu-schedule-dom.js", gradle)
+
     def test_android_script_captures_native_ajax_and_frames(self):
         from playwright.sync_api import sync_playwright
         source = Path('apps/mobile/android/app/src/main/java/io/github/c1oudreamw/lumatile/ScheduleImportActivity.kt').read_text(encoding='utf-8')

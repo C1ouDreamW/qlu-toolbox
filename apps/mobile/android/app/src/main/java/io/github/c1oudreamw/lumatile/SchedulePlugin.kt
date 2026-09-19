@@ -106,16 +106,30 @@ class SchedulePlugin : Plugin() {
         executor.execute {
             val file = File(path)
             try {
-                val bytes = file.readBytes()
-                val rows = when {
-                    bytes.startsWith(XLS_MAGIC) -> readXlsRows(bytes)
-                    bytes.startsWith(XLSX_MAGIC) -> WorkbookValidator.readRows(file)
-                    else -> throw IOException("教务系统返回的不是受支持的 Excel 文件")
-                }
-                val source = JSObject().apply {
-                    put("kind", "workbook")
-                    put("fileName", result.data?.getStringExtra(ScheduleImportActivity.EXTRA_FILE_NAME) ?: "教务课表.xls")
-                    put("rows", JSArray(rows.map(::JSArray)))
+                val source = if (result.data?.getStringExtra(ScheduleImportActivity.EXTRA_SOURCE_KIND) == ScheduleImportActivity.SOURCE_QLU_DOM) {
+                    if (file.length() <= 0 || file.length() > MAX_BACKUP_BYTES) throw IOException("网页课表数据为空或超过安全限制")
+                    val dom = JSONObject(file.readText(Charsets.UTF_8))
+                    val records = dom.optJSONArray("records") ?: throw IOException("网页课表缺少课程记录")
+                    if (records.length() < 1 || records.length() > MAX_ROWS || dom.optInt("candidateCount") != records.length()) {
+                        throw IOException("网页课表课程记录数量无效")
+                    }
+                    JSObject().apply {
+                        put("kind", ScheduleImportActivity.SOURCE_QLU_DOM)
+                        put("fileName", "教务网页课表")
+                        put("dom", dom)
+                    }
+                } else {
+                    val bytes = file.readBytes()
+                    val rows = when {
+                        bytes.startsWith(XLS_MAGIC) -> readXlsRows(bytes)
+                        bytes.startsWith(XLSX_MAGIC) -> WorkbookValidator.readRows(file)
+                        else -> throw IOException("教务系统返回的不是受支持的 Excel 文件")
+                    }
+                    JSObject().apply {
+                        put("kind", "workbook")
+                        put("fileName", result.data?.getStringExtra(ScheduleImportActivity.EXTRA_FILE_NAME) ?: "教务课表.xls")
+                        put("rows", JSArray(rows.map(::JSArray)))
+                    }
                 }
                 activity.runOnUiThread { call.resolve(JSObject().apply { put("source", source) }) }
             } catch (error: Exception) {
