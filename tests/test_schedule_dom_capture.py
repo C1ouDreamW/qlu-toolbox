@@ -41,6 +41,7 @@ class ScheduleDomCaptureTests(unittest.TestCase):
             try:
                 page = browser.new_page()
                 page.set_content(HTML)
+                page.evaluate("Array.prototype.some = function(callback, self) { for (let index = 0; index < this.length; index += 1) if (callback.call(self || window, index, this[index], this)) return true; return false }")
                 page.evaluate("window.__LUMATILE_QLU_DOM_FORCE__ = true")
                 state = json.loads(page.evaluate(build_dom_capture_script()))
                 self.assertEqual(state["error"], "")

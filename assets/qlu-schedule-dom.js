@@ -44,10 +44,11 @@
           const cell = title.closest('td');
           let container = title;
           while (container && container !== cell) {
-            const scheduleMarker = [...container.querySelectorAll('p [title],p [data-original-title]')].some(node => {
+            let scheduleMarker = false;
+            for (const node of container.querySelectorAll('p [title],p [data-original-title]')) {
               const label = clean(node.getAttribute('title') || node.getAttribute('data-original-title'));
-              return label === '节/周' || label === '周/节';
-            });
+              if (label === '节/周' || label === '周/节') { scheduleMarker = true; break; }
+            }
             if (scheduleMarker) break;
             container = container.parentElement;
           }
