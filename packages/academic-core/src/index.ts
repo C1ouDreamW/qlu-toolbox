@@ -118,7 +118,7 @@ function unique<T>(values: T[]): T[] {
 export function parseWeekExpression(value: string, totalWeeks = 30): number[] {
   const weeks = new Set<number>()
   const normalizedValue = value.replace(/[－—~～]/g, '-').replace(/[（]/g, '(').replace(/[）]/g, ')')
-    .replace(/\s+/g, '').replace(/\(\d+(?:-\d+)?节\)/g, '').replace(/第(?=\d)/g, '').replace(/[周()]/g, '')
+    .replace(/\s+/g, '').replace(/\([^()]*节[^()]*\)/g, '').replace(/第(?=\d)/g, '').replace(/[周()]/g, '')
   if (!normalizedValue) return []
   for (const token of normalizedValue.split(/[,，、;；]/)) {
     const match = token.match(/^(单|双)?(\d+)(?:-(\d+))?(单|双)?$/)
@@ -136,10 +136,19 @@ export function parseWeekExpression(value: string, totalWeeks = 30): number[] {
   return [...weeks].sort((left, right) => left - right)
 }
 
-function periodRange(value: string): [number | null, number | null] {
-  const match = value.replace(/[－—~～]/g, '-').match(/\((\d+)(?:-(\d+))?节\)/)
-  if (!match) return [null, null]
-  return [Number(match[1]), Number(match[2] || match[1])]
+function periodRanges(value: string, maxPeriod = QLU_PERIODS.length): Array<[number, number]> {
+  const normalizedValue = value.replace(/[－—~～]/g, '-').replace(/[（]/g, '(').replace(/[）]/g, ')')
+  const group = [...normalizedValue.matchAll(/\(([^()]*)\)/g)].map(match => match[1]).find(part => part.includes('节'))
+  if (!group) return []
+  return group.split(/[,，、;；]/).map(raw => {
+    const token = raw.replace(/[第节\s]/g, '')
+    const match = token.match(/^(\d+)(?:-(\d+))?$/)
+    if (!match) throw new ScheduleParseError(`无法识别节次：${raw.trim()}`)
+    const start = Number(match[1])
+    const end = Number(match[2] || match[1])
+    if (start < 1 || end > maxPeriod || start > end) throw new ScheduleParseError(`节次需在 1-${maxPeriod} 内：${raw.trim()}`)
+    return [start, end]
+  })
 }
 
 function defaultTermSettings(academicYear: string, semester: string): { startDate: string; totalWeeks: number } {
@@ -152,19 +161,20 @@ function splitTeachers(value: string): string[] {
   return unique(value.split(/[,，、]/).map(item => item.trim()).filter(Boolean))
 }
 
-function parseCourseCell(value: string, weekday: number, number: number, totalWeeks: number): {
+function parseCourseCell(value: string, weekday: number, totalWeeks: number): {
   course: Omit<ScheduleCourse, 'id' | 'color' | 'meetings'>
-  meeting: ScheduleMeeting
+  meetings: Array<Omit<ScheduleMeeting, 'id'>>
 } | null {
   const parts = value.replace(/\r?\n/g, '').split('◇').map(item => item.trim()).filter(Boolean)
   if (parts.length < 2) return null
   const schedulePart = parts.find(part => /周.*节/.test(part)) || ''
   const scheduleIndex = parts.indexOf(schedulePart)
-  const [startPeriod, endPeriod] = periodRange(schedulePart)
-  if (scheduleIndex < 0 || startPeriod === null || endPeriod === null || startPeriod < 1 || endPeriod > 11 || startPeriod > endPeriod) return null
+  const ranges = periodRanges(schedulePart)
+  if (scheduleIndex < 0 || !ranges.length) return null
   const teachingClass = value.match(/教学班[：:]\s*([^◇]+)/)?.[1]?.trim() || ''
   const creditValue = finiteNumber(value.match(/学分[：:]\s*([\d.]+)/)?.[1] || '')
   const teachers = splitTeachers(parts[scheduleIndex + 2] || '')
+  const weeks = parseWeekExpression(schedulePart, totalWeeks)
   return {
     course: {
       name: parts[0],
@@ -174,16 +184,15 @@ function parseCourseCell(value: string, weekday: number, number: number, totalWe
       credit: creditValue,
       note: '',
     },
-    meeting: {
-      id: `meeting-${number}`,
-      weeks: parseWeekExpression(schedulePart, totalWeeks),
+    meetings: ranges.map(([startPeriod, endPeriod]) => ({
+      weeks,
       weekday,
       startPeriod,
       endPeriod,
       location: parts[scheduleIndex + 1] || '',
       teachers,
       source: 'imported',
-    },
+    })),
   }
 }
 
@@ -203,7 +212,7 @@ function pendingNameAndTeachers(value: string, knownNames: string[]): { name: st
   return single ? { name: single[1].trim(), teachers: [single[2]] } : { name: value.trim(), teachers: [] }
 }
 
-function mergeCourse(courses: ScheduleCourse[], parsed: ReturnType<typeof parseCourseCell> extends infer T ? Exclude<T, null> : never) {
+function mergeCourse(courses: ScheduleCourse[], parsed: ReturnType<typeof parseCourseCell> extends infer T ? Exclude<T, null> : never, meetings: ScheduleMeeting[]) {
   const key = parsed.course.teachingClass || parsed.course.code || parsed.course.name
   let course = courses.find(item => (item.teachingClass || item.code || item.name) === key)
   if (!course) {
@@ -216,7 +225,7 @@ function mergeCourse(courses: ScheduleCourse[], parsed: ReturnType<typeof parseC
     courses.push(course)
   }
   course.teachers = unique([...course.teachers, ...parsed.course.teachers])
-  course.meetings.push(parsed.meeting)
+  course.meetings.push(...meetings)
 }
 
 export class ScheduleParseError extends Error {
@@ -258,8 +267,11 @@ export function parseScheduleRows(source: GradeWorkbookRows, now = new Date()): 
       for (const block of blocks) {
         try {
           if ((block.match(/周[^◇]*节/g) || []).length > 1) throw new ScheduleParseError('同一单元格含多个时段，请核对原文件')
-          const parsed = parseCourseCell(block, weekday, ++meetingNumber, 30)
-          if (parsed) mergeCourse(courses, parsed)
+          const parsed = parseCourseCell(block, weekday, 30)
+          if (parsed) {
+            const meetings = parsed.meetings.map(meeting => ({ ...meeting, id: `meeting-${++meetingNumber}` }))
+            mergeCourse(courses, parsed, meetings)
+          }
           else warnings.push(`无法识别课程单元格：${block.slice(0, 40)}`)
         } catch (error) { warnings.push(`${block.slice(0, 40)}：${error instanceof Error ? error.message : String(error)}`) }
       }

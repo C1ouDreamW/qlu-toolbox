@@ -22,6 +22,16 @@ describe('schedule input boundaries', () => {
     expect(preview(cell('甲','20-22')).schedule.courses[0].meetings[0].weeks).toEqual([20,21,22])
     expect(preview(cell('甲')+'\n'+cell('乙')).schedule.courses).toHaveLength(2)
   })
+  it('expands multiple period ranges without filling the gap', () => {
+    const course = preview('高等数学◇1-4周,7-9周(1-2节，5～6节)◇教室◇教师◇教学班：高数').schedule.courses[0]
+    expect(course.meetings).toMatchObject([
+      { weeks: [1,2,3,4,7,8,9], startPeriod: 1, endPeriod: 2 },
+      { weeks: [1,2,3,4,7,8,9], startPeriod: 5, endPeriod: 6 },
+    ])
+    expect(() => preview('坏课程◇1-4周(0-2节)◇教室◇教师')).toThrow('课表中没有可识别的课程')
+    const partial = preview(`${cell('正常课程')}\n坏课程◇1-4周(4-2节)◇教室◇教师`)
+    expect(partial.warnings.some(warning => warning.includes('节次需在 1-11 内：4-2'))).toBe(true)
+  })
 it('splits wrapped course names in multi-course cells', () => {
     const course = (name: string, schedule: string, wrapped = false) =>
       `${name}${wrapped ? '\r\n' : ''}◇${schedule}(1-2节)◇教室◇教师◇教学班：${name}`
