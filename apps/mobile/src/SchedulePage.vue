@@ -548,6 +548,17 @@ onMounted(() => { void loadSchedules() })
 .course-conflict-option small{color:#667d93;font-size:11px;line-height:1.4}
 .course-conflict-option input{flex:0 0 19px;width:19px;height:19px;margin:0;accent-color:#0b76e8}
 .course-conflict-option:focus-within{outline:2px solid #0b76e8;outline-offset:2px}
+.schedule-page{padding-right:2px;padding-left:2px}
+.schedule-header{padding-right:15px;padding-left:15px}
+.schedule-viewport,.schedule-grid{border-radius:12px}
+.schedule-grid{--row-height:66px;grid-template-columns:34px repeat(var(--day-count),minmax(0,1fr));grid-template-rows:48px repeat(11,var(--row-height))}
+.meeting-card{margin:1px;padding:6px 4px;border-radius:6px}
+@media(max-width:390px){
+  .schedule-grid{--row-height:66px}
+  .meeting-card{margin:1px;padding:6px 4px}
+  .meeting-card strong{font-size:11px}
+  .meeting-card span,.meeting-card small{font-size:9px}
+}
 @media(prefers-color-scheme:dark){
   .course-detail .course-segment-context,.course-detail .course-conflict-picker>p,.course-conflict-option small{color:#96acbd}
   .course-conflict-option{border-color:#294257;background:#1b2e40}
