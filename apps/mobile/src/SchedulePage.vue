@@ -562,7 +562,7 @@ onMounted(() => { void loadSchedules() })
 .meeting-card>.course-note,.meeting-card>.course-teacher{opacity:.94}
 .meeting-card-other-week{opacity:.5;filter:saturate(.68);box-shadow:none;text-shadow:none}
 .meeting-card-other-week:focus-visible{opacity:.72}
-.meeting-card>.course-other-week-label{flex-shrink:0;align-self:flex-start;margin-top:auto;padding:1px 4px;border-radius:4px;background:rgba(255,255,255,.46);font-size:8px;line-height:1.35}
+.meeting-card>.course-other-week-label{flex-shrink:0;align-self:center;margin-top:auto;padding:1px 4px;border-radius:4px;background:rgba(255,255,255,.46);font-size:8px;line-height:1.35}
 .meeting-card-short.meeting-card-conflict>.course-location,.meeting-card-short.meeting-card-other-week>.course-location{display:none}
 @media(max-width:390px){
   .schedule-grid{--row-height:66px}

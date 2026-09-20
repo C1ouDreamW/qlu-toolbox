@@ -3627,7 +3627,7 @@ select {
 
 .tt-course .course-other-week-label {
     display: block;
-    align-self: flex-start;
+    align-self: center;
     margin-top: auto;
     padding: 1px 5px;
     border-radius: 4px;
