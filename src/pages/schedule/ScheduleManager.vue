@@ -11,7 +11,9 @@ const emit = defineEmits<{
   cancel: []; add: []; edit: [course: ScheduleCourse]; saved: [book: ScheduleBook]; deleteBook: []
 }>()
 const tab = ref(props.initialTab)
-const draft = ref<ScheduleBook>(JSON.parse(JSON.stringify(props.book)))
+const draft = ref<ScheduleBook>({
+  ...JSON.parse(JSON.stringify(props.book)), showOtherWeekCourses: props.book.showOtherWeekCourses !== false,
+})
 const newOffDate = ref('')
 const newOffReason = ref('停课')
 const error = ref('')
@@ -19,6 +21,10 @@ const weekendOptions = [
   { value: 'auto', label: '有课时显示' },
   { value: 'show', label: '始终显示' },
   { value: 'hide', label: '始终隐藏' },
+]
+const otherWeekOptions = [
+  { value: 'show', label: '空闲时显示' },
+  { value: 'hide', label: '不显示' },
 ]
 
 function pending(course: ScheduleCourse) { return course.meetings.some(meeting => meeting.weekday === null) }
@@ -31,6 +37,10 @@ function save() {
 }
 function setWeekendMode(value: string) {
   draft.value.weekendMode = value as WeekendMode
+  save()
+}
+function setShowOtherWeekCourses(value: string) {
+  draft.value.showOtherWeekCourses = value === 'show'
   save()
 }
 function addNoClassDate() {
@@ -83,6 +93,12 @@ function removeNoClassDate(index: number) {
             <BaseSelect
               :model-value="draft.weekendMode" :options="weekendOptions"
               aria-label="选择周末显示方式" @update:model-value="setWeekendMode"
+            />
+          </div>
+          <div class="settings-select-row"><span>非本周课程</span>
+            <BaseSelect
+              :model-value="draft.showOtherWeekCourses === false ? 'hide' : 'show'" :options="otherWeekOptions"
+              aria-label="选择非本周课程显示方式" @update:model-value="setShowOtherWeekCourses"
             />
           </div>
         </div>

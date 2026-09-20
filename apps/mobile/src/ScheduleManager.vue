@@ -7,7 +7,9 @@ import { validateSchedule } from '@lumatile/academic-core'
 const props = defineProps<{ book: ScheduleBook; initialTab: 'courses' | 'settings'; saveError?: string }>()
 const emit = defineEmits<{ close: []; add: []; edit: [course: ScheduleCourse]; saved: [book: ScheduleBook]; deleteBook: [] }>()
 const tab = ref(props.initialTab)
-const draft = ref<ScheduleBook>(JSON.parse(JSON.stringify(props.book)))
+const draft = ref<ScheduleBook>({
+  ...JSON.parse(JSON.stringify(props.book)), showOtherWeekCourses: props.book.showOtherWeekCourses !== false,
+})
 const newOffDate = ref('')
 const newOffReason = ref('停课')
 const error = ref('')
@@ -50,6 +52,7 @@ function save() {
           <label><span>开学日期</span><input v-model="draft.startDate" type="date" @change="save" /></label>
           <label><span>学期周数</span><input v-model.number="draft.totalWeeks" type="number" min="1" max="30" @change="save" /></label>
           <label><span>周末显示</span><select v-model="draft.weekendMode" @change="save"><option value="auto">有课时显示</option><option value="show">始终显示</option><option value="hide">始终隐藏</option></select></label>
+          <label><span>非本周课程</span><select v-model="draft.showOtherWeekCourses" @change="save"><option :value="true">空闲时显示</option><option :value="false">不显示</option></select></label>
         </div>
       </section>
       <section class="settings-group">

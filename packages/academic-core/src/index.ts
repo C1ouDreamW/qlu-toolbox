@@ -315,6 +315,7 @@ function schedulePreview(
     semester,
     ...defaults,
     weekendMode: 'show',
+    showOtherWeekCourses: true,
     periods: QLU_PERIODS.map(period => ({ ...period })),
     noClassDates: [],
     courses,
@@ -569,6 +570,7 @@ export function validateSchedule(value: unknown): asserts value is ScheduleBook 
     && text(s.updatedAt) && Number.isFinite(Date.parse(s.updatedAt)), '课表基本信息无效')
   require(date(s.startDate) && integer(s.totalWeeks, 30), '开学日期需有效，学期周数需为 1–30 的整数')
   require(['auto', 'show', 'hide'].includes(s.weekendMode), '周末显示设置无效')
+  require(s.showOtherWeekCourses === undefined || typeof s.showOtherWeekCourses === 'boolean', '非本周课程显示设置无效')
   require(Array.isArray(s.periods) && s.periods.length === 11 && s.periods.every((p: unknown, i: number) =>
     record(p) && p.period === i + 1 && time(p.start) && time(p.end) && p.start < p.end), '需提供 11 节有效的上课时间，结束时间须晚于开始时间')
   require(Array.isArray(s.noClassDates) && s.noClassDates.every((d: unknown) => record(d) && date(d.date) && text(d.reason)), '停课日期格式无效')

@@ -63,7 +63,7 @@ watch(() => schedule.value?.id, id => {
   displayChoiceError.value = ''
 })
 const segmentsByWeek = computed(() => new Map(carouselWeeks.value.map(targetWeek => [targetWeek,
-  schedule.value ? scheduleSegments(schedule.value, targetWeek, displayChoices.value, true) : [],
+  schedule.value ? scheduleSegments(schedule.value, targetWeek, displayChoices.value, schedule.value.showOtherWeekCourses !== false) : [],
 ])))
 const selectedSegment = computed(() => segmentsByWeek.value.get(selectedWeek.value)?.find(segment => segment.key === selectedSegmentKey.value))
 function openSegment(segment: ScheduleSegment, targetWeek: number) {
@@ -124,7 +124,7 @@ function emptyBook(): ScheduleBook {
   const academicYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
   return {
     schemaVersion: 1, id: newId(), name: '我的课表', academicYear: `${academicYear}-${academicYear + 1}`,
-    semester: '1', startDate: '2026-09-07', totalWeeks: 19, weekendMode: 'show',
+    semester: '1', startDate: '2026-09-07', totalWeeks: 19, weekendMode: 'show', showOtherWeekCourses: true,
     periods: QLU_PERIODS.map(period => ({ ...period })), noClassDates: [], courses: [], updatedAt: new Date().toISOString(),
   }
 }

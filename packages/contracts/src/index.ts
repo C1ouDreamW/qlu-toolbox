@@ -161,6 +161,7 @@ export interface ScheduleBook {
   startDate: string
   totalWeeks: number
   weekendMode: WeekendMode
+  showOtherWeekCourses?: boolean
   periods: PeriodTime[]
   noClassDates: NoClassDate[]
   courses: ScheduleCourse[]

@@ -62,7 +62,8 @@ describe('QLU schedule workbook rows', () => {
   it('parses scheduled and pending meetings without retaining identity text', () => {
     const preview = parseScheduleRows({ fileName: '脱敏课表.xls', rows }, new Date('2026-09-02T08:00:00Z'))
     expect(preview.schedule).toMatchObject({
-      academicYear: '2026-2027', semester: '1', startDate: '2026-09-07', totalWeeks: 19, weekendMode: 'show',
+      academicYear: '2026-2027', semester: '1', startDate: '2026-09-07', totalWeeks: 19,
+      weekendMode: 'show', showOtherWeekCourses: true,
     })
     expect(preview.schedule.name).not.toContain('某同学')
     expect(preview.scheduledMeetings).toBe(1)
@@ -100,7 +101,10 @@ describe('QLU schedule workbook rows', () => {
 
   it('validates shared backup data', () => {
     const schedule = parseScheduleRows({ fileName: '脱敏课表.xls', rows }).schedule
+    delete schedule.showOtherWeekCourses
     expect(parseScheduleBackup(JSON.stringify(schedule)).name).toBe(schedule.name)
+    expect(() => parseScheduleBackup(JSON.stringify({ ...schedule, showOtherWeekCourses: 'yes' })))
+      .toThrow('非本周课程显示设置无效')
     expect(() => parseScheduleBackup('{"schemaVersion":99}')).toThrow('格式不受支持')
   })
 })
