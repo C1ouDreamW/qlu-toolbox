@@ -40,6 +40,7 @@ nuitka-crash-report*.xml
 *.spec
 !QLUToolbox.spec
 !QLUToolboxWorker.spec
+.history
 
 # Playwright 与诊断输出
 /playwright-report/
