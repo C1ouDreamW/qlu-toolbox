@@ -426,8 +426,8 @@ onMounted(() => { void loadSchedules() })
         >
           <strong><em v-if="segment.continued" class="course-continuation">续</em>{{ segment.item.course.name }}</strong>
           <small v-if="segment.startPeriod !== segment.item.meeting.startPeriod || segment.endPeriod !== segment.item.meeting.endPeriod">完整{{ segment.item.meeting.startPeriod }}–{{ segment.item.meeting.endPeriod }}节</small>
+          <span v-if="segment.item.meeting.location" class="course-location">@{{ segment.item.meeting.location }}</span>
           <template v-if="segment.startPeriod !== segment.endPeriod">
-            <span v-if="segment.item.meeting.location" class="course-location">@{{ segment.item.meeting.location }}</span>
             <small v-if="segment.item.course.note" class="course-note">{{ segment.item.course.note }}</small>
             <small v-if="segment.item.meeting.teachers[0] || segment.item.course.teachers[0]" class="course-teacher">{{ segment.item.meeting.teachers[0] || segment.item.course.teachers[0] }}</small>
           </template>
@@ -563,6 +563,7 @@ onMounted(() => { void loadSchedules() })
 .meeting-card-other-week{opacity:.5;filter:saturate(.68);box-shadow:none;text-shadow:none}
 .meeting-card-other-week:focus-visible{opacity:.72}
 .meeting-card>.course-other-week-label{flex-shrink:0;align-self:flex-start;margin-top:auto;padding:1px 4px;border-radius:4px;background:rgba(255,255,255,.46);font-size:8px;line-height:1.35}
+.meeting-card-short.meeting-card-conflict>.course-location,.meeting-card-short.meeting-card-other-week>.course-location{display:none}
 @media(max-width:390px){
   .schedule-grid{--row-height:66px}
   .meeting-card{margin:1px;padding:6px 4px}

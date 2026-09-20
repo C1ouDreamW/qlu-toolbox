@@ -3606,6 +3606,15 @@ select {
     display: none
 }
 
+.tt-course.tt-course-short .course-location {
+    display: block
+}
+
+.tt-course.tt-course-short.tt-course-conflict .course-location,
+.tt-course.tt-course-short.tt-course-other-week .course-location {
+    display: none
+}
+
 .tt-course.tt-course-other-week {
     opacity: .52;
     border-style: dashed
