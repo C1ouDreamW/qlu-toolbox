@@ -3360,19 +3360,42 @@ select {
     color: var(--text)
 }
 
-.week-picker select {
-    height: 30px;
-    padding: 0 6px;
-    border: 0;
-    background: transparent;
-    color: var(--text);
-    font-weight: 600;
-    text-align: center;
-    text-align-last: center
+.week-picker {
+    width: 88px;
+    flex: 0 0 88px
 }
 
-.week-picker select:focus {
-    outline: none
+.week-picker .select-trigger {
+    height: 30px;
+    padding: 0 3px 0 9px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    box-shadow: none
+}
+
+.week-picker .select-trigger:hover:not(:disabled),
+.week-picker.is-open .select-trigger,
+.week-picker .select-trigger:focus-visible {
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line)
+}
+
+.week-picker .select-value {
+    text-align: center;
+    font-weight: 650
+}
+
+.week-picker .select-chevron {
+    width: 19px;
+    height: 19px;
+    border: 0;
+    background: transparent
+}
+
+.week-picker .select-menu {
+    left: -17px;
+    width: 122px
 }
 
 .back-to-current {
@@ -3908,7 +3931,6 @@ select {
 }
 
 .editor-field input,
-.editor-field select,
 .editor-field textarea {
     width: 100%;
     height: 36px;
@@ -3927,10 +3949,25 @@ select {
 }
 
 .editor-field input:focus,
-.editor-field select:focus,
 .editor-field textarea:focus {
     outline: none;
     border-color: var(--primary)
+}
+
+.editor-field .select-trigger {
+    height: 36px;
+    border-radius: 9px
+}
+
+.import-preview .select-menu {
+    top: auto;
+    bottom: calc(100% + 6px);
+    transform-origin: bottom
+}
+
+.import-preview .select-menu-enter-from,
+.import-preview .select-menu-leave-to {
+    transform: translateY(4px) scale(.985)
 }
 
 .color-row {
@@ -4128,7 +4165,12 @@ select {
     border-radius: 12px
 }
 
-.manager-settings .settings-card label {
+.manager-settings .settings-card {
+    overflow: visible
+}
+
+.manager-settings .settings-card label,
+.manager-settings .settings-card .settings-select-row {
     display: grid;
     grid-template-columns: 110px 1fr;
     align-items: center;
@@ -4140,12 +4182,12 @@ select {
     font-weight: 600
 }
 
-.manager-settings .settings-card label:last-child {
+.manager-settings .settings-card label:last-child,
+.manager-settings .settings-card .settings-select-row:last-child {
     border-bottom: 0
 }
 
-.manager-settings .settings-card input,
-.manager-settings .settings-card select {
+.manager-settings .settings-card input {
     min-width: 0;
     height: 34px;
     padding: 0;
@@ -4155,9 +4197,45 @@ select {
     text-align: right
 }
 
-.manager-settings .settings-card input:focus,
-.manager-settings .settings-card select:focus {
+.manager-settings .settings-card input:focus {
     outline: none
+}
+
+.manager-settings .settings-card .base-select {
+    width: min(190px, 100%);
+    justify-self: end
+}
+
+.manager-settings .settings-card .select-trigger {
+    height: 34px;
+    padding: 0 0 0 9px;
+    border: 0;
+    background: transparent;
+    box-shadow: none
+}
+
+.manager-settings .settings-card .select-trigger:hover:not(:disabled),
+.manager-settings .settings-card .base-select.is-open .select-trigger,
+.manager-settings .settings-card .select-trigger:focus-visible {
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line)
+}
+
+.manager-settings .settings-card .select-value {
+    text-align: right
+}
+
+.manager-settings .settings-card .select-chevron {
+    width: 24px;
+    height: 24px;
+    border: 0;
+    background: transparent
+}
+
+.manager-settings .settings-card .select-menu {
+    right: 0;
+    left: auto;
+    text-align: left
 }
 
 .manager-settings .settings-card input[type="date"] {

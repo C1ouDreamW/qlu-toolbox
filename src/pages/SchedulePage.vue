@@ -6,6 +6,7 @@ import {
 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
+import BaseSelect from '@/components/BaseSelect.vue'
 import ScheduleCourseEditor from '@/pages/schedule/ScheduleCourseEditor.vue'
 import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
@@ -46,6 +47,10 @@ const importMode = ref<'create' | 'overwrite'>('create')
 const overwriteId = ref('')
 
 const rows = computed(() => props.data.schedules || [])
+const weekOptions = computed(() => Array.from({ length: schedule.value?.totalWeeks ?? 0 }, (_, index) => ({
+  value: String(index + 1), label: `第 ${index + 1} 周`,
+})))
+const overwriteOptions = computed(() => rows.value.map(row => ({ value: row.id, label: row.name })))
 const pendingCount = computed(() => schedule.value?.courses.reduce(
   (sum, course) => sum + course.meetings.filter(meeting => meeting.weekday === null).length, 0,
 ) || 0)
@@ -431,11 +436,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <div class="schedule-controls">
           <div class="week-nav" role="group" aria-label="周次切换">
             <button class="icon-button week-arrow" :disabled="week <= 1" aria-label="上一周" @click="changeWeek(-1)"><ChevronLeft :size="18" /></button>
-            <label class="week-picker">
-              <select v-model.number="week" aria-label="选择周次">
-                <option v-for="item in schedule.totalWeeks" :key="item" :value="item">第 {{ item }} 周</option>
-              </select>
-            </label>
+            <BaseSelect
+              class="week-picker" :model-value="String(week)" :options="weekOptions"
+              aria-label="选择周次" @update:model-value="week = Number($event)"
+            />
             <button class="icon-button week-arrow" :disabled="week >= schedule.totalWeeks" aria-label="下一周" @click="changeWeek(1)"><ChevronRight :size="18" /></button>
             <button v-if="!isCurrentWeek" class="text-button back-to-current" @click="backToCurrentWeek">回到本周</button>
           </div>
@@ -616,12 +620,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <div class="editor-grid">
           <label class="editor-field"><span>开学日期</span><input v-model="importPreview.schedule.startDate" type="date" /></label>
           <label class="editor-field"><span>学期周数</span><input v-model.number="importPreview.schedule.totalWeeks" type="number" min="1" max="30" /></label>
-          <label v-if="importMode === 'overwrite'" class="editor-field span-2"><span>覆盖目标</span>
-            <select v-model="overwriteId">
-              <option value="" disabled>选择要覆盖的课表</option>
-              <option v-for="row in rows" :key="row.id" :value="row.id">{{ row.name }}</option>
-            </select>
-          </label>
+          <div v-if="importMode === 'overwrite'" class="editor-field span-2"><span>覆盖目标</span>
+            <BaseSelect
+              v-model="overwriteId" :options="overwriteOptions" aria-label="选择覆盖目标"
+              placeholder="选择要覆盖的课表"
+            />
+          </div>
         </div>
         <p v-if="importMode === 'overwrite'" class="import-overwrite-hint">覆盖会替换目标课表中的全部课程与设置，且无法撤销。</p>
       </div>

@@ -12,9 +12,11 @@ const props = withDefaults(defineProps<{
   options: SelectOption[]
   disabled?: boolean
   ariaLabel?: string
+  placeholder?: string
 }>(), {
   disabled: false,
   ariaLabel: '请选择',
+  placeholder: '请选择',
 })
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -123,7 +125,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown)
       @click="toggleMenu"
       @keydown="onKeydown"
     >
-      <span class="select-value">{{ selected?.label ?? '请选择' }}</span>
+      <span class="select-value">{{ selected?.label ?? placeholder }}</span>
       <span class="select-chevron"><ChevronDown :size="15" /></span>
     </button>
 

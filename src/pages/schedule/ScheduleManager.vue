@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { CalendarOff, ChevronRight, Clock3, Plus, Trash2 } from 'lucide-vue-next'
 import BaseModal from '@/components/BaseModal.vue'
+import BaseSelect from '@/components/BaseSelect.vue'
 import { validateSchedule } from '@lumatile/academic-core'
 import type { ScheduleBook, ScheduleCourse, WeekendMode } from '@lumatile/contracts'
 
@@ -14,6 +15,11 @@ const draft = ref<ScheduleBook>(JSON.parse(JSON.stringify(props.book)))
 const newOffDate = ref('')
 const newOffReason = ref('停课')
 const error = ref('')
+const weekendOptions = [
+  { value: 'auto', label: '有课时显示' },
+  { value: 'show', label: '始终显示' },
+  { value: 'hide', label: '始终隐藏' },
+]
 
 function pending(course: ScheduleCourse) { return course.meetings.some(meeting => meeting.weekday === null) }
 function save() {
@@ -22,6 +28,10 @@ function save() {
     validateSchedule(draft.value)
     emit('saved', JSON.parse(JSON.stringify({ ...draft.value, updatedAt: new Date().toISOString() })))
   } catch (reason) { error.value = reason instanceof Error ? reason.message : String(reason) }
+}
+function setWeekendMode(value: string) {
+  draft.value.weekendMode = value as WeekendMode
+  save()
 }
 function addNoClassDate() {
   if (!newOffDate.value || draft.value.noClassDates.some(item => item.date === newOffDate.value)) return
@@ -69,13 +79,12 @@ function removeNoClassDate(index: number) {
           <label><span>课表名称</span><input v-model="draft.name" @change="save" /></label>
           <label><span>开学日期</span><input v-model="draft.startDate" type="date" @change="save" /></label>
           <label><span>学期周数</span><input v-model.number="draft.totalWeeks" type="number" min="1" max="30" @change="save" /></label>
-          <label><span>周末显示</span>
-            <select v-model="draft.weekendMode" @change="save">
-              <option value="auto">有课时显示</option>
-              <option value="show">始终显示</option>
-              <option value="hide">始终隐藏</option>
-            </select>
-          </label>
+          <div class="settings-select-row"><span>周末显示</span>
+            <BaseSelect
+              :model-value="draft.weekendMode" :options="weekendOptions"
+              aria-label="选择周末显示方式" @update:model-value="setWeekendMode"
+            />
+          </div>
         </div>
       </section>
 
