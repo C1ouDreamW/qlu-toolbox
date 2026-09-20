@@ -63,7 +63,7 @@ watch(() => schedule.value?.id, id => {
   displayChoiceError.value = ''
 })
 const segmentsByWeek = computed(() => new Map(carouselWeeks.value.map(targetWeek => [targetWeek,
-  schedule.value ? scheduleSegments(schedule.value, targetWeek, displayChoices.value) : [],
+  schedule.value ? scheduleSegments(schedule.value, targetWeek, displayChoices.value, true) : [],
 ])))
 const selectedSegment = computed(() => segmentsByWeek.value.get(selectedWeek.value)?.find(segment => segment.key === selectedSegmentKey.value))
 function openSegment(segment: ScheduleSegment, targetWeek: number) {
@@ -415,13 +415,13 @@ onMounted(() => { void loadSchedules() })
         ><span>停课</span><small>{{ noClass(day, pageWeek)?.reason }}</small></div>
         <button
           v-for="segment in segmentsByWeek.get(pageWeek)" :key="segment.key" class="meeting-card"
-          :class="{ 'meeting-card-short': segment.startPeriod === segment.endPeriod, 'meeting-card-conflict': segment.candidates.length > 1 }"
+          :class="{ 'meeting-card-short': segment.startPeriod === segment.endPeriod, 'meeting-card-conflict': segment.candidates.length > 1, 'meeting-card-other-week': segment.otherWeek }"
           :style="{
             gridColumn: visibleWeekdays(schedule, pageWeek).indexOf(segment.weekday) + 2,
             gridRow: `${segment.startPeriod + 1} / ${segment.endPeriod + 2}`,
             background: segment.item.course.color,
           }"
-          :aria-label="`${segment.item.course.name}，完整第${segment.item.meeting.startPeriod}–${segment.item.meeting.endPeriod}节${segment.candidates.length > 1 ? `，第${segment.startPeriod}–${segment.endPeriod}节有${segment.candidates.length}项重叠安排，点击切换显示` : ''}`"
+          :aria-label="`${segment.otherWeek ? '非本周课程，' : ''}${segment.item.course.name}，完整第${segment.item.meeting.startPeriod}–${segment.item.meeting.endPeriod}节${segment.candidates.length > 1 ? `，第${segment.startPeriod}–${segment.endPeriod}节有${segment.candidates.length}项重叠安排，点击切换显示` : ''}`"
           @click="openSegment(segment, pageWeek)"
         >
           <strong><em v-if="segment.continued" class="course-continuation">续</em>{{ segment.item.course.name }}</strong>
@@ -431,6 +431,7 @@ onMounted(() => { void loadSchedules() })
             <small v-if="segment.item.course.note" class="course-note">{{ segment.item.course.note }}</small>
             <small v-if="segment.item.meeting.teachers[0] || segment.item.course.teachers[0]" class="course-teacher">{{ segment.item.meeting.teachers[0] || segment.item.course.teachers[0] }}</small>
           </template>
+          <span v-if="segment.otherWeek" class="course-other-week-label">非本周</span>
           <span v-if="segment.candidates.length > 1" class="course-conflict-badge" aria-hidden="true"><b>{{ segment.candidates.length }}</b></span>
         </button>
       </div></div></div></div>
@@ -463,7 +464,7 @@ onMounted(() => { void loadSchedules() })
     <Transition name="fade"><button v-if="selected" class="sheet-scrim" aria-label="关闭详情" @click="selected = null" /></Transition>
     <Transition name="sheet"><section v-if="selected" class="course-detail" role="dialog" aria-modal="true" :aria-label="selected.course.name">
       <div class="sheet-handle" /><header><i :style="{ background: selected.course.color }" /><h2>{{ selected.course.name }}</h2><button aria-label="关闭课程详情" @click="selected = null"><X /></button></header>
-      <p v-if="selectedSegment" class="course-segment-context">第 {{ selectedWeek }} 周 · 当前片段 {{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节<span v-if="noClass(selectedSegment.weekday, selectedWeek)"> · 本日停课</span></p>
+      <p v-if="selectedSegment" class="course-segment-context">第 {{ selectedWeek }} 周 · 当前片段 {{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节<span v-if="selectedSegment.otherWeek"> · 非本周预览</span><span v-if="noClass(selectedSegment.weekday, selectedWeek)"> · 本日停课</span></p>
       <p><CalendarDays />{{ formatScheduleWeeks(selected.meeting.weeks) }}</p>
       <p><Clock3 />周{{ weekdayName(selected.meeting.weekday!) }} 第 {{ selected.meeting.startPeriod }}–{{ selected.meeting.endPeriod }} 节 <small>{{ meetingTime(selected.meeting) }}</small></p>
       <p><MapPin />{{ selected.meeting.location || '地点待定' }}</p>
@@ -559,6 +560,9 @@ onMounted(() => { void loadSchedules() })
 .meeting-card>span,.meeting-card>small{font-size:10px}
 .meeting-card>.course-location,.meeting-card>.course-note{flex-shrink:0}
 .meeting-card>.course-note,.meeting-card>.course-teacher{opacity:.94}
+.meeting-card-other-week{opacity:.5;filter:saturate(.68);box-shadow:none;text-shadow:none}
+.meeting-card-other-week:focus-visible{opacity:.72}
+.meeting-card>.course-other-week-label{flex-shrink:0;align-self:flex-start;margin-top:auto;padding:1px 4px;border-radius:4px;background:rgba(255,255,255,.46);font-size:8px;line-height:1.35}
 @media(max-width:390px){
   .schedule-grid{--row-height:66px}
   .meeting-card{margin:1px;padding:6px 4px}

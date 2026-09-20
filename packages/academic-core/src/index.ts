@@ -491,17 +491,18 @@ export type ScheduleSegment = {
   candidates: SchedulePlacement[]
   item: SchedulePlacement
   continued: boolean
+  otherWeek?: true
 }
 
 /** Display-only segments. Original meetings remain intact for editing and export. */
 export function scheduleSegments(
-  schedule: ScheduleBook, week: number, choices: Record<string, string> = {},
+  schedule: ScheduleBook, week: number, choices: Record<string, string> = {}, showOtherWeekCourse = false,
 ): ScheduleSegment[] {
   const result: ScheduleSegment[] = []
-  const meetings = schedule.courses.flatMap(course => course.meetings
-    .filter(meeting => meeting.weekday !== null && meeting.startPeriod !== null
-      && meeting.endPeriod !== null && meeting.weeks.includes(week))
+  const scheduled = schedule.courses.flatMap(course => course.meetings
+    .filter(meeting => meeting.weekday !== null && meeting.startPeriod !== null && meeting.endPeriod !== null)
     .map(meeting => ({ course, meeting })))
+  const meetings = scheduled.filter(({ meeting }) => meeting.weeks.includes(week))
   for (const weekday of visibleWeekdays(schedule, week)) {
     const day = meetings.filter(item => item.meeting.weekday === weekday).sort((a, b) =>
       a.meeting.startPeriod! - b.meeting.startPeriod!
@@ -520,6 +521,23 @@ export function scheduleSegments(
         candidates.map(({ course, meeting }) => [course.id, meeting.id, meeting.startPeriod, meeting.endPeriod, [...meeting.weeks].sort((a, b) => a - b)])])
       const item = candidates.find(item => item.meeting.id === choices[key]) || previousDefault
       result.push({ key, weekday, startPeriod, endPeriod, candidates, item, continued: startPeriod > item.meeting.startPeriod! })
+    }
+    if (!showOtherWeekCourse) continue
+    const future = scheduled.filter(({ meeting }) => meeting.weekday === weekday
+      && !meeting.weeks.includes(week) && meeting.weeks.some(item => item > week)).sort((a, b) =>
+      Number(b.meeting.weeks.includes(week + 1)) - Number(a.meeting.weeks.includes(week + 1))
+      || a.meeting.weeks.find(item => item > week)! - b.meeting.weeks.find(item => item > week)!
+      || a.meeting.startPeriod! - b.meeting.startPeriod!
+      || a.meeting.id.localeCompare(b.meeting.id))
+    for (const item of future) {
+      const startPeriod = item.meeting.startPeriod!
+      const endPeriod = item.meeting.endPeriod!
+      if (result.some(segment => segment.weekday === weekday
+        && Math.max(segment.startPeriod, startPeriod) <= Math.min(segment.endPeriod, endPeriod))) continue
+      result.push({
+        key: JSON.stringify([schedule.id, schedule.startDate, week, weekday, 'other-week', item.meeting.id]),
+        weekday, startPeriod, endPeriod, candidates: [item], item, continued: false, otherWeek: true,
+      })
     }
   }
   return result

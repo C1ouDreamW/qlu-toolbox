@@ -81,7 +81,7 @@ watch(() => schedule.value?.id, id => {
   selectedSegmentKey.value = ''
   displayChoiceError.value = ''
 })
-const segments = computed(() => schedule.value ? scheduleSegments(schedule.value, week.value, displayChoices.value) : [])
+const segments = computed(() => schedule.value ? scheduleSegments(schedule.value, week.value, displayChoices.value, true) : [])
 const selectedSegment = computed(() => segments.value.find(segment => segment.key === selectedSegmentKey.value))
 function openSegment(segment: ScheduleSegment) {
   selectedSegmentKey.value = segment.key
@@ -495,14 +495,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
           <button
             v-for="segment in segments" :key="segment.key"
-            class="tt-course" :class="{ 'tt-course-short': segment.startPeriod === segment.endPeriod, 'tt-course-conflict': segment.candidates.length > 1 }"
+            class="tt-course" :class="{ 'tt-course-short': segment.startPeriod === segment.endPeriod, 'tt-course-conflict': segment.candidates.length > 1, 'tt-course-other-week': segment.otherWeek }"
             :style="{ '--course': segment.item.course.color, gridColumn: String(columnFor(segment.weekday)), gridRow: `${segment.startPeriod + 1} / span ${segment.endPeriod - segment.startPeriod + 1}` }"
-            :aria-label="`${segment.item.course.name}，${meetingLine(segment.item.meeting)}${segment.candidates.length > 1 ? `，第${segment.startPeriod}–${segment.endPeriod}节有${segment.candidates.length}项重叠安排，点击切换显示` : ''}`"
+            :aria-label="`${segment.otherWeek ? '非本周课程，' : ''}${segment.item.course.name}，${meetingLine(segment.item.meeting)}${segment.candidates.length > 1 ? `，第${segment.startPeriod}–${segment.endPeriod}节有${segment.candidates.length}项重叠安排，点击切换显示` : ''}`"
             @click="openSegment(segment)"
           >
             <strong><em v-if="segment.continued" class="course-continuation">续</em>{{ segment.item.course.name }}</strong>
             <small v-if="segment.startPeriod !== segment.item.meeting.startPeriod || segment.endPeriod !== segment.item.meeting.endPeriod">完整 {{ segment.item.meeting.startPeriod }}–{{ segment.item.meeting.endPeriod }}节</small>
             <small v-if="segment.startPeriod !== segment.endPeriod && segment.item.meeting.location">{{ segment.item.meeting.location }}</small>
+            <small v-if="segment.otherWeek" class="course-other-week-label">非本周</small>
             <span v-if="segment.candidates.length > 1" class="course-conflict-badge" aria-hidden="true"><span>{{ segment.candidates.length }}</span></span>
           </button>
         </div>
@@ -531,7 +532,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
     <BaseModal v-if="selected" class="course-detail-modal" :title="selected.name" dismissible @close="selected = null">
       <div class="course-detail">
-        <p v-if="selectedSegment" class="course-segment-context">第 {{ week }} 周 · 周{{ weekdayName(selectedSegment.weekday) }} · 当前片段 {{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节<span v-if="noClass(selectedSegment.weekday)"> · 本日停课</span></p>
+        <p v-if="selectedSegment" class="course-segment-context">第 {{ week }} 周 · 周{{ weekdayName(selectedSegment.weekday) }} · 当前片段 {{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节<span v-if="selectedSegment.otherWeek"> · 非本周预览</span><span v-if="noClass(selectedSegment.weekday)"> · 本日停课</span></p>
         <p v-if="selected.teachers.length" class="course-detail-line"><strong>教师</strong>{{ selected.teachers.join('、') }}</p>
         <p v-if="selected.code" class="course-detail-line"><strong>课程代码</strong>{{ selected.code }}</p>
         <p v-if="selected.teachingClass" class="course-detail-line"><strong>教学班</strong>{{ selected.teachingClass }}</p>

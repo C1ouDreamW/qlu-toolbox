@@ -74,4 +74,17 @@ describe('schedule display segments', () => {
     Object.assign(other, { weekday: 1, startPeriod: null } satisfies Partial<ScheduleMeeting>)
     expect(scheduleSegments(schedule, 1)[0].candidates).toHaveLength(1)
   })
+
+  it('previews only the nearest future course in a completely free range', () => {
+    const schedule = book([[1, 2], [1, 2], [3, 4], [3, 4], [5, 6]])
+    schedule.courses[0].meetings[0].weeks = [2]
+    schedule.courses[1].meetings[0].weeks = [3]
+    schedule.courses[2].meetings[0].weeks = [5]
+    schedule.courses[3].meetings[0].weeks = [3]
+    schedule.courses[4].meetings[0].weeks = [1]
+
+    expect(scheduleSegments(schedule, 2).map(segment => segment.item.meeting.id)).toEqual(['meeting-0'])
+    expect(scheduleSegments(schedule, 2, {}, true).map(segment => [segment.item.meeting.id, !!segment.otherWeek]))
+      .toEqual([['meeting-0', false], ['meeting-3', true]])
+  })
 })

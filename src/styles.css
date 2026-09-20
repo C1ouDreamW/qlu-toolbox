@@ -3606,6 +3606,31 @@ select {
     display: none
 }
 
+.tt-course.tt-course-other-week {
+    opacity: .52;
+    border-style: dashed
+}
+
+.tt-course.tt-course-other-week:hover,
+.tt-course.tt-course-other-week:focus-visible {
+    opacity: .76
+}
+
+.tt-course .course-other-week-label {
+    display: block;
+    align-self: flex-start;
+    margin-top: auto;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--course) 18%, var(--surface));
+    color: var(--text);
+    line-height: 1.4
+}
+
+.tt-course.tt-course-short .course-other-week-label {
+    display: block
+}
+
 .course-detail-modal .modal {
     max-height: calc(100dvh - 90px);
     overflow-y: auto;
