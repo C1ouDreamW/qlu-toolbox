@@ -427,8 +427,9 @@ onMounted(() => { void loadSchedules() })
           <strong><em v-if="segment.continued" class="course-continuation">续</em>{{ segment.item.course.name }}</strong>
           <small v-if="segment.startPeriod !== segment.item.meeting.startPeriod || segment.endPeriod !== segment.item.meeting.endPeriod">完整{{ segment.item.meeting.startPeriod }}–{{ segment.item.meeting.endPeriod }}节</small>
           <template v-if="segment.startPeriod !== segment.endPeriod">
-            <span v-if="segment.item.meeting.location">{{ segment.item.meeting.location }}</span>
-            <small>{{ segment.item.meeting.teachers[0] || segment.item.course.teachers[0] || '' }}</small>
+            <span v-if="segment.item.meeting.location" class="course-location">@{{ segment.item.meeting.location }}</span>
+            <small v-if="segment.item.course.note" class="course-note">{{ segment.item.course.note }}</small>
+            <small v-if="segment.item.meeting.teachers[0] || segment.item.course.teachers[0]" class="course-teacher">{{ segment.item.meeting.teachers[0] || segment.item.course.teachers[0] }}</small>
           </template>
           <span v-if="segment.candidates.length > 1" class="course-conflict-badge" aria-hidden="true"><b>{{ segment.candidates.length }}</b></span>
         </button>
@@ -466,6 +467,7 @@ onMounted(() => { void loadSchedules() })
       <p><CalendarDays />{{ formatScheduleWeeks(selected.meeting.weeks) }}</p>
       <p><Clock3 />周{{ weekdayName(selected.meeting.weekday!) }} 第 {{ selected.meeting.startPeriod }}–{{ selected.meeting.endPeriod }} 节 <small>{{ meetingTime(selected.meeting) }}</small></p>
       <p><MapPin />{{ selected.meeting.location || '地点待定' }}</p>
+      <p v-if="selected.course.note"><BookOpen />{{ selected.course.note }}</p>
       <p><Users />{{ selected.meeting.teachers.join('、') || selected.course.teachers.join('、') || '教师待定' }}</p>
       <fieldset v-if="selectedSegment && selectedSegment.candidates.length > 1" class="course-conflict-picker">
         <legend>{{ noClass(selectedSegment.weekday, selectedWeek) ? '停课日原安排' : '重叠时段' }} · 第{{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节</legend>
@@ -553,6 +555,10 @@ onMounted(() => { void loadSchedules() })
 .schedule-viewport,.schedule-grid{border-radius:12px}
 .schedule-grid{--row-height:66px;grid-template-columns:34px repeat(var(--day-count),minmax(0,1fr));grid-template-rows:48px repeat(11,var(--row-height))}
 .meeting-card{margin:1px;padding:6px 4px;border-radius:6px}
+.meeting-card>strong{font-size:12px}
+.meeting-card>span,.meeting-card>small{font-size:10px}
+.meeting-card>.course-location,.meeting-card>.course-note{flex-shrink:0}
+.meeting-card>.course-note,.meeting-card>.course-teacher{opacity:.94}
 @media(max-width:390px){
   .schedule-grid{--row-height:66px}
   .meeting-card{margin:1px;padding:6px 4px}
