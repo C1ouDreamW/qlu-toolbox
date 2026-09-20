@@ -63,6 +63,17 @@ APK 输出：`apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`。
 adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+临时测试包可与测试机上的正式版共存：给 debug 构建加包名后缀，得到独立应用 ID 的测试包，正式版的登录状态、课表与学分要求都不受影响。
+
+```powershell
+./gradlew.bat testDebugUnitTest assembleDebug "-PappIdSuffix=.test"
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+`-P` 参数必须加引号：PowerShell 会把不加引号的 `-PappIdSuffix=.test` 拆成属性名与 `.test`，Gradle 随即报 `Task '.test' not found`。
+
+测试包应用 ID 为 `io.github.c1oudreamw.lumatile.test`，显示名默认为「一格有光（测试）」，可用 `-PappLabel` 改写；它与正式版数据完全独立，包内「检查更新」会按设计拒绝非正式应用 ID。不传 `-PappIdSuffix` 时构建行为与之前一致（CI 也不传）。测试结束后 `adb uninstall io.github.c1oudreamw.lumatile.test` 清理，正式版不受影响。完整安装流程见 `.agents/skills/lumatile-test-apk/SKILL.md`。
+
 正式包使用永久应用 ID `io.github.c1oudreamw.lumatile`。从本迁移版开始，后续“一格有光 / LumaTile”版本必须保持相同 applicationId、正式签名证书和递增的 versionCode，才能覆盖安装并保留应用数据。
 
 此前安装过 `cn.edu.qlu.toolbox` 测试包的设备需要先卸载旧测试包；Android 不会把不同 applicationId 识别为同一个应用。

@@ -12,6 +12,13 @@ def releaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: release
 def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS') ?: releaseSigning.getProperty('keyAlias')
 def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: releaseSigning.getProperty('keyPassword')
 def hasReleaseSigning = [releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.isBlank() }
+// 临时测试包开关：传 -PappIdSuffix=.test 时只影响 debug 构建，产出可与正式版共存的测试包。
+// 不传参数时行为与正式包完全一致（CI 与本地常规构建均不传）。
+def testAppIdSuffix = (project.findProperty('appIdSuffix') ?: '').toString().trim()
+if (testAppIdSuffix && !testAppIdSuffix.startsWith('.')) {
+    testAppIdSuffix = '.' + testAppIdSuffix
+}
+def testAppLabel = (project.findProperty('appLabel') ?: '一格有光（测试）').toString().trim()
 def generatedScheduleAssetsDir = file("$buildDir/generated/qluScheduleAssets")
 def copyQluScheduleDom = tasks.register('copyQluScheduleDom', Copy) {
     from rootProject.file('../../../assets/qlu-schedule-dom.js')
@@ -62,6 +69,14 @@ android {
         }
     }
     buildTypes {
+        debug {
+            if (testAppIdSuffix) {
+                applicationIdSuffix testAppIdSuffix
+                versionNameSuffix '-test'
+                resValue "string", "app_name", testAppLabel
+                resValue "string", "title_activity_main", testAppLabel
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
