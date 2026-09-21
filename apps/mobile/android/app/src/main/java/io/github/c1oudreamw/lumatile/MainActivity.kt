@@ -66,8 +66,10 @@ class MainActivity : BridgeActivity() {
         val bottomCssPx = (bottom / density).roundToInt()
         bridge?.webView?.evaluateJavascript(
             """
-            document.documentElement.style.setProperty('--safe-area-inset-top', '${topCssPx}px');
-            document.documentElement.style.setProperty('--safe-area-inset-bottom', '${bottomCssPx}px');
+            if (document.documentElement) {
+              document.documentElement.style.setProperty('--safe-area-inset-top', '${topCssPx}px');
+              document.documentElement.style.setProperty('--safe-area-inset-bottom', '${bottomCssPx}px');
+            }
             """.trimIndent(),
             null,
         )
