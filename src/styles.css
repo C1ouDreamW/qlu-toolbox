@@ -3327,11 +3327,11 @@ select {
 
 .schedule-controls {
     display: flex;
-    flex: 1 1 620px;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
-    flex-wrap: wrap
+    flex-wrap: nowrap
 }
 
 .week-nav {

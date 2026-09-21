@@ -111,6 +111,12 @@ if(m==='saveSchedule'){if(window.failSave)throw Error('模拟磁盘写入失败'
                 self.assertGreater(page.locator('.schedule-page').evaluate('(e)=>e.getBoundingClientRect().width'), 1300)
                 self.assertEqual(page.locator('.tt-period span').first.inner_text(), '08:30\n09:15')
                 self.assertNotEqual(page.locator('.tt-col').first.evaluate("(e)=>getComputedStyle(e,'::after').backgroundImage"), 'none')
+                page.set_viewport_size({'width':1350,'height':850})
+                page.get_by_role('button', name='下一周').click()
+                page.locator('.back-to-current').wait_for()
+                nav_y = page.locator('.week-nav').bounding_box()['y']
+                action_y = page.get_by_role('button', name='添加课程', exact=True).bounding_box()['y']
+                self.assertAlmostEqual(nav_y, action_y, delta=1)
                 page.get_by_role('button', name='2项重叠安排', exact=False).first.click()
                 self.assertEqual(page.locator('.course-detail-modal .course-conflict-option').count(),2)
                 # First welcome acceptance runs startup tasks without a restart.
