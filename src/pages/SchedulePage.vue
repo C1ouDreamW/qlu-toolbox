@@ -513,10 +513,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <strong><em v-if="segment.continued" class="course-continuation">续</em>{{ segment.item.course.name }}</strong>
             <small v-if="segment.startPeriod !== segment.item.meeting.startPeriod || segment.endPeriod !== segment.item.meeting.endPeriod">完整 {{ segment.item.meeting.startPeriod }}–{{ segment.item.meeting.endPeriod }}节</small>
             <small v-if="segment.item.meeting.location" class="course-location">@{{ segment.item.meeting.location }}</small>
-            <template v-if="segment.startPeriod !== segment.endPeriod">
-              <small v-if="segment.item.course.note" class="course-note">{{ segment.item.course.note }}</small>
-              <small v-if="segment.item.meeting.teachers[0] || segment.item.course.teachers[0]" class="course-teacher">{{ segment.item.meeting.teachers[0] || segment.item.course.teachers[0] }}</small>
-            </template>
             <small v-if="segment.otherWeek" class="course-other-week-label">非本周</small>
             <span v-if="segment.candidates.length > 1" class="course-conflict-badge" aria-hidden="true"><span>{{ segment.candidates.length }}</span></span>
           </button>

@@ -436,10 +436,6 @@ onMounted(() => { void loadSchedules() })
           <strong><em v-if="segment.continued" class="course-continuation">续</em>{{ segment.item.course.name }}</strong>
           <small v-if="segment.startPeriod !== segment.item.meeting.startPeriod || segment.endPeriod !== segment.item.meeting.endPeriod">完整{{ segment.item.meeting.startPeriod }}–{{ segment.item.meeting.endPeriod }}节</small>
           <span v-if="segment.item.meeting.location" class="course-location">@{{ segment.item.meeting.location }}</span>
-          <template v-if="segment.startPeriod !== segment.endPeriod">
-            <small v-if="segment.item.course.note" class="course-note">{{ segment.item.course.note }}</small>
-            <small v-if="segment.item.meeting.teachers[0] || segment.item.course.teachers[0]" class="course-teacher">{{ segment.item.meeting.teachers[0] || segment.item.course.teachers[0] }}</small>
-          </template>
           <span v-if="segment.otherWeek" class="course-other-week-label">非本周</span>
           <span v-if="segment.candidates.length > 1" class="course-conflict-badge" aria-hidden="true"><b>{{ segment.candidates.length }}</b></span>
         </button>
@@ -541,15 +537,13 @@ onMounted(() => { void loadSchedules() })
 .meeting-card>strong{flex-shrink:0;display:-webkit-box;overflow-wrap:anywhere;-webkit-line-clamp:3;-webkit-box-orient:vertical}
 .meeting-card>span,.meeting-card>small{margin-top:0}
 .meeting-card>.course-location{flex-shrink:0;display:-webkit-box;overflow-wrap:anywhere;-webkit-line-clamp:8;-webkit-box-orient:vertical}
-.meeting-card>.course-note,.meeting-card>.course-teacher{flex-shrink:0;display:-webkit-box;overflow-wrap:anywhere;-webkit-box-orient:vertical}
-.meeting-card>.course-note,.meeting-card>.course-teacher{-webkit-line-clamp:1}
 .meeting-card.meeting-card-conflict{padding-bottom:21px}
 .meeting-card.meeting-card-short>strong{-webkit-line-clamp:2}
 .meeting-card.meeting-card-short>.course-location{-webkit-line-clamp:1}
 .meeting-card.meeting-card-short>small{display:none}
 .meeting-card.meeting-card-two-periods>strong{-webkit-line-clamp:2}
-.meeting-card.meeting-card-two-periods>.course-location{-webkit-line-clamp:4}
-.meeting-card.meeting-card-two-periods.meeting-card-conflict>.course-location{-webkit-line-clamp:2}
+.meeting-card.meeting-card-two-periods>.course-location{-webkit-line-clamp:6}
+.meeting-card.meeting-card-two-periods.meeting-card-conflict>.course-location{-webkit-line-clamp:5}
 .meeting-card:focus-visible{outline:2px solid #0b76e8;outline-offset:-2px}
 .course-continuation{margin-right:3px;font-size:9px;font-style:normal;font-weight:500;opacity:.85}
 .meeting-card>.course-conflict-badge{position:absolute;right:5px;bottom:5px;display:block;width:24px;height:24px;margin:0;background:rgba(255,255,255,.55);color:#18324b;clip-path:path('M24 4.8 Q24 0 20.6 3.4 L3.4 20.6 Q0 24 4.8 24 H21.5 Q24 24 24 21.5 Z');text-shadow:none;pointer-events:none}
@@ -575,7 +569,6 @@ onMounted(() => { void loadSchedules() })
 .meeting-card{margin:1px;padding:6px 4px;border-radius:6px}
 .meeting-card>strong{font-size:12px}
 .meeting-card>span,.meeting-card>small{font-size:10px}
-.meeting-card>.course-note,.meeting-card>.course-teacher{opacity:.94}
 .meeting-card-other-week{opacity:.5;filter:saturate(.68);box-shadow:none;text-shadow:none}
 .meeting-card-other-week>strong{-webkit-line-clamp:2}
 .meeting-card-other-week:focus-visible{opacity:.72}
