@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/build-webview-assets.mjs",
     "build": "vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
     "cap:add": "cap add android",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",
     "@vitejs/plugin-vue": "^6.0.0",
+    "esbuild": "^0.28.1",
     "typescript": "^5.8.3",
     "vite": "^7.0.4",
     "vue-tsc": "^3.0.1"

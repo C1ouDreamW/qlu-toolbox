@@ -294,7 +294,7 @@ function mergeAdjacentMeetings(courses: ScheduleCourse[]): void {
     const meetings = [...course.meetings].sort((left, right) =>
       (left.weekday ?? 8) - (right.weekday ?? 8) || (left.startPeriod ?? 99) - (right.startPeriod ?? 99))
     for (const meeting of meetings) {
-      const previous = merged.at(-1)
+      const previous = merged[merged.length - 1]
       const sameSlot = previous && previous.weekday !== null && meeting.weekday === previous.weekday
         && previous.location === meeting.location
         && JSON.stringify(previous.weeks) === JSON.stringify(meeting.weeks)
@@ -664,7 +664,7 @@ export function parseGradeRows(source: GradeWorkbookRows): GPAWorkbook {
       isFinal: ['总评', '总评成绩'].includes(normalized(record['成绩分项'] || '')),
     }))
     const finals = components.filter(component => component.isFinal)
-    const finalScore = finals.at(-1)?.score ?? ''
+    const finalScore = finals[finals.length - 1]?.score ?? ''
     const credit = finiteNumber(first['学分'] || '')
     let point = finalScore ? gradePoint(finalScore) : null
     let issue = ''

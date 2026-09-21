@@ -8,15 +8,16 @@ class AndroidScheduleCaptureTests(ScheduleCaptureEndToEndTests):
         activity = Path('apps/mobile/android/app/src/main/java/io/github/c1oudreamw/lumatile/ScheduleImportActivity.kt').read_text(encoding='utf-8')
         plugin = Path('apps/mobile/android/app/src/main/java/io/github/c1oudreamw/lumatile/SchedulePlugin.kt').read_text(encoding='utf-8')
         gradle = Path('apps/mobile/android/app/build.gradle').read_text(encoding='utf-8')
+        build_script = Path('apps/mobile/scripts/build-webview-assets.mjs').read_text(encoding='utf-8')
         self.assertIn('assets.open("qlu-schedule-dom.js")', activity)
         self.assertIn('SOURCE_QLU_DOM', activity)
         self.assertIn('SOURCE_QLU_DOM', plugin)
-        self.assertIn("assets/qlu-schedule-dom.js", gradle)
+        self.assertIn('buildWebViewAssets', gradle)
+        self.assertIn('assets/qlu-schedule-dom.js', build_script)
 
     def test_android_script_captures_native_ajax_and_frames(self):
         from playwright.sync_api import sync_playwright
-        source = Path('apps/mobile/android/app/src/main/java/io/github/c1oudreamw/lumatile/ScheduleImportActivity.kt').read_text(encoding='utf-8')
-        script = source.split('private fun buildInterceptorScript() = """', 1)[1].split('""".trimIndent()', 1)[0].replace('$MAX_FILE_SIZE',str(20*1024*1024))
+        script = Path('apps/mobile/webview-scripts/schedule-export-interceptor.js').read_text(encoding='utf-8')
         PAGES['/xhr'] = '''<script>setTimeout(()=>{const x=new XMLHttpRequest();x.open('POST','/jwglxt/kbcx/xskbcx_cxDcExcelXskb.html');x.responseType='arraybuffer';x.send('xnm=2026');},600)</script>'''
         PAGES['/request-submit'] = '''<form method="post" action="/jwglxt/kbcx/xskbcx_cxDcExcelXskb.html"></form><script>setTimeout(()=>document.querySelector('form').requestSubmit(),600)</script>'''
         with sync_playwright() as pw:

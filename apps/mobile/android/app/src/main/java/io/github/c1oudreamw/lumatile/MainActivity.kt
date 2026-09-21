@@ -3,11 +3,14 @@ package io.github.c1oudreamw.lumatile
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.ViewGroup
+import androidx.appcompat.app.AlertDialog
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.webkit.WebViewCompat
 import com.getcapacitor.BridgeActivity
 import kotlin.math.roundToInt
 
@@ -18,11 +21,28 @@ class MainActivity : BridgeActivity() {
         registerPlugin(SchedulePlugin::class.java)
         registerPlugin(CreditReportPlugin::class.java)
         super.onCreate(savedInstanceState)
+        if (!ensureSupportedWebView()) return
         enableEdgeToEdge()
         installSystemBarInsets()
         lockWebViewTextZoom()
         // 打开应用时同步刷新桌面小组件：覆盖升级不会自动重绘旧组件，这里兜底触发一次
         ScheduleWidgetProvider.requestUpdate(this)
+    }
+
+    private fun ensureSupportedWebView(): Boolean {
+        val provider = WebViewCompat.getCurrentWebViewPackage(this)
+        val versionName = provider?.versionName
+        val major = webViewMajor(versionName)
+        Log.i("LumaTileWebView", "provider=${provider?.packageName}, version=$versionName")
+        if (major != null && major >= BuildConfig.MIN_WEBVIEW_MAJOR) return true
+        bridge?.webView?.stopLoading()
+        AlertDialog.Builder(this)
+            .setTitle("系统 WebView 版本过低")
+            .setMessage("一格有光需要 WebView ${BuildConfig.MIN_WEBVIEW_MAJOR} 或更高版本。请在应用商店更新 Android System WebView 或 Chrome 后重新打开。")
+            .setCancelable(false)
+            .setPositiveButton("退出应用") { _, _ -> finishAndRemoveTask() }
+            .show()
+        return false
     }
 
     /**

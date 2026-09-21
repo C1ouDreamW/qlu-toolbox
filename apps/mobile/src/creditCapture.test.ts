@@ -5,8 +5,8 @@ import { runInNewContext } from 'node:vm'
 import { expect, it } from 'vitest'
 import fixture from '../../../packages/academic-core/src/credit-fixtures.json'
 
-const script = readFileSync(new URL('../android/app/src/main/assets/credit-capture.js', import.meta.url), 'utf8')
-const observer = readFileSync(new URL('../android/app/src/main/assets/credit-plan-observer.js', import.meta.url), 'utf8')
+const script = readFileSync(new URL('../webview-scripts/credit-capture.js', import.meta.url), 'utf8')
+const observer = readFileSync(new URL('../webview-scripts/credit-plan-observer.js', import.meta.url), 'utf8')
 // 学校公共脚本覆盖标准数组方法（回调参数顺序是 (index, value)，与原生相反），还把 trim 改写成移除全部空白。
 const schoolArrays = `
   Array.prototype.filter = function(callback) {

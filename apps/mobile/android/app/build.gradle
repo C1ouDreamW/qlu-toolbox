@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
@@ -19,10 +21,17 @@ if (testAppIdSuffix && !testAppIdSuffix.startsWith('.')) {
     testAppIdSuffix = '.' + testAppIdSuffix
 }
 def testAppLabel = (project.findProperty('appLabel') ?: '一格有光（测试）').toString().trim()
-def generatedScheduleAssetsDir = file("$buildDir/generated/qluScheduleAssets")
-def copyQluScheduleDom = tasks.register('copyQluScheduleDom', Copy) {
-    from rootProject.file('../../../assets/qlu-schedule-dom.js')
-    into generatedScheduleAssetsDir
+def webViewCompatibilityFile = rootProject.file('../webview-compatibility.json')
+def webViewCompatibility = new JsonSlurper().parse(webViewCompatibilityFile)
+def generatedWebViewAssetsDir = file("$buildDir/generated/webviewAssets")
+def buildWebViewAssets = tasks.register('buildWebViewAssets', Exec) {
+    workingDir rootProject.file('../../..')
+    commandLine 'node', 'apps/mobile/scripts/build-webview-assets.mjs', generatedWebViewAssetsDir.absolutePath
+    inputs.file webViewCompatibilityFile
+    inputs.file rootProject.file('../../../assets/qlu-schedule-dom.js')
+    inputs.dir rootProject.file('../webview-scripts')
+    inputs.file rootProject.file('../scripts/build-webview-assets.mjs')
+    outputs.dir generatedWebViewAssetsDir
 }
 
 kapt {
@@ -34,12 +43,16 @@ kapt {
 android {
     namespace = "io.github.c1oudreamw.lumatile"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildFeatures {
+        buildConfig = true
+    }
     defaultConfig {
         applicationId "io.github.c1oudreamw.lumatile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 14
         versionName "2.0.3"
+        buildConfigField "int", "MIN_WEBVIEW_MAJOR", webViewCompatibility.minimumMajor.toString()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -55,7 +68,7 @@ android {
         jvmTarget = '21'
     }
     sourceSets {
-        main.assets.srcDirs += generatedScheduleAssetsDir
+        main.assets.srcDirs += generatedWebViewAssetsDir
         androidTest.assets.srcDirs += files("$projectDir/schemas")
     }
     signingConfigs {
@@ -85,7 +98,7 @@ android {
     }
 }
 
-tasks.named('preBuild').configure { dependsOn copyQluScheduleDom }
+tasks.named('preBuild').configure { dependsOn buildWebViewAssets }
 
 tasks.matching { it.name == 'packageRelease' || it.name == 'assembleRelease' }.configureEach {
     doFirst {
