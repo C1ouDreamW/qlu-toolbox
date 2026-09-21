@@ -101,6 +101,15 @@ if(m==='saveSchedule'){if(window.failSave)throw Error('模拟磁盘写入失败'
                 page.locator('.modal-close').click()
                 page.get_by_role('button',name='设置',exact=True).click()
                 page.get_by_role('button',name='课表',exact=True).first.click()
+                page.set_viewport_size({'width':1700,'height':1000})
+                desktop_card = page.get_by_role('button', name='冲突课程1', exact=False).first
+                desktop_text = desktop_card.inner_text()
+                self.assertLess(desktop_text.index('@彩石北322323'), desktop_text.index('重点章节'))
+                self.assertLess(desktop_text.index('重点章节'), desktop_text.index('管红娇'))
+                self.assertEqual(desktop_card.evaluate('(e)=>getComputedStyle(e).color'), 'rgb(255, 255, 255)')
+                self.assertEqual(desktop_card.evaluate('(e)=>getComputedStyle(e).backgroundColor'), 'rgb(51, 102, 153)')
+                self.assertGreater(page.locator('.schedule-page').evaluate('(e)=>e.getBoundingClientRect().width'), 1300)
+                self.assertEqual(page.locator('.tt-period span').first.inner_text(), '08:30\n09:15')
                 page.get_by_role('button', name='2项重叠安排', exact=False).first.click()
                 self.assertEqual(page.locator('.course-detail-modal .course-conflict-option').count(),2)
                 # First welcome acceptance runs startup tasks without a restart.

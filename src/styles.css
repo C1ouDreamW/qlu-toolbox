@@ -3291,6 +3291,7 @@ select {
     display: flex;
     flex-direction: column;
     gap: 13px;
+    max-width: 1480px;
     min-height: calc(100% - 82px)
 }
 
@@ -3544,7 +3545,10 @@ select {
 
 .tt-period span {
     font-size: 10px;
-    color: var(--faint)
+    color: var(--faint);
+    line-height: 1.25;
+    text-align: center;
+    white-space: pre-line
 }
 
 .tt-course {
@@ -3552,22 +3556,24 @@ select {
     z-index: 1;
     margin: 4px;
     padding: 7px 9px;
-    border: 1px solid color-mix(in srgb, var(--course) 22%, var(--line));
+    border: 1px solid rgba(255, 255, 255, .72);
     border-radius: 8px;
-    background: color-mix(in srgb, var(--course) 12%, var(--surface));
-    color: var(--text);
+    background: var(--course);
+    color: #fff;
     display: flex;
     flex-direction: column;
     gap: 3px;
     overflow: hidden;
     text-align: left;
+    box-shadow: 0 3px 8px rgba(33, 55, 98, .13);
+    text-shadow: 0 1px 1px rgba(24, 50, 75, .22);
     transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease
 }
 
 .tt-course:hover {
-    border-color: color-mix(in srgb, var(--course) 38%, var(--line));
-    background: color-mix(in srgb, var(--course) 16%, var(--surface));
-    box-shadow: 0 5px 12px color-mix(in srgb, var(--course) 12%, transparent);
+    border-color: rgba(255, 255, 255, .9);
+    background: color-mix(in srgb, var(--course) 92%, #17314f);
+    box-shadow: 0 5px 12px color-mix(in srgb, var(--course) 28%, transparent);
     transform: translateY(-1px)
 }
 
@@ -3587,7 +3593,7 @@ select {
 
 .tt-course small {
     font-size: 10px;
-    color: var(--muted);
+    color: rgba(255, 255, 255, .94);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis
@@ -3617,7 +3623,10 @@ select {
 
 .tt-course.tt-course-other-week {
     opacity: .52;
-    border-style: dashed
+    border-style: dashed;
+    filter: saturate(.68);
+    box-shadow: none;
+    text-shadow: none
 }
 
 .tt-course.tt-course-other-week:hover,
@@ -3631,8 +3640,8 @@ select {
     margin-top: auto;
     padding: 1px 5px;
     border-radius: 4px;
-    background: color-mix(in srgb, var(--course) 18%, var(--surface));
-    color: var(--text);
+    background: rgba(255, 255, 255, .34);
+    color: #fff;
     line-height: 1.4
 }
 
@@ -3666,9 +3675,10 @@ select {
     bottom: 5px;
     width: 24px;
     height: 24px;
-    background: color-mix(in srgb, var(--course) 45%, transparent);
-    color: var(--text);
+    background: rgba(255, 255, 255, .58);
+    color: #18324b;
     clip-path: path('M24 4.8 Q24 0 20.6 3.4 L3.4 20.6 Q0 24 4.8 24 H21.5 Q24 24 24 21.5 Z');
+    text-shadow: none;
     pointer-events: none
 }
 
