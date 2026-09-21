@@ -24,7 +24,7 @@ const emit = defineEmits<{ close: [] }>()
 
 <style scoped>
 .picker-scrim{position:fixed;z-index:40;top:0;right:0;bottom:0;left:0;border:0;background:rgba(11,28,44,.48);backdrop-filter:blur(4px)}
-.picker-sheet{position:fixed;z-index:41;right:0;bottom:0;left:0;max-width:680px;margin:auto;padding:8px 18px calc(16px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;background:#fff;box-shadow:0 -20px 60px rgba(9,35,59,.2)}
+.picker-sheet{position:fixed;z-index:41;right:0;bottom:0;left:0;max-width:680px;margin:auto;padding:8px 18px calc(16px + var(--safe-area-inset-bottom));border-radius:24px 24px 0 0;background:#fff;box-shadow:0 -20px 60px rgba(9,35,59,.2)}
 .sheet-handle{width:42px;height:4px;margin:0 auto 10px;border-radius:9px;background:#cfdae3}
 .picker-sheet header{display:flex;align-items:center;justify-content:space-between;padding:2px 0 4px}
 .picker-sheet h2{margin:0;font-size:19px}

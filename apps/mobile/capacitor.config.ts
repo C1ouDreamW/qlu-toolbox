@@ -6,10 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   android: { allowMixedContent: false },
   plugins: {
-    // SystemBars 的 CSS insets 处理按设备 WebView 版本分派：WebView 140 之前
-    // Chromium 的 env(safe-area-inset-*) 恒为 0，140+ 的透传路径在部分 OEM 构建
-    // 上仍不生效，顶栏会被状态栏遮挡。insets 统一由 MainActivity 原生接管，
-    // 这里必须保持关闭，避免两套 padding 叠加。
+    // 安全区由 MainActivity 读取原生 Insets 后注入 CSS 变量，避免受 WebView
+    // 版本及 OEM 对 env(safe-area-inset-*) 支持差异影响；保持关闭以免重复处理。
     SystemBars: { insetsHandling: 'disable' },
   },
 }

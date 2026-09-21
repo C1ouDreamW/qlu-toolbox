@@ -1,12 +1,15 @@
 package io.github.c1oudreamw.lumatile
 
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.BridgeActivity
+import kotlin.math.roundToInt
 
 class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -15,6 +18,7 @@ class MainActivity : BridgeActivity() {
         registerPlugin(SchedulePlugin::class.java)
         registerPlugin(CreditReportPlugin::class.java)
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         installSystemBarInsets()
         lockWebViewTextZoom()
         // 打开应用时同步刷新桌面小组件：覆盖升级不会自动重绘旧组件，这里兜底触发一次
@@ -23,10 +27,8 @@ class MainActivity : BridgeActivity() {
 
     /**
      * 确定性接管系统栏 insets（capacitor.config.ts 中 SystemBars.insetsHandling=disable）。
-     * Android 15+ 因 targetSdk 36 强制 edge-to-edge，系统不再为状态栏和手势条预留空间；
-     * Android 15 之前窗口默认不画进系统栏，insets 已被 DecorView 消费，无需补 padding。
-     * 传给 WebView 的 safe-area insets 统一清零，网页端 env(safe-area-inset-*) 恒为 0，
-     * 布局不再依赖各设备 WebView 版本对 env() 的支持差异。
+     * WebView 背景铺满系统栏，交互内容通过原生注入的 CSS 安全区变量避让；
+     * 横向挖孔继续由容器 padding 兜底，键盘弹出时只保留 IME 底部避让。
      */
     private fun installSystemBarInsets() {
         val parent = bridge?.webView?.parent as? ViewGroup ?: return
@@ -36,14 +38,8 @@ class MainActivity : BridgeActivity() {
             )
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             val keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                view.setPadding(
-                    bars.left,
-                    bars.top,
-                    bars.right,
-                    if (keyboardVisible) ime.bottom else bars.bottom,
-                )
-            }
+            view.setPadding(bars.left, 0, bars.right, if (keyboardVisible) ime.bottom else 0)
+            injectSafeAreaInsets(bars.top, if (keyboardVisible) 0 else bars.bottom)
             WindowInsetsCompat.Builder(insets)
                 .setInsets(
                     WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
@@ -51,6 +47,30 @@ class MainActivity : BridgeActivity() {
                 )
                 .build()
         }
+        ViewCompat.requestApplyInsets(parent)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun enableEdgeToEdge() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+    }
+
+    private fun injectSafeAreaInsets(top: Int, bottom: Int) {
+        val density = resources.displayMetrics.density
+        val topCssPx = (top / density).roundToInt()
+        val bottomCssPx = (bottom / density).roundToInt()
+        bridge?.webView?.evaluateJavascript(
+            """
+            document.documentElement.style.setProperty('--safe-area-inset-top', '${topCssPx}px');
+            document.documentElement.style.setProperty('--safe-area-inset-bottom', '${bottomCssPx}px');
+            """.trimIndent(),
+            null,
+        )
     }
 
     /** 系统字体缩放会按比例放大 WebView 文字，把固定行高的课表格和顶栏布局撑变形。 */
