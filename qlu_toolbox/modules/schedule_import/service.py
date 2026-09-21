@@ -87,6 +87,10 @@ def _wait_for_capture(
             pass
 
     context = page.context
+    try:
+        context.add_init_script(script)
+    except Exception:
+        pass
     context.on("download", on_download)
     last_click = ""
     last_dom_error = ""

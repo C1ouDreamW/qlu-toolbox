@@ -42,12 +42,32 @@ document.getElementById('dc').addEventListener('click', () => {
 
 IFRAME_OUTER_HTML = '<iframe src="/frame.html"></iframe>'
 
+IFRAME_LATE_OUTER_HTML = """
+<script>
+setTimeout(() => {
+  const frame = document.createElement('iframe');
+  frame.src = '/frame-immediate.html';
+  document.body.append(frame);
+}, 600);
+</script>
+"""
+
+IFRAME_IMMEDIATE_HTML = """
+<form action="/jwglxt/kbcx/xskbcx_cxDcExcelXskb.html" method="post">
+  <input type="hidden" name="xnm" value="2026">
+  <button id="dc" type="submit">输出EXCEL</button>
+</form>
+<script>document.getElementById('dc').click()</script>
+"""
+
 PAGES = {
     "/": EXPORT_FORM_HTML,
     "/frame.html": NATIVE_SUBMIT_HTML,
+    "/frame-immediate.html": IFRAME_IMMEDIATE_HTML,
     "/native": NATIVE_SUBMIT_HTML,
     "/ajax": AJAX_HTML,
     "/iframe": IFRAME_OUTER_HTML,
+    "/iframe-late": IFRAME_LATE_OUTER_HTML,
 }
 
 
@@ -130,7 +150,7 @@ class ScheduleCaptureTests(ScheduleCaptureEndToEndTests):
         self.assertEqual(extension, ".xls")
 
     def test_catches_export_inside_iframe(self):
-        content, extension = self.capture("/iframe")
+        content, extension = self.capture("/iframe-late")
         self.assertEqual(content, CONTENT)
         self.assertEqual(extension, ".xls")
 
