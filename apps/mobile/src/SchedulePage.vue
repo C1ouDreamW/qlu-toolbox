@@ -540,12 +540,12 @@ onMounted(() => { void loadSchedules() })
 .meeting-card{position:relative;min-height:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3px}
 .meeting-card>strong{flex-shrink:0;display:-webkit-box;overflow-wrap:anywhere;-webkit-line-clamp:3;-webkit-box-orient:vertical}
 .meeting-card>span,.meeting-card>small{margin-top:0}
-.meeting-card>.course-location,.meeting-card>.course-note,.meeting-card>.course-teacher{flex-shrink:0;display:-webkit-box;overflow-wrap:anywhere;-webkit-box-orient:vertical}
-.meeting-card>.course-location{-webkit-line-clamp:2}
+.meeting-card>.course-location{flex-shrink:0;overflow-wrap:anywhere}
+.meeting-card>.course-note,.meeting-card>.course-teacher{flex-shrink:0;display:-webkit-box;overflow-wrap:anywhere;-webkit-box-orient:vertical}
 .meeting-card>.course-note,.meeting-card>.course-teacher{-webkit-line-clamp:1}
 .meeting-card.meeting-card-conflict{padding-bottom:21px}
 .meeting-card.meeting-card-short>strong{-webkit-line-clamp:2}
-.meeting-card.meeting-card-short>small,.meeting-card.meeting-card-short>.course-location{display:none}
+.meeting-card.meeting-card-short>small{display:none}
 .meeting-card:focus-visible{outline:2px solid #0b76e8;outline-offset:-2px}
 .course-continuation{margin-right:3px;font-size:9px;font-style:normal;font-weight:500;opacity:.85}
 .meeting-card>.course-conflict-badge{position:absolute;right:5px;bottom:5px;display:block;width:24px;height:24px;margin:0;background:rgba(255,255,255,.55);color:#18324b;clip-path:path('M24 4.8 Q24 0 20.6 3.4 L3.4 20.6 Q0 24 4.8 24 H21.5 Q24 24 24 21.5 Z');text-shadow:none;pointer-events:none}

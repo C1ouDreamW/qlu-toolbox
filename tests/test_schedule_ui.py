@@ -95,15 +95,19 @@ if(m==='saveSchedule'){if(window.failSave)throw Error('模拟磁盘写入失败'
                 book['courses'] = [dict(id=f'c{i}', name=f'冲突课程{i}', teachers=['管红娇'], color='#336699', credit=None, code='', teachingClass='', note='重点章节' if i == 1 else '',
                     meetings=[dict(id=f'm{i}', weeks=list(range(1,20)), weekday=1, startPeriod=1, endPeriod=2,
                                    location='彩石北322323', teachers=['管红娇'], source='manual')]) for i in (1,2)]
+                book['courses'].append(dict(id='c3', name='单节课程', teachers=[], color='#336699', credit=None, code='', teachingClass='', note='',
+                    meetings=[dict(id='m3', weeks=list(range(1,20)), weekday=2, startPeriod=3, endPeriod=3,
+                                   location='彩石南314315', teachers=[], source='manual')]))
                 row['payload'] = json.dumps(book)
                 mobile.evaluate('(row)=>localStorage.lumatilePreviewSchedules=JSON.stringify([row])', row)
                 mobile.reload()
                 card_text = mobile.get_by_role('button', name='冲突课程1', exact=False).first.inner_text()
                 self.assertLess(card_text.index('@彩石北322323'), card_text.index('重点章节'))
                 self.assertLess(card_text.index('重点章节'), card_text.index('管红娇'))
-                self.assertEqual(mobile.locator('.course-location').first.evaluate('(e)=>getComputedStyle(e).webkitLineClamp'), '2')
+                self.assertEqual(mobile.locator('.course-location').first.evaluate('(e)=>getComputedStyle(e).webkitLineClamp'), 'none')
                 self.assertEqual(mobile.locator('.course-note').first.evaluate('(e)=>getComputedStyle(e).webkitLineClamp'), '1')
                 self.assertEqual(mobile.locator('.course-teacher').first.evaluate('(e)=>getComputedStyle(e).webkitLineClamp'), '1')
+                self.assertIn('@彩石南314315', mobile.get_by_role('button', name='单节课程', exact=False).first.inner_text())
                 mobile.get_by_role('button', name='2项重叠安排', exact=False).first.click()
                 self.assertIn('重点章节', mobile.locator('.course-detail').inner_text())
                 self.assertEqual(mobile.locator('.course-detail .course-conflict-option').count(),2)
