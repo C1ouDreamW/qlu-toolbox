@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Download, FilePlus2,
-  FolderOpen, Loader2, MoreHorizontal, Pencil, Plus, Repeat, SlidersHorizontal, Trash2,
+  FolderOpen, Loader2, MoreHorizontal, Pencil, Plus, Repeat, SlidersHorizontal, Sparkles, Trash2,
 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
@@ -11,7 +11,7 @@ import ScheduleCourseEditor from '@/pages/schedule/ScheduleCourseEditor.vue'
 import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
 import {
-  datesForWeek, isNoClassDate, parseQluScheduleDom, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
+  createShowcaseSchedule, datesForWeek, isNoClassDate, parseQluScheduleDom, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
   visibleWeekdays, weekForDate, validateSchedule, scheduleSegments, normalizeScheduleColor,
 } from '@lumatile/academic-core'
 import type { ScheduleSegment, SchedulePlacement } from '@lumatile/academic-core'
@@ -335,6 +335,13 @@ function importFromFile() {
   })
 }
 
+function importShowcase() {
+  menu.value = null
+  openImportPreview({
+    kind: 'backup', fileName: '虚拟展示课表.json', payload: JSON.stringify(createShowcaseSchedule()),
+  })
+}
+
 const importState = appStore.state.scheduleImport
 
 function importFromSchool() {
@@ -452,6 +459,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               <div v-if="menu === 'import'" class="menu-pop">
                 <button :disabled="busy" @click="importFromSchool"><Download :size="15" /> 从教务导入…</button>
                 <button :disabled="busy" @click="importFromFile"><FolderOpen :size="15" /> 从文件导入…</button>
+                <button :disabled="busy" @click="importShowcase"><Sparkles :size="15" /> 导入展示课表</button>
               </div>
             </div>
             <button class="secondary-button" :disabled="busy" @click="openManager('courses')"><BookOpen :size="15" /> 课程管理<span v-if="pendingCount" class="pending-badge">{{ pendingCount }}</span></button>
@@ -531,6 +539,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <div class="empty-actions">
           <button class="primary-button" :disabled="busy" @click="importFromSchool"><Download :size="16" /> 从教务导入</button>
           <button class="secondary-button" :disabled="busy" @click="importFromFile"><FolderOpen :size="16" /> 从文件导入…</button>
+          <button class="secondary-button" :disabled="busy" @click="importShowcase"><Sparkles :size="16" /> 导入展示课表</button>
           <button class="secondary-button" :disabled="busy" @click="createBlank"><FilePlus2 :size="16" /> 新建空白课表</button>
         </div>
       </section>

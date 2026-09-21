@@ -3,10 +3,10 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import {
   AlertCircle, BookOpen, CalendarDays, Check, Clock3, Download,
   FileSpreadsheet, FolderOpen, MapPin, MoreHorizontal, Plus, RefreshCw, School, Share2,
-  SlidersHorizontal, Users, X,
+  SlidersHorizontal, Sparkles, Users, X,
 } from 'lucide-vue-next'
 import {
-  datesForWeek, isNoClassDate, parseQluScheduleDom, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
+  createShowcaseSchedule, datesForWeek, isNoClassDate, parseQluScheduleDom, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
   visibleWeekdays, weekForDate, validateSchedule, formatScheduleWeeks, scheduleSegments, normalizeScheduleColor,
 } from '@lumatile/academic-core'
 import type { ScheduleSegment, SchedulePlacement } from '@lumatile/academic-core'
@@ -225,6 +225,14 @@ async function importFromSchool() {
   finally { busy.value = false }
 }
 
+function importShowcase() {
+  menuOpen.value = false
+  importMenuOpen.value = false
+  previewImport({
+    kind: 'backup', fileName: '虚拟展示课表.json', payload: JSON.stringify(createShowcaseSchedule()),
+  })
+}
+
 function previewImport(source: ScheduleImportSource) {
   if (source.kind === 'qlu-dom') {
     if (!source.dom) throw new Error('网页课表数据为空')
@@ -385,6 +393,7 @@ onMounted(() => { void loadSchedules() })
     <Transition name="import-pop"><section v-if="importMenuOpen" class="import-menu">
       <button :disabled="!nativeAndroid || busy" @click="importFromSchool"><School /><span><strong>从教务导入</strong><small>登录教务并读取当前课表</small></span></button>
       <button :disabled="!nativeAndroid || busy" @click="chooseImport"><FileSpreadsheet /><span><strong>从文件导入</strong><small>Excel 或课表备份</small></span></button>
+      <button :disabled="busy" @click="importShowcase"><Sparkles /><span><strong>导入展示课表</strong><small>内置全虚拟场景样本</small></span></button>
     </section></Transition>
 
     <div v-if="error" class="schedule-alert"><AlertCircle />{{ error }}<button @click="error = ''"><X /></button></div>
@@ -448,6 +457,7 @@ onMounted(() => { void loadSchedules() })
       <span><CalendarDays /></span><h1>还没有课表</h1><p>从教务导入 XLS 或 XLSX，也可以从同学分享的备份开始。</p>
       <button class="primary" :disabled="!nativeAndroid || busy" @click="importFromSchool"><School />{{ busy ? '正在读取…' : '从教务导入' }}</button>
       <button class="secondary" :disabled="!nativeAndroid || busy" @click="chooseImport"><FolderOpen />从文件导入</button>
+      <button class="secondary" :disabled="busy" @click="importShowcase"><Sparkles />导入展示课表</button>
       <button class="secondary" @click="openEditor()"><Plus />手工新建</button>
     </div>
 

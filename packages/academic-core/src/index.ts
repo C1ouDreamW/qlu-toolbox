@@ -27,6 +27,109 @@ export const SCHEDULE_COLORS = [
   '#E26689', '#E68FA8', '#7099EF', '#61C6C9', '#A588E0', '#E5AB5C', '#E17A5F', '#67ACE4',
 ] as const
 
+export function createShowcaseSchedule(now = new Date()): ScheduleBook {
+  const allWeeks = Array.from({ length: 19 }, (_, index) => index + 1)
+  const oddWeeks = allWeeks.filter(week => week % 2 === 1)
+  const evenWeeks = allWeeks.filter(week => week % 2 === 0)
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  start.setDate(start.getDate() - (start.getDay() + 6) % 7 - 14)
+  const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  const noClassDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 18)
+  const academicYear = start.getMonth() >= 7 ? start.getFullYear() : start.getFullYear() - 1
+  const meeting = (
+    id: string, weeks: number[], weekday: number, startPeriod: number, endPeriod: number,
+    location: string, teachers: string[],
+  ): ScheduleMeeting => ({ id, weeks, weekday, startPeriod, endPeriod, location, teachers, source: 'manual' })
+
+  return {
+    schemaVersion: 1,
+    id: 'showcase-template',
+    name: '全场景展示课表（虚拟）',
+    academicYear: `${academicYear}-${academicYear + 1}`,
+    semester: start.getMonth() >= 7 ? '1' : '2',
+    startDate: dateKey(start),
+    totalWeeks: 19,
+    weekendMode: 'show',
+    showOtherWeekCourses: true,
+    periods: QLU_PERIODS.map(period => ({ ...period })),
+    noClassDates: [{ date: dateKey(noClassDate), reason: '虚拟活动日（展示）' }],
+    courses: [
+      {
+        id: 'showcase-course-regular', name: '界面构成基础', code: 'DEMO-1001', teachingClass: '虚拟展示班-01',
+        teachers: ['演示教师·云舟'], credit: 2, color: SCHEDULE_COLORS[0], note: '普通双节课程',
+        meetings: [meeting('showcase-meeting-regular', allWeeks, 1, 3, 4, '虚拟校区·星图楼 A201', ['演示教师·云舟'])],
+      },
+      {
+        id: 'showcase-course-partial-conflict', name: '跨时段协作演练', code: 'DEMO-1002', teachingClass: '虚拟展示班-02',
+        teachers: ['演示教师·青屿'], credit: 1, color: SCHEDULE_COLORS[5], note: '与相邻课程部分重叠',
+        meetings: [meeting('showcase-meeting-partial-conflict', allWeeks, 1, 4, 5, '虚拟校区·协作室 C305', ['演示教师·青屿'])],
+      },
+      {
+        id: 'showcase-course-odd', name: '数据叙事工作坊', code: 'DEMO-2001', teachingClass: '虚拟展示班-03',
+        teachers: ['演示教师·见山'], credit: 1, color: SCHEDULE_COLORS[2], note: '单节 · 单周课程',
+        meetings: [meeting('showcase-meeting-odd', oddWeeks, 2, 1, 1, '虚拟校区·创意工坊 B105', ['演示教师·见山'])],
+      },
+      {
+        id: 'showcase-course-even', name: '原型设计实践', code: 'DEMO-2002', teachingClass: '虚拟展示班-04',
+        teachers: ['演示教师·晴川'], credit: 2, color: SCHEDULE_COLORS[3], note: '双周课程，本周显示为非本周预览',
+        meetings: [meeting('showcase-meeting-even', evenWeeks, 2, 5, 6, '虚拟校区·模型室 B206', ['演示教师·晴川'])],
+      },
+      {
+        id: 'showcase-course-conflict-a', name: '信息可视化专题 A', code: 'DEMO-3001', teachingClass: '虚拟展示班-05',
+        teachers: ['演示教师·望舒'], credit: 2, color: SCHEDULE_COLORS[4], note: '完全重叠课程之一',
+        meetings: [meeting('showcase-meeting-conflict-a', allWeeks, 3, 3, 4, '虚拟校区·光谱厅 D301', ['演示教师·望舒'])],
+      },
+      {
+        id: 'showcase-course-conflict-b', name: '信息可视化专题 B', code: 'DEMO-3002', teachingClass: '虚拟展示班-06',
+        teachers: ['演示教师·星野'], credit: 2, color: SCHEDULE_COLORS[6], note: '完全重叠课程之二',
+        meetings: [meeting('showcase-meeting-conflict-b', allWeeks, 3, 3, 4, '虚拟校区·数据室 D302', ['演示教师·星野'])],
+      },
+      {
+        id: 'showcase-course-multiple', name: '交互系统实验', code: 'DEMO-4001', teachingClass: '虚拟展示班-07',
+        teachers: ['演示教师·南枝', '演示教师·砚秋'], credit: 3, color: SCHEDULE_COLORS[7], note: '同一课程含多个上课时段',
+        meetings: [
+          meeting('showcase-meeting-multiple-a', allWeeks, 3, 7, 8, '虚拟校区·交互实验室 E407', ['演示教师·南枝']),
+          meeting('showcase-meeting-multiple-b', allWeeks, 4, 1, 2, '虚拟校区·交互实验室 E407', ['演示教师·砚秋']),
+        ],
+      },
+      {
+        id: 'showcase-course-minimal', name: '自主研修', code: 'DEMO-4002', teachingClass: '虚拟展示班-08',
+        teachers: [], credit: null, color: SCHEDULE_COLORS[1], note: '',
+        meetings: [meeting('showcase-meeting-minimal', allWeeks, 4, 9, 9, '', [])],
+      },
+      {
+        id: 'showcase-course-long', name: '跨学科创新项目：从问题发现到原型验证', code: 'DEMO-5001', teachingClass: '虚拟展示班-超长文本组',
+        teachers: ['演示教师·长风', '演示教师·微澜'], credit: 4, color: SCHEDULE_COLORS[0], note: '用于验证长课程名、长地点、多教师与停课日显示',
+        meetings: [meeting('showcase-meeting-long', allWeeks, 5, 3, 4, '虚拟校区·未来中心多功能联合创新实验空间 F508', ['演示教师·长风', '演示教师·微澜'])],
+      },
+      {
+        id: 'showcase-course-weekend', name: '周末创客实践', code: 'DEMO-6001', teachingClass: '虚拟展示班-09',
+        teachers: ['演示教师·木白'], credit: 1.5, color: SCHEDULE_COLORS[5], note: '周末四节连排 · 间隔周次',
+        meetings: [meeting('showcase-meeting-weekend', [3, 6, 9, 12, 15, 18], 6, 5, 8, '虚拟校区·创客车间 G101', ['演示教师·木白'])],
+      },
+      {
+        id: 'showcase-course-other-week', name: '阶段性公开课', code: 'DEMO-7001', teachingClass: '虚拟展示班-10',
+        teachers: ['演示教师·初弦'], credit: 0.5, color: SCHEDULE_COLORS[4], note: '仅部分周次，用于展示非本周课程',
+        meetings: [meeting('showcase-meeting-other-week', [4, 8, 12, 16], 7, 5, 8, '虚拟校区·开放讲堂 H202', ['演示教师·初弦'])],
+      },
+      {
+        id: 'showcase-course-night', name: '夜间星图记录', code: 'DEMO-7002', teachingClass: '虚拟展示班-11',
+        teachers: ['演示教师·北辰'], credit: 1, color: SCHEDULE_COLORS[2], note: '周日晚间课程',
+        meetings: [meeting('showcase-meeting-night', allWeeks, 7, 10, 11, '虚拟校区·观测台 J顶层', ['演示教师·北辰'])],
+      },
+      {
+        id: 'showcase-course-pending', name: '待定主题研讨', code: 'DEMO-8001', teachingClass: '虚拟展示班-12',
+        teachers: ['演示教师·空青'], credit: 1, color: SCHEDULE_COLORS[3], note: '周次已知，时间与地点待安排',
+        meetings: [{
+          id: 'showcase-meeting-pending', weeks: [5, 10, 15], weekday: null, startPeriod: null, endPeriod: null,
+          location: '', teachers: ['演示教师·空青'], source: 'manual',
+        }],
+      },
+    ],
+    updatedAt: now.toISOString(),
+  }
+}
+
 const LEGACY_SCHEDULE_COLORS = [
   '#4F86C6', '#E77792', '#7B6FD0', '#2CA6A4', '#E4875D', '#5D9B76', '#A66DB0', '#C18B35',
 ] as const

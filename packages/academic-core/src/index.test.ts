@@ -4,6 +4,7 @@ import {
   academicYearLabel,
   buildExportBody,
   calculateGpa,
+  createShowcaseSchedule,
   defaultAcademicYear,
   gradePoint,
   datesForWeek,
@@ -14,6 +15,7 @@ import {
   parseScheduleRows,
   parseWeekExpression,
   parseGradeRows,
+  scheduleSegments,
   semesterNumber,
   suggestedGradeFileName,
   visibleWeekdays,
@@ -51,6 +53,29 @@ describe('schedule week rules', () => {
     expect(parseWeekExpression('单1-7')).toEqual([1, 3, 5, 7])
     expect(parseWeekExpression('2,4,8')).toEqual([2, 4, 8])
   })
+})
+
+it('creates a valid all-virtual showcase schedule covering special display cases', () => {
+  const today = new Date(2026, 8, 21, 12)
+  const schedule = createShowcaseSchedule(today)
+  const meetings = schedule.courses.flatMap(course => course.meetings)
+  expect(parseScheduleBackup(JSON.stringify(schedule))).toEqual(schedule)
+  expect(schedule).toMatchObject({
+    name: '全场景展示课表（虚拟）', startDate: '2026-09-07', totalWeeks: 19,
+    weekendMode: 'show', showOtherWeekCourses: true,
+  })
+  expect(weekForDate(schedule, today)).toBe(3)
+  expect(schedule.courses.every(course => course.code.startsWith('DEMO-')
+    && course.teachingClass.startsWith('虚拟展示班'))).toBe(true)
+  expect(meetings.every(item => !item.location || item.location.startsWith('虚拟校区'))).toBe(true)
+  expect(meetings.flatMap(item => item.teachers).every(teacher => teacher.startsWith('演示教师·'))).toBe(true)
+  expect(meetings.filter(item => item.weekday === null)).toHaveLength(1)
+  expect(meetingConflicts(meetings).length).toBeGreaterThanOrEqual(2)
+  expect(isNoClassDate(schedule, new Date(2026, 8, 25))?.reason).toContain('虚拟')
+  const segments = scheduleSegments(schedule, 3, {}, true)
+  expect(segments.some(segment => segment.candidates.length > 1)).toBe(true)
+  expect(segments.some(segment => segment.continued)).toBe(true)
+  expect(segments.some(segment => segment.otherWeek)).toBe(true)
 })
 
 describe('QLU schedule workbook rows', () => {
