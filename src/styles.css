@@ -3498,8 +3498,18 @@ select {
 }
 
 .tt-col {
+    position: relative;
     grid-row: 2 / span 11;
     border-right: 1px solid var(--line)
+}
+
+.tt-col:after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(to bottom, transparent calc(100% - 1px), var(--line) 0);
+    background-size: 100% 9.090909%;
+    pointer-events: none
 }
 
 .tt-col:last-child {
