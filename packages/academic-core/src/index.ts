@@ -24,8 +24,17 @@ export const QLU_PERIODS: PeriodTime[] = [
 ].map(([start, end], index) => ({ period: index + 1, start, end }))
 
 export const SCHEDULE_COLORS = [
+  '#E26689', '#E68FA8', '#7099EF', '#61C6C9', '#A588E0', '#E5AB5C', '#E17A5F', '#67ACE4',
+] as const
+
+const LEGACY_SCHEDULE_COLORS = [
   '#4F86C6', '#E77792', '#7B6FD0', '#2CA6A4', '#E4875D', '#5D9B76', '#A66DB0', '#C18B35',
 ] as const
+
+export function normalizeScheduleColor(color: string): string {
+  const index = LEGACY_SCHEDULE_COLORS.findIndex(item => item.toLowerCase() === color.toLowerCase())
+  return index < 0 ? color : SCHEDULE_COLORS[index]
+}
 
 export const EXPORT_COLUMNS = [
   'kcmc@课程名称',

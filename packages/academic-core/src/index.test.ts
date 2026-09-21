@@ -9,6 +9,7 @@ import {
   datesForWeek,
   isNoClassDate,
   meetingConflicts,
+  normalizeScheduleColor,
   parseScheduleBackup,
   parseScheduleRows,
   parseWeekExpression,
@@ -18,6 +19,11 @@ import {
   visibleWeekdays,
   weekForDate,
 } from './index'
+
+it('uses the refreshed default schedule palette without changing custom colors', () => {
+  expect(normalizeScheduleColor('#4f86c6')).toBe('#E26689')
+  expect(normalizeScheduleColor('#123456')).toBe('#123456')
+})
 
 describe('academic year and semester contracts', () => {
   it('changes the default academic year in August', () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ArrowLeft, ChevronRight, Copy, Plus, Save, Trash2 } from 'lucide-vue-next'
-import { meetingConflicts, SCHEDULE_COLORS } from '@lumatile/academic-core'
+import { meetingConflicts, normalizeScheduleColor, SCHEDULE_COLORS } from '@lumatile/academic-core'
 import type { ScheduleBook, ScheduleCourse, ScheduleMeeting } from '@lumatile/contracts'
 import { formatMeetingSummary, formatWeekSummary } from '@lumatile/schedule-ui'
 import WeekPickerSheet from './WeekPickerSheet.vue'
@@ -18,7 +18,7 @@ const code = ref(props.course?.code || '')
 const teachingClass = ref(props.course?.teachingClass || '')
 const teacherText = ref(props.course?.teachers.join('、') || '')
 const credit = ref<number | null>(props.course?.credit ?? null)
-const color = ref(props.course?.color || SCHEDULE_COLORS[props.book.courses.length % SCHEDULE_COLORS.length])
+const color = ref(props.course ? normalizeScheduleColor(props.course.color) : SCHEDULE_COLORS[props.book.courses.length % SCHEDULE_COLORS.length])
 const note = ref(props.course?.note || '')
 const error = ref('')
 const meetings = ref<MeetingDraft[]>((props.course?.meetings.length ? props.course.meetings : [blankMeeting()]).map(meeting => ({

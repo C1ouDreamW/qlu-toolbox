@@ -12,7 +12,7 @@ import ScheduleManager from '@/pages/schedule/ScheduleManager.vue'
 import { appStore } from '@/store'
 import {
   datesForWeek, isNoClassDate, parseQluScheduleDom, parseScheduleBackup, parseScheduleRows, QLU_PERIODS,
-  visibleWeekdays, weekForDate, validateSchedule, scheduleSegments,
+  visibleWeekdays, weekForDate, validateSchedule, scheduleSegments, normalizeScheduleColor,
 } from '@lumatile/academic-core'
 import type { ScheduleSegment, SchedulePlacement } from '@lumatile/academic-core'
 import { readScheduleDisplayChoices, saveScheduleDisplayChoices } from '@lumatile/schedule-ui'
@@ -497,7 +497,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           <button
             v-for="segment in segments" :key="segment.key"
             class="tt-course" :class="{ 'tt-course-short': segment.startPeriod === segment.endPeriod, 'tt-course-conflict': segment.candidates.length > 1, 'tt-course-other-week': segment.otherWeek }"
-            :style="{ '--course': segment.item.course.color, gridColumn: String(columnFor(segment.weekday)), gridRow: `${segment.startPeriod + 1} / span ${segment.endPeriod - segment.startPeriod + 1}` }"
+            :style="{ '--course': normalizeScheduleColor(segment.item.course.color), gridColumn: String(columnFor(segment.weekday)), gridRow: `${segment.startPeriod + 1} / span ${segment.endPeriod - segment.startPeriod + 1}` }"
             :aria-label="`${segment.otherWeek ? '非本周课程，' : ''}${segment.item.course.name}，${meetingLine(segment.item.meeting)}${segment.candidates.length > 1 ? `，第${segment.startPeriod}–${segment.endPeriod}节有${segment.candidates.length}项重叠安排，点击切换显示` : ''}`"
             @click="openSegment(segment)"
           >
@@ -550,7 +550,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           <legend>{{ noClass(selectedSegment.weekday) ? '停课日原安排' : '重叠时段' }} · 第{{ selectedSegment.startPeriod }}–{{ selectedSegment.endPeriod }}节</legend>
           <p>选择在课表中显示的课程，仅本周生效，不改变课程安排。</p>
           <label v-for="item in selectedSegment.candidates" :key="item.meeting.id" class="course-conflict-option" :class="{ active: selectedSegment.item.meeting.id === item.meeting.id }">
-            <i :style="{ background: item.course.color }" />
+            <i :style="{ background: normalizeScheduleColor(item.course.color) }" />
             <span><strong>{{ item.course.name }}</strong><small>完整 {{ item.meeting.startPeriod }}–{{ item.meeting.endPeriod }}节 · {{ item.meeting.location || '地点待定' }}</small><small>{{ item.meeting.teachers.join('、') || item.course.teachers.join('、') || '教师待定' }}</small></span>
             <input type="radio" name="schedule-display" :value="item.meeting.id" :checked="selectedSegment.item.meeting.id === item.meeting.id" :aria-label="`在课表中显示${item.course.name}，第${item.meeting.startPeriod}–${item.meeting.endPeriod}节`" @change="chooseDisplay(item)" />
           </label>
