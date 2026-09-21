@@ -29,6 +29,7 @@ node_modules/
 /apps/mobile/android/build/
 /apps/mobile/android/app/build/
 /npm-cache/
+/.uv-cache/
 /deployment/
 /artifacts/
 /tmp/

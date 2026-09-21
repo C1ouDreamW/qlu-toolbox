@@ -50,8 +50,8 @@ android {
         applicationId "io.github.c1oudreamw.lumatile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 14
-        versionName "2.0.3"
+        versionCode 15
+        versionName "2.0.4"
         buildConfigField "int", "MIN_WEBVIEW_MAJOR", webViewCompatibility.minimumMajor.toString()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
