@@ -63,6 +63,14 @@ APK 输出：`apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`。
 adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Windows 上可以用 `scripts/build-and-install-android.ps1` 一次完成「构建最新代码 + 安装到 adb 设备」（内部调用上面的 `scripts/build-mobile.ps1`，不重复构建逻辑）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-and-install-android.ps1
+```
+
+脚本自动定位 adb 与目标设备（只有一台在线时直接选中，多台用 `-Serial` 指定），发现设备上已装正式版时自动改用下面的共存测试包，安装后回读包名与版本号核对，并且永远不会卸载正式版。常用参数：`-AppIdSuffix .test`、`-AppLabel "一格有光（联调）"`、`-NoCoexist`（强制原包名）、`-SkipTests`（跳过单测）、`-Launch`（装完启动应用）、`-DryRun`（只做前置检查并打印命令，不构建不安装）。
+
 临时测试包可与测试机上的正式版共存：给 debug 构建加包名后缀，得到独立应用 ID 的测试包，正式版的登录状态、课表与学分要求都不受影响。
 
 ```powershell

@@ -240,7 +240,17 @@ cd apps/mobile/android
 ./gradlew.bat testDebugUnitTest assembleDebug
 ```
 
-APK 输出到 `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`。Release APK 必须配置长期正式签名，具体环境变量和密钥库要求见 [`apps/mobile/README.md`](apps/mobile/README.md)。
+APK 输出到 `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`。
+
+Windows 上一键构建并安装到 adb 连接的设备：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-and-install-android.ps1
+```
+
+设备上已装正式版时会自动改用共存测试包（包名后缀 `.test`），不卸载正式版，也不影响其数据。
+
+Release APK 必须配置长期正式签名，具体环境变量和密钥库要求见 [`apps/mobile/README.md`](apps/mobile/README.md)。
 
 ## 项目结构
 
