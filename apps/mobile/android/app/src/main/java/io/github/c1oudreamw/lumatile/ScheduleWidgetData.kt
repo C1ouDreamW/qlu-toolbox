@@ -32,6 +32,7 @@ internal object ScheduleWidgetData {
         val periodStarts: List<String>,
         val periodEnds: List<String>,
         val noClassDates: Set<String>,
+        val dateOverrides: Map<String, String> = emptyMap(),
         val courses: List<WidgetCourse>,
     )
 
@@ -60,8 +61,12 @@ internal object ScheduleWidgetData {
     }
 
     internal fun classesOn(schedule: ParsedSchedule, date: LocalDate, now: LocalTime? = null): List<WidgetItem> {
-        if (schedule.noClassDates.contains(date.toString())) return emptyList()
-        val week = weekForDate(schedule.startDate, date)
+        val sourceDate = schedule.dateOverrides[date.toString()]?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: date
+        val isOverrideSource = schedule.dateOverrides.values.any { it == date.toString() }
+        if ((schedule.noClassDates.contains(date.toString()) || isOverrideSource)
+            && !schedule.dateOverrides.containsKey(date.toString())) return emptyList()
+        val week = weekForDate(schedule.startDate, sourceDate)
+        val sourceWeekday = sourceDate.dayOfWeek.value
         val matched = mutableListOf<Match>()
         for (course in schedule.courses) {
             val color = parseColor(course.color, DEFAULT_BAR_COLOR)
@@ -69,7 +74,7 @@ internal object ScheduleWidgetData {
                 val weekday = meeting.weekday ?: continue
                 val startPeriod = meeting.startPeriod ?: continue
                 val endPeriod = meeting.endPeriod ?: continue
-                if (weekday != date.dayOfWeek.value || week !in meeting.weeks) continue
+                if (weekday != sourceWeekday || week !in meeting.weeks) continue
                 val start = schedule.periodStarts.getOrNull(startPeriod - 1) ?: continue
                 val end = schedule.periodEnds.getOrNull(endPeriod - 1) ?: continue
                 // 过滤已上完的课：传入 now 时，结束时间不晚于 now 的课不再显示
@@ -126,13 +131,14 @@ internal object ScheduleWidgetData {
         val active = loadActive(context) ?: return null
         val schedule = active.schedule
         val today = LocalDate.now()
-        val week = weekForDate(schedule.startDate, today)
+        val sourceDate = schedule.dateOverrides[today.toString()]?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: today
+        val week = weekForDate(schedule.startDate, sourceDate)
         var next: LocalTime? = null
         for (course in schedule.courses) {
             for (meeting in course.meetings) {
                 val weekday = meeting.weekday ?: continue
                 val endPeriod = meeting.endPeriod ?: continue
-                if (weekday != today.dayOfWeek.value || week !in meeting.weeks) continue
+                if (weekday != sourceDate.dayOfWeek.value || week !in meeting.weeks) continue
                 val end = schedule.periodEnds.getOrNull(endPeriod - 1) ?: continue
                 val endTime = parseTimeOrNull(end) ?: continue
                 if (endTime.isAfter(now) && (next == null || endTime.isBefore(next))) next = endTime
@@ -161,6 +167,14 @@ internal object ScheduleWidgetData {
             val noClassJson = json.getJSONArray("noClassDates")
             for (index in 0 until noClassJson.length()) {
                 noClassDates.add(noClassJson.getJSONObject(index).optString("date"))
+            }
+            val dateOverrides = mutableMapOf<String, String>()
+            val overridesJson = json.optJSONArray("dateOverrides")
+            if (overridesJson != null) for (index in 0 until overridesJson.length()) {
+                val item = overridesJson.optJSONObject(index) ?: continue
+                val date = item.optString("date")
+                val sourceDate = item.optString("sourceDate")
+                if (date.isNotBlank() && sourceDate.isNotBlank()) dateOverrides[date] = sourceDate
             }
             val courses = mutableListOf<WidgetCourse>()
             val coursesJson = json.getJSONArray("courses")
@@ -191,6 +205,7 @@ internal object ScheduleWidgetData {
                 periodStarts = (0 until periods.length()).map { periods.getJSONObject(it).optString("start") },
                 periodEnds = (0 until periods.length()).map { periods.getJSONObject(it).optString("end") },
                 noClassDates = noClassDates,
+                dateOverrides = dateOverrides,
                 courses = courses,
             )
         }

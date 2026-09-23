@@ -90,6 +90,10 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                     Log.e(TAG, "updateAppWidget failed id=$appWidgetId", error)
                 }
             }
+            // updateAppWidget 只更新外层 RemoteViews；集合视图的数据工厂可能仍复用旧快照。
+            // 显式通知两个 ListView，确保下课后的过滤结果立即重新加载。
+            manager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.schedule_widget_list_today)
+            manager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.schedule_widget_list_tomorrow)
         }
 
         private fun viewsFor(
@@ -168,8 +172,13 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
-                alarm.setAndAllowWhileIdle(AlarmManager.RTC, triggerAt, pending)
-                Log.e(TAG, "scheduled next refresh at $triggerAt")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarm.canScheduleExactAlarms()) {
+                    Log.e(TAG, "exact alarm permission unavailable; falling back to inexact refresh")
+                    alarm.setAndAllowWhileIdle(AlarmManager.RTC, triggerAt, pending)
+                } else {
+                    alarm.setExactAndAllowWhileIdle(AlarmManager.RTC, triggerAt, pending)
+                }
+                Log.e(TAG, "scheduled next refresh at $triggerAt exact=${Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarm.canScheduleExactAlarms()}")
             } catch (error: Exception) {
                 Log.e(TAG, "scheduleNextRefresh failed", error)
             }
