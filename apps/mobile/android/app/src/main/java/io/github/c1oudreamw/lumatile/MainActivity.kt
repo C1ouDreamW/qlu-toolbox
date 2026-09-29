@@ -25,7 +25,11 @@ class MainActivity : BridgeActivity() {
         enableEdgeToEdge()
         installSystemBarInsets()
         lockWebViewTextZoom()
-        // 打开应用时同步刷新桌面小组件：覆盖升级不会自动重绘旧组件，这里兜底触发一次
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 从桌面组件进入应用、再返回时重新加载集合视图，顺便修正系统延迟闹钟留下的旧快照。
         ScheduleWidgetProvider.requestUpdate(this)
     }
 

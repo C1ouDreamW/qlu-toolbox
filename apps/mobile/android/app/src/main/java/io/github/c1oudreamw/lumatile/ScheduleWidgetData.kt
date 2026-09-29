@@ -127,11 +127,17 @@ internal object ScheduleWidgetData {
      * 计算今天剩余课程中最近的结束时间点（epoch 毫秒），用于设置精确刷新闹钟，
      * 使"上完一节课后该课自动隐藏"无需等待 30 分钟兜底周期。
      */
-    internal fun nextTodayRefreshEpoch(context: Context, now: LocalTime): Long? {
+    internal fun nextTodayRefreshEpoch(
+        context: Context,
+        now: LocalTime,
+        today: LocalDate = LocalDate.now(),
+    ): Long? {
         val active = loadActive(context) ?: return null
         val schedule = active.schedule
-        val today = LocalDate.now()
         val sourceDate = schedule.dateOverrides[today.toString()]?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: today
+        val isOverrideSource = schedule.dateOverrides.values.any { it == today.toString() }
+        if ((schedule.noClassDates.contains(today.toString()) || isOverrideSource)
+            && !schedule.dateOverrides.containsKey(today.toString())) return null
         val week = weekForDate(schedule.startDate, sourceDate)
         var next: LocalTime? = null
         for (course in schedule.courses) {

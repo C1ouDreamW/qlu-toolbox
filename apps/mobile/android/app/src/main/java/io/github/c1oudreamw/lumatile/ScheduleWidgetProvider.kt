@@ -13,7 +13,6 @@ import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import java.time.LocalDate
-import java.time.LocalTime
 import java.util.concurrent.Executors
 import kotlin.random.Random
 
@@ -43,9 +42,22 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         if (intent.action in REFRESH_ACTIONS) requestUpdate(context)
     }
 
+    override fun onDisabled(context: Context) {
+        cancelScheduledRefresh(context)
+        super.onDisabled(context)
+    }
+
     companion object {
         private const val TAG = "ScheduleWidget"
         private const val ALARM_REQUEST_CODE = 0x5C4ED
+        /**
+         * 不使用 ACTION_APPWIDGET_UPDATE：系统默认实现要求广播携带 appWidgetIds，
+         * 闹钟广播没有这组 extras 时会被 AppWidgetProvider 直接忽略。
+         */
+        private const val ACTION_REFRESH = "io.github.c1oudreamw.lumatile.action.SCHEDULE_WIDGET_REFRESH"
+        private const val END_REFRESH_MARGIN_MILLIS = 1_000L
+        private const val INEXACT_SAFETY_REFRESH_MILLIS = 5 * 60 * 1_000L
+        private const val MIDNIGHT_REFRESH_MARGIN_MILLIS = 1_000L
         private val executor = Executors.newSingleThreadExecutor()
 
         /** 无课占位时轮换显示的颜文字。每次刷新随机选一个，两列共用，保证相邻两天都没课时表情一致。 */
@@ -61,7 +73,10 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             if (manager == null) return
             val ids = manager.getAppWidgetIds(ComponentName(context, ScheduleWidgetProvider::class.java))
             Log.e(TAG, "requestUpdate ids=${ids.contentToString()}")
-            if (ids.isEmpty()) return
+            if (ids.isEmpty()) {
+                cancelScheduledRefresh(context)
+                return
+            }
             executor.execute {
                 try {
                     renderAll(context, manager, ids)
@@ -161,10 +176,30 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         private fun scheduleNextRefresh(context: Context) {
             try {
                 val alarm = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-                val now = LocalTime.now()
-                val triggerAt = ScheduleWidgetData.nextTodayRefreshEpoch(context, now) ?: return
+                val now = java.time.ZonedDateTime.now()
+                val nextCourseEnd = ScheduleWidgetData.nextTodayRefreshEpoch(context, now.toLocalTime(), now.toLocalDate())
+                val nextMidnight = now.toLocalDate()
+                    .plusDays(1)
+                    .atStartOfDay(now.zone)
+                    .plusNanos(MIDNIGHT_REFRESH_MARGIN_MILLIS * 1_000_000)
+                    .toInstant()
+                    .toEpochMilli()
+                val exactTarget = minOf(
+                    nextCourseEnd?.plus(END_REFRESH_MARGIN_MILLIS) ?: Long.MAX_VALUE,
+                    nextMidnight,
+                )
+                val exactAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarm.canScheduleExactAlarms()
+                // 没有精确闹钟权限时，结束时间的非精确闹钟可能被 Doze 延迟很久；
+                // 课程进行期间最多每 5 分钟检查一次，保证下课后不会长期残留。
+                val safetyTarget = now.toInstant().toEpochMilli() + INEXACT_SAFETY_REFRESH_MILLIS
+                val triggerAt = if (exactAllowed || nextCourseEnd == null) {
+                    exactTarget
+                } else {
+                    minOf(exactTarget, safetyTarget)
+                }.coerceAtLeast(System.currentTimeMillis() + END_REFRESH_MARGIN_MILLIS)
+                cancelScheduledRefresh(context)
                 val intent = Intent(context, ScheduleWidgetProvider::class.java).apply {
-                    action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                    action = ACTION_REFRESH
                 }
                 val pending = PendingIntent.getBroadcast(
                     context,
@@ -172,19 +207,35 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarm.canScheduleExactAlarms()) {
+                if (!exactAllowed) {
                     Log.e(TAG, "exact alarm permission unavailable; falling back to inexact refresh")
-                    alarm.setAndAllowWhileIdle(AlarmManager.RTC, triggerAt, pending)
+                    alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
                 } else {
-                    alarm.setExactAndAllowWhileIdle(AlarmManager.RTC, triggerAt, pending)
+                    alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
                 }
-                Log.e(TAG, "scheduled next refresh at $triggerAt exact=${Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarm.canScheduleExactAlarms()}")
+                Log.e(TAG, "scheduled next refresh at $triggerAt exact=$exactAllowed nextCourseEnd=$nextCourseEnd")
             } catch (error: Exception) {
                 Log.e(TAG, "scheduleNextRefresh failed", error)
             }
         }
 
+        private fun cancelScheduledRefresh(context: Context) {
+            val alarm = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            // 取消新广播，以及旧版本曾经留下的 ACTION_APPWIDGET_UPDATE 闹钟。
+            for (action in listOf(ACTION_REFRESH, AppWidgetManager.ACTION_APPWIDGET_UPDATE)) {
+                val pending = PendingIntent.getBroadcast(
+                    context,
+                    ALARM_REQUEST_CODE,
+                    Intent(context, ScheduleWidgetProvider::class.java).setAction(action),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                )
+                alarm.cancel(pending)
+                pending.cancel()
+            }
+        }
+
         private val REFRESH_ACTIONS = setOf(
+            ACTION_REFRESH,
             Intent.ACTION_DATE_CHANGED,
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
