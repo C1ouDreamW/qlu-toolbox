@@ -167,7 +167,7 @@ function createWindow() {
     icon: path.join(
       app.getAppPath(),
       'assets',
-      process.platform === 'win32' ? 'qlu-toolbox.ico' : 'qlu-toolbox.png',
+      process.platform === 'win32' ? 'lumatile.ico' : 'lumatile.png',
     ),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

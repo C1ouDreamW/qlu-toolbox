@@ -5,7 +5,7 @@ import sys
 from PyInstaller.utils.hooks import collect_all
 
 playwright_datas, playwright_binaries, playwright_hiddenimports = collect_all("playwright")
-worker_icon = "assets/qlu-toolbox.icns" if sys.platform == "darwin" else "assets/qlu-toolbox.ico"
+worker_icon = "assets/lumatile.icns" if sys.platform == "darwin" else "assets/lumatile.ico"
 
 analysis = Analysis(
     ["main.py"],

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/qlu-toolbox.png" width="128" alt="一格有光 Logo">
+  <img src="assets/lumatile.png" width="128" alt="一格有光 Logo">
 </p>
 
 <h1 align="center">一格有光 · LumaTile</h1>

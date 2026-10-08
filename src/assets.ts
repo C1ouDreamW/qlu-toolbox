@@ -1,3 +1,3 @@
-import logoUrl from '../assets/qlu-toolbox.png'
+import logoUrl from '../assets/lumatile.png'
 
 export { logoUrl }

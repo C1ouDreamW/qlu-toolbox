@@ -59,7 +59,7 @@
       "assets/**/*"
     ],
     "win": {
-      "icon": "assets/qlu-toolbox.ico",
+      "icon": "assets/lumatile.ico",
       "target": ["nsis"],
       "artifactName": "LumaTile_v${version}_${arch}.${ext}",
       "extraResources": [
@@ -70,7 +70,7 @@
       ]
     },
     "mac": {
-      "icon": "assets/qlu-toolbox.icns",
+      "icon": "assets/lumatile.icns",
       "category": "public.app-category.education",
       "target": ["dmg"],
       "artifactName": "LumaTile_v${version}_${arch}.${ext}",
@@ -98,8 +98,8 @@
       "deleteAppDataOnUninstall": false,
       "installerLanguages": ["zh_CN"],
       "displayLanguageSelector": false,
-      "installerIcon": "assets/qlu-toolbox.ico",
-      "uninstallerIcon": "assets/qlu-toolbox.ico",
+      "installerIcon": "assets/lumatile.ico",
+      "uninstallerIcon": "assets/lumatile.ico",
       "installerHeader": "installer-assets/installerHeader.bmp",
       "installerSidebar": "installer-assets/installerSidebar.bmp",
       "uninstallerSidebar": "installer-assets/installerSidebar.bmp",
