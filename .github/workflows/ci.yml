@@ -4,6 +4,12 @@ on:
   pull_request:
   push:
     branches: [main]
+    # 仅非运行时文档或独立动画工程变更时跳过主分支 CI。
+    # PR 保留完整检查，避免路径过滤让必需检查一直 Pending。
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "lumatile-logo-animation/**"
   workflow_dispatch:
 
 permissions:
