@@ -4,8 +4,10 @@ import importlib.util
 import json
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from qlu_toolbox.core.settings import AppSettings, SettingsStore
 
@@ -155,7 +157,11 @@ class WatermarkTests(unittest.TestCase):
                     "INSERT INTO download_hits (ts, day, tag, filename) VALUES (?, ?, 'v2.0.0', 'a.exe')",
                     (f"{day}T12:00:00", day),
                 )
-        report = collect.collect_report(self.conn, days=30)
+        # 固定统计窗口，避免合成样本随真实日期推移落到最近 30 天之外。
+        with patch.object(collect, "datetime", wraps=datetime) as clock:
+            clock.now.return_value = datetime(2026, 9, 6, 12)
+            report = collect.collect_report(self.conn, days=30)
+        self.assertEqual(report["days"], ["2026-09-04", "2026-09-05", "2026-09-06"])
         sep_05 = report["days"].index("2026-09-05")
         sep_04 = report["days"].index("2026-09-04")
         self.assertEqual(report["dau"][sep_05], 2)  # 09-05 去重后 abc + other
