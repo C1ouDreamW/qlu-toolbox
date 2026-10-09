@@ -129,6 +129,13 @@ export interface NoClassDate {
   reason: string
 }
 
+/** A calendar-date substitution, e.g. Sunday follows a Wednesday timetable. */
+export interface ScheduleDateOverride {
+  date: string
+  sourceDate: string
+  reason: string
+}
+
 export interface ScheduleMeeting {
   id: string
   weeks: number[]
@@ -164,6 +171,7 @@ export interface ScheduleBook {
   showOtherWeekCourses?: boolean
   periods: PeriodTime[]
   noClassDates: NoClassDate[]
+  dateOverrides?: ScheduleDateOverride[]
   courses: ScheduleCourse[]
   updatedAt: string
 }

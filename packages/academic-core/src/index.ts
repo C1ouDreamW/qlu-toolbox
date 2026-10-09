@@ -11,6 +11,7 @@ import type {
   ScheduleCourse,
   ScheduleImportPreview,
   ScheduleMeeting,
+  ScheduleDateOverride,
   SemesterCode,
 } from '@lumatile/contracts'
 
@@ -572,12 +573,34 @@ export function isNoClassDate(schedule: ScheduleBook, date: Date): NoClassDate |
   return schedule.noClassDates.find(item => item.date === key)
 }
 
+function dateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+export function dateOverrideFor(schedule: ScheduleBook, date: Date): ScheduleDateOverride | undefined {
+  return schedule.dateOverrides?.find(item => item.date === dateKey(date))
+}
+
+function isOverrideSourceDate(schedule: ScheduleBook, date: Date): boolean {
+  const key = dateKey(date)
+  return Boolean(schedule.dateOverrides?.some(item => item.sourceDate === key))
+}
+
+/** Returns the timetable source date for a displayed calendar date. */
+export function effectiveScheduleDate(schedule: ScheduleBook, date: Date): Date {
+  const override = dateOverrideFor(schedule, date)
+  return override ? new Date(`${override.sourceDate}T00:00:00`) : date
+}
+
 export function visibleWeekdays(schedule: ScheduleBook, week: number): number[] {
   if (schedule.weekendMode === 'show') return [1, 2, 3, 4, 5, 6, 7]
   if (schedule.weekendMode === 'hide') return [1, 2, 3, 4, 5]
   const hasWeekend = schedule.courses.some(course => course.meetings.some(
     meeting => (meeting.weekday === 6 || meeting.weekday === 7) && meeting.weeks.includes(week),
   ))
+  const weekDates = datesForWeek(schedule, week)
+  const hasOverrideWeekend = weekDates.some((date, index) => index >= 5 && dateOverrideFor(schedule, date))
+  if (hasOverrideWeekend) return [1, 2, 3, 4, 5, 6, 7]
   return hasWeekend ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5]
 }
 
@@ -615,9 +638,20 @@ export function scheduleSegments(
   const scheduled = schedule.courses.flatMap(course => course.meetings
     .filter(meeting => meeting.weekday !== null && meeting.startPeriod !== null && meeting.endPeriod !== null)
     .map(meeting => ({ course, meeting })))
-  const meetings = scheduled.filter(({ meeting }) => meeting.weeks.includes(week))
+  const dates = datesForWeek(schedule, week)
   for (const weekday of visibleWeekdays(schedule, week)) {
-    const day = meetings.filter(item => item.meeting.weekday === weekday).sort((a, b) =>
+    const targetDate = dates[weekday - 1]
+    const sourceDate = effectiveScheduleDate(schedule, targetDate)
+    const sourceNoClass = Boolean(isNoClassDate(schedule, sourceDate) || isOverrideSourceDate(schedule, targetDate))
+    const override = dateOverrideFor(schedule, targetDate)
+    const sourceWeek = weekForDate(schedule, sourceDate)
+    const sourceWeekday = sourceDate.getDay() === 0 ? 7 : sourceDate.getDay()
+    if (sourceNoClass && !override) continue
+    const meetings = schedule.courses.flatMap(course => course.meetings
+      .filter(meeting => meeting.weekday === sourceWeekday && meeting.startPeriod !== null
+        && meeting.endPeriod !== null && meeting.weeks.includes(sourceWeek))
+      .map(meeting => ({ course, meeting })))
+    const day = meetings.sort((a, b) =>
       a.meeting.startPeriod! - b.meeting.startPeriod!
       || a.meeting.id.localeCompare(b.meeting.id))
     const boundaries = [...new Set(day.flatMap(({ meeting }) => [meeting.startPeriod!, meeting.endPeriod! + 1]))]
@@ -635,7 +669,9 @@ export function scheduleSegments(
       const item = candidates.find(item => item.meeting.id === choices[key]) || previousDefault
       result.push({ key, weekday, startPeriod, endPeriod, candidates, item, continued: startPeriod > item.meeting.startPeriod! })
     }
-    if (!showOtherWeekCourse) continue
+    // A make-up day is a one-off copy of the source date, not a recurring weekday.
+    // Both clients show only that date's actual courses, never other-week previews.
+    if (!showOtherWeekCourse || override) continue
     const future = scheduled.filter(({ meeting }) => meeting.weekday === weekday
       && !meeting.weeks.includes(week) && meeting.weeks.some(item => item > week)).sort((a, b) =>
       Number(b.meeting.weeks.includes(week + 1)) - Number(a.meeting.weeks.includes(week + 1))
@@ -686,6 +722,8 @@ export function validateSchedule(value: unknown): asserts value is ScheduleBook 
   require(Array.isArray(s.periods) && s.periods.length === 11 && s.periods.every((p: unknown, i: number) =>
     record(p) && p.period === i + 1 && time(p.start) && time(p.end) && p.start < p.end), '需提供 11 节有效的上课时间，结束时间须晚于开始时间')
   require(Array.isArray(s.noClassDates) && s.noClassDates.every((d: unknown) => record(d) && date(d.date) && text(d.reason)), '停课日期格式无效')
+  require(s.dateOverrides === undefined || (Array.isArray(s.dateOverrides) && s.dateOverrides.every((d: unknown) =>
+    record(d) && date(d.date) && date(d.sourceDate) && text(d.reason) && d.date !== d.sourceDate)), '调休日期格式无效')
   require(Array.isArray(s.courses), '课程列表无效')
   const courseIds = new Set<string>(), meetingIds = new Set<string>()
   for (const c of s.courses) {

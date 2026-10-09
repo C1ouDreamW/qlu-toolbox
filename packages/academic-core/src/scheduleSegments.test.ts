@@ -16,6 +16,56 @@ function book(ranges: [number, number][]): ScheduleBook {
 }
 
 describe('schedule display segments', () => {
+  it('restores a moved source only after its last override is removed', () => {
+    const schedule = book([[1, 2]])
+    schedule.startDate = '2026-09-07'
+    schedule.dateOverrides = [
+      { date: '2026-09-20', sourceDate: '2026-09-07', reason: '补课一' },
+      { date: '2026-09-27', sourceDate: '2026-09-07', reason: '补课二' },
+    ]
+    expect(scheduleSegments(schedule, 1)).toEqual([])
+    schedule.dateOverrides.splice(0, 1)
+    expect(scheduleSegments(schedule, 1)).toEqual([])
+    expect(scheduleSegments(schedule, 3).some(segment => segment.weekday === 7)).toBe(true)
+    schedule.dateOverrides.splice(0, 1)
+    expect(scheduleSegments(schedule, 1).map(segment => segment.item.meeting.id)).toEqual(['meeting-0'])
+  })
+
+  it('preserves manual no-class dates after removing an override', () => {
+    const schedule = book([[1, 2]])
+    schedule.startDate = '2026-09-07'
+    schedule.noClassDates = [{ date: '2026-09-07', reason: '手动停课' }]
+    schedule.dateOverrides = [{ date: '2026-09-20', sourceDate: '2026-09-07', reason: '补课' }]
+    expect(scheduleSegments(schedule, 2).some(segment => segment.weekday === 7)).toBe(true)
+    schedule.dateOverrides = []
+    expect(scheduleSegments(schedule, 1)).toEqual([])
+    expect(schedule.noClassDates).toEqual([{ date: '2026-09-07', reason: '手动停课' }])
+  })
+
+  it.each([true, false])('shows only source-date courses on cross-week make-up days (previews=%s)', preview => {
+    const schedule = book([[1, 2], [3, 4], [5, 6]])
+    schedule.startDate = '2026-09-07'
+    schedule.courses[0].meetings[0].weeks = [1]
+    Object.assign(schedule.courses[1].meetings[0], { weekday: 7, weeks: [3] })
+    schedule.courses[2].meetings[0].weeks = [2, 3]
+    schedule.dateOverrides = [{ date: '2026-09-20', sourceDate: '2026-09-07', reason: '调休' }]
+    const sunday = scheduleSegments(schedule, 2, {}, preview).filter(segment => segment.weekday === 7)
+    expect(sunday.map(segment => [segment.item.meeting.id, !!segment.otherWeek])).toEqual([['meeting-0', false]])
+    // The ordinary Sunday still previews its week-3 course when enabled.
+    schedule.dateOverrides = []
+    expect(scheduleSegments(schedule, 2, {}, preview).filter(segment => segment.weekday === 7))
+      .toHaveLength(preview ? 1 : 0)
+  })
+
+  it('keeps a make-up day empty if its source date has no courses', () => {
+    const schedule = book([[1, 2]])
+    schedule.startDate = '2026-09-07'
+    schedule.courses[0].meetings[0].weekday = 7
+    schedule.courses[0].meetings[0].weeks = [3]
+    schedule.dateOverrides = [{ date: '2026-09-20', sourceDate: '2026-09-07', reason: '调休' }]
+    expect(scheduleSegments(schedule, 2, {}, true).filter(segment => segment.weekday === 7)).toEqual([])
+  })
+
   it.each([
     [[1, 2], [1, 2]], [[5, 8], [7, 8]], [[5, 8], [6, 7]],
     [[1, 3], [3, 5]], [[1, 2], [2, 3], [3, 4]],

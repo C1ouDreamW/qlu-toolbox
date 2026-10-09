@@ -13,7 +13,6 @@ import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import java.time.LocalDate
-import java.time.LocalTime
 import java.util.concurrent.Executors
 import kotlin.random.Random
 
@@ -25,27 +24,40 @@ import kotlin.random.Random
 class ScheduleWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         Log.e(TAG, "onUpdate ids=${appWidgetIds.contentToString()}")
-        val pendingResult = goAsync()
-        executor.execute {
-            try {
-                renderAll(context, manager, appWidgetIds)
-                scheduleNextRefresh(context)
-            } catch (error: Exception) {
-                Log.e(TAG, "renderAll failed", error)
-            } finally {
-                pendingResult.finish()
-            }
-        }
+        updateFromBroadcast(context, appWidgetIds)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action in REFRESH_ACTIONS) requestUpdate(context)
+        if (intent.action in REFRESH_ACTIONS) {
+            updateFromBroadcast(context)
+        } else {
+            super.onReceive(context, intent)
+        }
+    }
+
+    private fun updateFromBroadcast(context: Context, appWidgetIds: IntArray? = null) {
+        // Keep alarm/time-change broadcasts alive until Room reads, rendering and
+        // scheduling the next alarm finish, including the no-widget path.
+        val pendingResult = goAsync()
+        enqueueUpdate(context, appWidgetIds) { pendingResult.finish() }
+    }
+
+    override fun onDisabled(context: Context) {
+        cancelScheduledRefresh(context)
+        super.onDisabled(context)
     }
 
     companion object {
         private const val TAG = "ScheduleWidget"
         private const val ALARM_REQUEST_CODE = 0x5C4ED
+        /**
+         * 不使用 ACTION_APPWIDGET_UPDATE：系统默认实现要求广播携带 appWidgetIds，
+         * 闹钟广播没有这组 extras 时会被 AppWidgetProvider 直接忽略。
+         */
+        private const val ACTION_REFRESH = "io.github.c1oudreamw.lumatile.action.SCHEDULE_WIDGET_REFRESH"
+        private const val END_REFRESH_MARGIN_MILLIS = 1_000L
+        private const val INEXACT_SAFETY_REFRESH_MILLIS = 5 * 60 * 1_000L
+        private const val MIDNIGHT_REFRESH_MARGIN_MILLIS = 1_000L
         private val executor = Executors.newSingleThreadExecutor()
 
         /** 无课占位时轮换显示的颜文字。每次刷新随机选一个，两列共用，保证相邻两天都没课时表情一致。 */
@@ -55,20 +67,24 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             "^o^/",
         )
 
-        /** 直接渲染所有小组件实例，并安排下一次精确刷新。 */
+        /** Activity/插件请求刷新；广播入口另用 goAsync 保持生命周期。 */
         fun requestUpdate(context: Context) {
-            val manager = AppWidgetManager.getInstance(context)
-            if (manager == null) return
-            val ids = manager.getAppWidgetIds(ComponentName(context, ScheduleWidgetProvider::class.java))
-            Log.e(TAG, "requestUpdate ids=${ids.contentToString()}")
-            if (ids.isEmpty()) return
-            executor.execute {
-                try {
-                    renderAll(context, manager, ids)
-                    scheduleNextRefresh(context)
-                } catch (error: Exception) {
-                    Log.e(TAG, "requestUpdate renderAll failed", error)
+            enqueueUpdate(context)
+        }
+
+        private fun enqueueUpdate(context: Context, appWidgetIds: IntArray? = null, finish: () -> Unit = {}) {
+            val appContext = context.applicationContext
+            executeWidgetRefresh(executor, finish, { Log.e(TAG, "widget refresh failed", it) }) {
+                val manager = AppWidgetManager.getInstance(appContext) ?: return@executeWidgetRefresh
+                val installedIds = manager.getAppWidgetIds(ComponentName(appContext, ScheduleWidgetProvider::class.java))
+                if (installedIds.isEmpty()) {
+                    cancelScheduledRefresh(appContext)
+                    return@executeWidgetRefresh
                 }
+                val ids = appWidgetIds?.filter { it in installedIds }?.toIntArray() ?: installedIds
+                Log.e(TAG, "refresh ids=${ids.contentToString()}")
+                if (ids.isNotEmpty()) renderAll(appContext, manager, ids)
+                scheduleNextRefresh(appContext)
             }
         }
 
@@ -90,6 +106,10 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                     Log.e(TAG, "updateAppWidget failed id=$appWidgetId", error)
                 }
             }
+            // updateAppWidget 只更新外层 RemoteViews；集合视图的数据工厂可能仍复用旧快照。
+            // 显式通知两个 ListView，确保下课后的过滤结果立即重新加载。
+            manager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.schedule_widget_list_today)
+            manager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.schedule_widget_list_tomorrow)
         }
 
         private fun viewsFor(
@@ -157,10 +177,31 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         private fun scheduleNextRefresh(context: Context) {
             try {
                 val alarm = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-                val now = LocalTime.now()
-                val triggerAt = ScheduleWidgetData.nextTodayRefreshEpoch(context, now) ?: return
+                val now = java.time.ZonedDateTime.now()
+                val nextCourseEnd = ScheduleWidgetData.nextTodayRefreshEpoch(context, now.toLocalTime(), now.toLocalDate())
+                val nextMidnight = now.toLocalDate()
+                    .plusDays(1)
+                    .atStartOfDay(now.zone)
+                    .plusNanos(MIDNIGHT_REFRESH_MARGIN_MILLIS * 1_000_000)
+                    .toInstant()
+                    .toEpochMilli()
+                val exactTarget = minOf(
+                    nextCourseEnd?.plus(END_REFRESH_MARGIN_MILLIS) ?: Long.MAX_VALUE,
+                    nextMidnight,
+                )
+                val exactAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarm.canScheduleExactAlarms()
+                // 无精确闹钟权限时，课程结束前尝试将下一次检查设在 5 分钟内。
+                // 这只是请求时间：系统批处理、Doze 和厂商省电策略仍可显著延迟，
+                // 不保证 5 分钟内送达；建议用户允许“闹钟和提醒”以改善准时性。
+                val safetyTarget = now.toInstant().toEpochMilli() + INEXACT_SAFETY_REFRESH_MILLIS
+                val triggerAt = if (exactAllowed || nextCourseEnd == null) {
+                    exactTarget
+                } else {
+                    minOf(exactTarget, safetyTarget)
+                }.coerceAtLeast(System.currentTimeMillis() + END_REFRESH_MARGIN_MILLIS)
+                cancelScheduledRefresh(context)
                 val intent = Intent(context, ScheduleWidgetProvider::class.java).apply {
-                    action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                    action = ACTION_REFRESH
                 }
                 val pending = PendingIntent.getBroadcast(
                     context,
@@ -168,14 +209,35 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
-                alarm.setAndAllowWhileIdle(AlarmManager.RTC, triggerAt, pending)
-                Log.e(TAG, "scheduled next refresh at $triggerAt")
+                if (!exactAllowed) {
+                    Log.e(TAG, "exact alarm permission unavailable; falling back to inexact refresh")
+                    alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
+                } else {
+                    alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
+                }
+                Log.e(TAG, "scheduled next refresh at $triggerAt exact=$exactAllowed nextCourseEnd=$nextCourseEnd")
             } catch (error: Exception) {
                 Log.e(TAG, "scheduleNextRefresh failed", error)
             }
         }
 
+        private fun cancelScheduledRefresh(context: Context) {
+            val alarm = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            // 取消新广播，以及旧版本曾经留下的 ACTION_APPWIDGET_UPDATE 闹钟。
+            for (action in listOf(ACTION_REFRESH, AppWidgetManager.ACTION_APPWIDGET_UPDATE)) {
+                val pending = PendingIntent.getBroadcast(
+                    context,
+                    ALARM_REQUEST_CODE,
+                    Intent(context, ScheduleWidgetProvider::class.java).setAction(action),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                )
+                alarm.cancel(pending)
+                pending.cancel()
+            }
+        }
+
         private val REFRESH_ACTIONS = setOf(
+            ACTION_REFRESH,
             Intent.ACTION_DATE_CHANGED,
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,

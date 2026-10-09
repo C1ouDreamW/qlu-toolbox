@@ -6,6 +6,30 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 class ScheduleWidgetDataTest {
+    @Test
+    fun removingLastMakeupRestoresSourceWithoutAStoredNoClassDate() {
+        val source = LocalDate.parse("2026-09-07")
+        val target = LocalDate.parse("2026-09-20")
+        val original = schedule(courses = listOf(course(meetings = listOf(meeting(weekday = 1)))))
+        val moved = original.copy(dateOverrides = mapOf("2026-09-20" to "2026-09-07", "2026-09-27" to "2026-09-07"))
+        assertEquals(0, ScheduleWidgetData.classesOn(moved, source).size)
+        assertEquals(1, ScheduleWidgetData.classesOn(moved, target).size)
+        assertEquals(0, ScheduleWidgetData.classesOn(moved.copy(dateOverrides = mapOf("2026-09-27" to "2026-09-07")), source).size)
+        assertEquals(1, ScheduleWidgetData.classesOn(moved.copy(dateOverrides = emptyMap()), source).size)
+        assertEquals(0, ScheduleWidgetData.classesOn(moved, target, LocalTime.parse("16:50")).size)
+    }
+
+    @Test
+    fun removingMakeupKeepsManualNoClassDate() {
+        val original = schedule(
+            courses = listOf(course(meetings = listOf(meeting(weekday = 1)))),
+            noClassDates = setOf("2026-09-07"),
+        )
+        val moved = original.copy(dateOverrides = mapOf("2026-09-20" to "2026-09-07"))
+        assertEquals(1, ScheduleWidgetData.classesOn(moved, LocalDate.parse("2026-09-20")).size)
+        assertEquals(0, ScheduleWidgetData.classesOn(moved.copy(dateOverrides = emptyMap()), LocalDate.parse("2026-09-07")).size)
+    }
+
     private val periodStarts = listOf(
         "08:30", "09:20", "10:25", "11:15", "13:30", "14:20", "15:20", "16:05", "17:50", "18:35", "19:30",
     )

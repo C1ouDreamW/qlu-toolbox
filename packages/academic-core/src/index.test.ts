@@ -8,6 +8,7 @@ import {
   defaultAcademicYear,
   gradePoint,
   datesForWeek,
+  effectiveScheduleDate,
   isNoClassDate,
   meetingConflicts,
   normalizeScheduleColor,
@@ -128,6 +129,16 @@ describe('QLU schedule workbook rows', () => {
       { ...base, id: 'b', weeks: [2, 3], startPeriod: 2, endPeriod: 4 },
       { ...base, id: 'c', weeks: [1], startPeriod: 5, endPeriod: 6 },
     ])).toEqual([['a', 'b']])
+  })
+
+  it('maps a make-up date to the source date timetable', () => {
+    const schedule = parseScheduleRows({ fileName: '脱敏课表.xls', rows }).schedule
+    schedule.dateOverrides = [{ date: '2026-09-20', sourceDate: '2026-09-07', reason: '调休补课' }]
+    schedule.noClassDates = [{ date: '2026-09-07', reason: '调休补课（原课停上）' }]
+    expect(effectiveScheduleDate(schedule, new Date(2026, 8, 20))).toEqual(new Date(2026, 8, 7))
+    const sunday = scheduleSegments(schedule, 2).filter(item => item.weekday === 7)
+    expect(sunday.some(item => item.item.course.name === '操作系统')).toBe(true)
+    expect(scheduleSegments(schedule, 5).some(item => item.weekday === 3)).toBe(false)
   })
 
   it('validates shared backup data', () => {
