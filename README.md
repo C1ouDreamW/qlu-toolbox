@@ -1,33 +1,29 @@
 <p align="center">
-  <img src="assets/lumatile.png" width="128" alt="一格有光 Logo">
+  <img src="docs/readme/logo-reveal.gif" width="112" height="112" alt="一格有光 Logo 启动动画">
 </p>
 
 <h1 align="center">一格有光 · LumaTile</h1>
 
 <p align="center">
-  本地优先的非官方校园效率工具
+  课表、成绩、学分。都在一格里。
 </p>
 
 <p align="center">
+  <a href="https://github.com/C1ouDreamW/qlu-toolbox/releases/latest"><img src="https://img.shields.io/badge/Release-v2.0.4-0370F0" alt="当前版本 v2.0.4"></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D6?logo=windows11&logoColor=white" alt="Windows x64">
   <img src="https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white" alt="macOS Apple Silicon">
   <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0 及以上">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Vue-3.5-42B883?logo=vuedotjs&logoColor=white" alt="Vue 3.5">
-  <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white" alt="TypeScript 5.8">
-  <img src="https://img.shields.io/badge/Electron-37-47848F?logo=electron&logoColor=white" alt="Electron 37">
-  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
-  <img src="https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.2">
-</p>
-
-<p align="center">
-  <a href="#支持平台">支持平台</a> ·
+  <a href="https://github.com/C1ouDreamW/qlu-toolbox/releases/latest"><strong>下载最新版</strong></a> ·
+  <a href="#功能演示">功能演示</a> ·
+  <a href="#支持平台">平台支持</a> ·
   <a href="#桌面版">桌面版</a> ·
   <a href="#android-版">Android 版</a> ·
   <a href="#隐私与安全边界">隐私安全</a> ·
   <a href="#源码运行">开发指南</a> ·
+  <a href="#贡献者">贡献者</a> ·
   <a href="#交流与反馈">交流反馈</a>
 </p>
 
@@ -35,6 +31,58 @@
   面向齐鲁工业大学学生的非官方工具，提供课表管理、分项成绩导出、GPA 计算和学分修读统计。<br>
   用户在独立浏览器或受限 WebView 中手动登录，课表与成绩数据均在本机处理和保存。
 </p>
+
+<p align="center">
+  <a href="docs/readme/hero.webp"><img src="docs/readme/hero.webp" width="1000" alt="LumaTile v2.0.4 桌面端与 Android 端周视图课表，使用虚拟展示课表"></a>
+</p>
+
+<p align="center"><sub>v2.0.4 界面 · 虚拟课表与合成成绩演示 · 点击图片可查看大图</sub></p>
+
+## 功能演示
+
+### 一周安排，清晰展开
+
+周视图查看课程，切周预览单双周安排；遇到同一时段的重叠课程，点击卡片即可选择显示哪一门。课表支持编辑、多课表管理，以及桌面端与 Android 端互通的备份文件。
+
+<p align="center">
+  <a href="docs/readme/schedule.gif"><img src="docs/readme/schedule.gif" width="1000" alt="课表动图：从第 3 周切到第 4 周，返回后查看重叠课程并切换显示"></a>
+</p>
+
+<p align="center"><sub>切换周次 → 查看重叠安排 → 切换卡片显示，选择会保存在本机。</sub></p>
+
+### 勾选课程，GPA 实时变化
+
+导入分项成绩 XLSX，查看总评与成绩分项，自由选择参与计算的课程。总学分、总成绩点和加权 GPA 随勾选即时更新，文件解析与计算均在本机完成。
+
+<p align="center">
+  <a href="docs/readme/gpa.gif"><img src="docs/readme/gpa.gif" width="1000" alt="GPA 动图：取消与恢复课程勾选，总学分、总成绩点和加权 GPA 实时更新，使用合成成绩"></a>
+</p>
+
+<p align="center"><sub>演示成绩完全虚拟；恢复勾选后，统计结果回到初始值。</sub></p>
+
+### 学分进度，一眼看清
+
+按培养方案与本地要求核对综合素质选修课，区分已修、在修和各模块缺口，并展示选课方向；专业类型和修读规则也可调整。
+
+<p align="center">
+  <a href="docs/readme/credit.webp"><img src="docs/readme/credit.webp" width="1000" alt="学分修读情况：已修与在修概览、未修完的项目、推荐选课方向及各模块进度，使用合成数据和内置要求"></a>
+</p>
+
+<p align="center"><sub>图中使用合成数据与内置要求；实际统计以读取到的培养方案及本地规则为依据。</sub></p>
+
+此外，**分项成绩导出**支持选择学年学期，手动登录后查询、校验并保存 Excel；Android 还支持**桌面课表小组件**，可直接查看今天与明天的课程。
+
+### 平台能力一览
+
+| 功能 | 桌面端（Windows / macOS） | Android |
+|---|---|---|
+| 周视图课表、课程编辑、多课表管理 | 支持 | 支持 |
+| 直接读取教务课表、本地 Excel 导入 | 支持 | 支持 |
+| 课表备份导入与导出 | 两端互通 | 两端互通，可系统分享 |
+| 分项成绩导出、本地 GPA 计算 | 支持 | 支持 |
+| 学分修读统计、自定义规则 | 支持 | 支持 |
+| 桌面课表小组件 | — | 今天 / 明天课程 |
+| 更新方式 | 提示新版，手动下载安装 | 确认下载，校验后交给系统安装 |
 
 ## 支持平台
 
@@ -50,6 +98,9 @@
 
 ### 功能
 
+<details>
+<summary>展开桌面端完整功能说明</summary>
+
 - **课表工具**：周视图课表（今日列高亮、停课日覆盖、周末显示方式可选），方向键或下拉切周，可预览非本周课程，内置课程编辑器与多课表管理，支持开学日期与作息时间设置；同一时段多门安排重叠时，课程卡片按时段分段显示并可点击切换显示哪门安排，选择会记住。
 - **课表导入与备份（v2.0.4 增强）**：登录教务系统查询课表后，点击页面右下角的“导入当前课表到一格有光”可直接读取网页课表（无需输出 Excel），点击学校原有的“输出EXCEL”仍可在同源环境接管导入（含大小与 SHA-256 校验），也可导入本地 Excel 课表；内置可一键导入的虚拟展示课表，便于在空课表下查看各种显示效果；课表可导出为 `.lumatile-schedule.json` 备份，与 Android 端互相导入。
 - **分项成绩导出**：选择学年、学期和保存目录，在浏览器中手动登录后自动查询并导出 Excel。
@@ -61,8 +112,10 @@
 - **备用浏览器**：Edge 和 Chrome 均不可用时，可在应用内按需下载与当前 Playwright 版本匹配的 Chromium。
 
 <p align="center">
-  <img src="assets/桌面端首页截图.png" width="900" alt="一格有光桌面端首页">
+  <a href="docs/readme/desktop-home.webp"><img src="docs/readme/desktop-home.webp" width="900" alt="一格有光 v2.0.4 桌面端首页"></a>
 </p>
+
+</details>
 
 ### 下载与安装
 
@@ -113,6 +166,9 @@ macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若
 
 ### 功能
 
+<details>
+<summary>展开 Android 端完整功能说明</summary>
+
 - **课表工具**：周视图课表（今日列高亮），滑动切周并预览相邻一周，课程卡片按可容纳空间显示课程名与上课地点，可预览非本周课程，内置课程编辑器与多课表管理，支持开学日期与作息时间设置，适配系统返回键逐级返回；同一时段多门安排重叠时，课程卡片按时段分段显示并可点击切换显示哪门安排，选择会记住。
 - **课表导入与备份（v2.0.4 增强）**：应用内登录教务并查询课表后，点击导入页底部的“导入当前课表”可直接读取网页课表（无需输出 Excel），点击学校原有的“输出EXCEL”仍可接管导入并校验文件，也可从系统文件选择器导入 Excel 或 `.lumatile-schedule.json` 备份；内置可一键导入的虚拟展示课表；课表可导出备份并通过系统分享面板发送，与桌面端互相导入。
 - **桌面课表小组件**：3×2 尺寸，桌面直接查看今天与明天的课程（课程名、教室、时间与课程颜色），上完的课自动隐藏，无课显示空状态，随系统深浅色模式切换，课表保存、切换或删除后主动刷新。
@@ -126,8 +182,10 @@ macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若
 - **安全更新**：下载 APK 后校验文件大小、SHA-256、applicationId、versionCode 和签名证书，再交给系统安装。
 
 <p align="center">
-  <img src="assets/移动端首页截图.jpg" width="320" alt="一格有光 Android 端首页">
+  <a href="docs/readme/mobile-schedule.webp"><img src="docs/readme/mobile-schedule.webp" width="320" alt="一格有光 v2.0.4 Android 端课表界面，使用虚拟展示课表"></a>
 </p>
+
+</details>
 
 ### 下载与安装
 
@@ -284,6 +342,22 @@ docs/                                 移动端方案、产品与发布文档
 - Windows 安装包尚未数字签名，可能触发 SmartScreen 来源提示。
 - Android 依赖设备的 System WebView，需要 Chromium 80 及以上；更低版本会在启动时提示更新 WebView，且不承诺所有厂商系统和 WebView 版本均已验证。
 - 当前不提供 iOS 版本。
+
+## 贡献者
+
+感谢每一位通过代码、文档、问题反馈与测试，帮助一格有光持续改进的参与者。
+
+<p align="center">
+  <a href="https://github.com/C1ouDreamW/qlu-toolbox/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=C1ouDreamW/qlu-toolbox" alt="根据 GitHub 提交记录生成的一格有光贡献者头像墙">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/C1ouDreamW/qlu-toolbox/graphs/contributors">查看全部贡献者</a> ·
+  <a href="CONTRIBUTING.md">参与贡献</a> ·
+  <a href="https://github.com/C1ouDreamW/qlu-toolbox/issues/new/choose">提交建议</a>
+</p>
 
 ## 交流与反馈
 

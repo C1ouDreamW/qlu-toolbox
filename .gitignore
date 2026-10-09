@@ -34,6 +34,7 @@ node_modules/
 /artifacts/
 /tmp/
 /docs/*
+!/docs/readme/
 *.build/
 *.dist/
 *.onefile-build/

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>LumaTile README 展示素材</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #182439; font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif; }
+  .hero { width: 1600px; height: 1120px; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #f6f9ff, #edf4ff 65%, #faf8f0); }
+  .brand { position: absolute; top: 44px; left: 58px; display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 700; }
+  .brand img { width: 48px; height: 48px; }
+  .version { padding: 7px 12px; background: #fff; border: 1px solid #d9e5f7; border-radius: 20px; font-size: 15px; color: #4f6380; margin-left: 8px; }
+  .platform { position: absolute; right: 60px; top: 60px; color: #536782; font-size: 14px; letter-spacing: 2px; }
+  h1 { position: absolute; left: 62px; top: 116px; margin: 0; font-size: 60px; letter-spacing: -2px; line-height: 1.25; }
+  h1 span { color: #0875ed; }
+  .intro { position: absolute; top: 202px; left: 64px; margin: 0; color: #526885; font-size: 20px; }
+  .desktop { position: absolute; left: 56px; top: 290px; width: 1120px; border: 1px solid #d3dfef; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 24px 65px #203e6920; background: #fff; }
+  .desktop img { width: 100%; display: block; }
+  .phone { position: absolute; right: 58px; top: 359px; width: 292px; padding: 8px; border-radius: 30px; border: 1px solid #d3dfef;
+    box-shadow: 0 24px 60px #203e6920; background: #fff; }
+  .phone img { width: 100%; border-radius: 23px; display: block; }
+  .device-label { position: absolute; top: 260px; left: 61px; color: #526885; font-size: 14px; letter-spacing: 1px; }
+  .mobile-label { position: absolute; top: 329px; right: 58px; width: 292px; text-align: center; color: #526885; font-size: 14px; letter-spacing: 1px; }
+  .pill { position: absolute; right: 62px; top: 1024px; color: #346184; font-size: 16px; display: flex; align-items: center; gap: 9px; }
+  .pill i { width: 8px; height: 8px; background: #168662; border-radius: 50%; }
+  .credit { width: 1280px; height: 940px; padding: 40px 48px; background: #f3f6fb; }
+  .credit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .credit h2 { font-size: 32px; margin: 0 0 7px; }
+  .credit-header p { margin: 0; color: #526176; font-size: 16px; }
+  .sample { font-size: 13px; color: #526176; background: #fff; border: 1px solid #dfe7f2; padding: 8px 13px; border-radius: 20px; }
+  .credit-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .credit-column { display: flex; flex-direction: column; gap: 18px; }
+  .credit-column img { width: 100%; display: block; border-radius: 16px; }
+  .credit-footnote { margin-top: 20px; font-size: 14px; line-height: 1.8; color: #526176; }
+  body[data-view="hero"] .credit, body[data-view="credit"] .hero { display: none; }
+</style>
+<body data-view="hero">
+  <section class="hero">
+    <div class="brand"><img src="../../assets/lumatile.png" alt="">一格有光 · LumaTile <span class="version">v2.0.4</span></div>
+    <div class="platform">WINDOWS · macOS · ANDROID</div>
+    <h1>课表、成绩、学分。<span>都在一格里。</span></h1>
+    <p class="intro">周视图课表 · 本地 GPA 计算 · 学分修读进度</p>
+    <div class="device-label">桌面端 / DESKTOP</div>
+    <div class="desktop"><img data-asset="desktop-schedule.png" alt="桌面端虚拟课表"></div>
+    <div class="mobile-label">Android / MOBILE</div>
+    <div class="phone"><img data-asset="mobile-schedule.png" alt="移动端虚拟课表"></div>
+    <div class="pill"><i></i>课表与成绩，留在本机</div>
+  </section>
+  <section class="credit">
+    <div class="credit-header"><div><h2>学分进度，一眼看清</h2><p>已修、在修、模块缺口与选课方向，放在一起看。</p></div><span class="sample">合成数据演示 · 内置要求</span></div>
+    <div class="credit-columns">
+      <div class="credit-column"><img data-asset="credit-overview.png" alt="已修与在修概览"><img data-asset="credit-gaps.png" alt="未修完的项目"><img data-asset="credit-recs.png" alt="推荐选课方向"></div>
+      <div class="credit-column"><img data-asset="credit-modules.png" alt="各模块的实际学分进度"></div>
+    </div>
+    <p class="credit-footnote">展示数据完全虚拟；实际统计以读取到的培养方案及本地规则为依据。</p>
+  </section>
+</body>
+</html>
