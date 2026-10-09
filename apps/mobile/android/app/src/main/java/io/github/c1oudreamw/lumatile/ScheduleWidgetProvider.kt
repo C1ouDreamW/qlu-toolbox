@@ -24,22 +24,22 @@ import kotlin.random.Random
 class ScheduleWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         Log.e(TAG, "onUpdate ids=${appWidgetIds.contentToString()}")
-        val pendingResult = goAsync()
-        executor.execute {
-            try {
-                renderAll(context, manager, appWidgetIds)
-                scheduleNextRefresh(context)
-            } catch (error: Exception) {
-                Log.e(TAG, "renderAll failed", error)
-            } finally {
-                pendingResult.finish()
-            }
-        }
+        updateFromBroadcast(context, appWidgetIds)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action in REFRESH_ACTIONS) requestUpdate(context)
+        if (intent.action in REFRESH_ACTIONS) {
+            updateFromBroadcast(context)
+        } else {
+            super.onReceive(context, intent)
+        }
+    }
+
+    private fun updateFromBroadcast(context: Context, appWidgetIds: IntArray? = null) {
+        // Keep alarm/time-change broadcasts alive until Room reads, rendering and
+        // scheduling the next alarm finish, including the no-widget path.
+        val pendingResult = goAsync()
+        enqueueUpdate(context, appWidgetIds) { pendingResult.finish() }
     }
 
     override fun onDisabled(context: Context) {
@@ -67,23 +67,24 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             "^o^/",
         )
 
-        /** 直接渲染所有小组件实例，并安排下一次精确刷新。 */
+        /** Activity/插件请求刷新；广播入口另用 goAsync 保持生命周期。 */
         fun requestUpdate(context: Context) {
-            val manager = AppWidgetManager.getInstance(context)
-            if (manager == null) return
-            val ids = manager.getAppWidgetIds(ComponentName(context, ScheduleWidgetProvider::class.java))
-            Log.e(TAG, "requestUpdate ids=${ids.contentToString()}")
-            if (ids.isEmpty()) {
-                cancelScheduledRefresh(context)
-                return
-            }
-            executor.execute {
-                try {
-                    renderAll(context, manager, ids)
-                    scheduleNextRefresh(context)
-                } catch (error: Exception) {
-                    Log.e(TAG, "requestUpdate renderAll failed", error)
+            enqueueUpdate(context)
+        }
+
+        private fun enqueueUpdate(context: Context, appWidgetIds: IntArray? = null, finish: () -> Unit = {}) {
+            val appContext = context.applicationContext
+            executeWidgetRefresh(executor, finish, { Log.e(TAG, "widget refresh failed", it) }) {
+                val manager = AppWidgetManager.getInstance(appContext) ?: return@executeWidgetRefresh
+                val installedIds = manager.getAppWidgetIds(ComponentName(appContext, ScheduleWidgetProvider::class.java))
+                if (installedIds.isEmpty()) {
+                    cancelScheduledRefresh(appContext)
+                    return@executeWidgetRefresh
                 }
+                val ids = appWidgetIds?.filter { it in installedIds }?.toIntArray() ?: installedIds
+                Log.e(TAG, "refresh ids=${ids.contentToString()}")
+                if (ids.isNotEmpty()) renderAll(appContext, manager, ids)
+                scheduleNextRefresh(appContext)
             }
         }
 
@@ -189,8 +190,9 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                     nextMidnight,
                 )
                 val exactAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarm.canScheduleExactAlarms()
-                // 没有精确闹钟权限时，结束时间的非精确闹钟可能被 Doze 延迟很久；
-                // 课程进行期间最多每 5 分钟检查一次，保证下课后不会长期残留。
+                // 无精确闹钟权限时，课程结束前尝试将下一次检查设在 5 分钟内。
+                // 这只是请求时间：系统批处理、Doze 和厂商省电策略仍可显著延迟，
+                // 不保证 5 分钟内送达；建议用户允许“闹钟和提醒”以改善准时性。
                 val safetyTarget = now.toInstant().toEpochMilli() + INEXACT_SAFETY_REFRESH_MILLIS
                 val triggerAt = if (exactAllowed || nextCourseEnd == null) {
                     exactTarget

@@ -638,7 +638,6 @@ export function scheduleSegments(
   const scheduled = schedule.courses.flatMap(course => course.meetings
     .filter(meeting => meeting.weekday !== null && meeting.startPeriod !== null && meeting.endPeriod !== null)
     .map(meeting => ({ course, meeting })))
-  const meetings = scheduled.filter(({ meeting }) => meeting.weeks.includes(week))
   const dates = datesForWeek(schedule, week)
   for (const weekday of visibleWeekdays(schedule, week)) {
     const targetDate = dates[weekday - 1]
@@ -670,7 +669,9 @@ export function scheduleSegments(
       const item = candidates.find(item => item.meeting.id === choices[key]) || previousDefault
       result.push({ key, weekday, startPeriod, endPeriod, candidates, item, continued: startPeriod > item.meeting.startPeriod! })
     }
-    if (!showOtherWeekCourse) continue
+    // A make-up day is a one-off copy of the source date, not a recurring weekday.
+    // Both clients show only that date's actual courses, never other-week previews.
+    if (!showOtherWeekCourse || override) continue
     const future = scheduled.filter(({ meeting }) => meeting.weekday === weekday
       && !meeting.weeks.includes(week) && meeting.weeks.some(item => item > week)).sort((a, b) =>
       Number(b.meeting.weeks.includes(week + 1)) - Number(a.meeting.weeks.includes(week + 1))
