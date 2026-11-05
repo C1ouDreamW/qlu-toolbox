@@ -108,3 +108,63 @@ test('preload exposes the LumaTile API and forwards requests and events', async 
   ipc.emit('bridge:event', {}, 'scheduleImport', {})
   assert.equal(events.length, 1)
 })
+
+function restoreStartupTheme(initial, { readError = false, writeError = false } = {}) {
+  const html = readFileSync(path.join(root, 'index.html'), 'utf8')
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1]
+  assert.ok(script, 'The startup theme script must run before the renderer mounts')
+  const values = new Map(Object.entries(initial))
+  const dataset = {}
+  runInNewContext(script, {
+    document: { documentElement: { dataset } },
+    localStorage: {
+      getItem(key) {
+        if (readError) throw new Error('Storage unavailable')
+        return values.get(key) ?? null
+      },
+      setItem(key, value) {
+        if (writeError) throw new Error('Storage is read-only')
+        values.set(key, value)
+      },
+    },
+  })
+  return { theme: dataset.theme, values }
+}
+
+for (const theme of ['dark', 'light']) {
+  test(`startup migrates the legacy ${theme} cache while preserving it for older versions`, () => {
+    const result = restoreStartupTheme({ 'qlu:theme': theme })
+    assert.equal(result.theme, theme)
+    assert.equal(result.values.get('lumatile:theme'), theme)
+    assert.equal(result.values.get('qlu:theme'), theme)
+  })
+}
+
+test('the branded theme cache takes priority over a stale legacy cache', () => {
+  const result = restoreStartupTheme({ 'lumatile:theme': 'light', 'qlu:theme': 'dark' })
+  assert.equal(result.theme, 'light')
+  assert.equal(result.values.get('qlu:theme'), 'dark')
+})
+
+test('an invalid branded cache falls back to a valid legacy theme', () => {
+  const result = restoreStartupTheme({ 'lumatile:theme': 'invalid', 'qlu:theme': 'dark' })
+  assert.equal(result.theme, 'dark')
+  assert.equal(result.values.get('lumatile:theme'), 'dark')
+})
+
+test('missing or invalid theme caches preserve the default appearance', () => {
+  assert.equal(restoreStartupTheme({}).theme, undefined)
+  const result = restoreStartupTheme({ 'qlu:theme': 'invalid' })
+  assert.equal(result.theme, undefined)
+  assert.equal(result.values.has('lumatile:theme'), false)
+})
+
+test('a failed cache write still restores the startup theme', () => {
+  const result = restoreStartupTheme({ 'qlu:theme': 'dark' }, { writeError: true })
+  assert.equal(result.theme, 'dark')
+  assert.equal(result.values.has('lumatile:theme'), false)
+})
+
+test('unavailable localStorage does not prevent startup', () => {
+  assert.equal(restoreStartupTheme({}, { readError: true }).theme, undefined)
+})

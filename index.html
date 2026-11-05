@@ -8,8 +8,12 @@
     <script>
       // 在应用挂载前恢复上次使用的主题，避免深色模式下首帧闪白。
       try {
-        var cachedTheme = localStorage.getItem('qlu:theme')
-        if (cachedTheme === 'dark' || cachedTheme === 'light') document.documentElement.dataset.theme = cachedTheme
+        var cachedTheme = localStorage.getItem('lumatile:theme')
+        if (cachedTheme !== 'dark' && cachedTheme !== 'light') cachedTheme = localStorage.getItem('qlu:theme')
+        if (cachedTheme === 'dark' || cachedTheme === 'light') {
+          document.documentElement.dataset.theme = cachedTheme
+          localStorage.setItem('lumatile:theme', cachedTheme)
+        }
       } catch (error) {}
     </script>
   </head>
