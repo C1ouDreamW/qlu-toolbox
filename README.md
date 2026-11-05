@@ -89,7 +89,7 @@
 | 平台 | 当前版本 | 发布形式 | 说明 |
 |---|---:|---|---|
 | Windows x64 | 2.0.4 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
-| macOS Apple Silicon | 2.0.4 | DMG | 未签名、未公证，首次打开需在系统设置中确认 |
+| macOS Apple Silicon | 2.0.4 | DMG | 使用 ad-hoc 签名，未公证，首次打开需在系统设置中确认 |
 | Android 7.0 及以上 | 2.0.4（versionCode 15） | APK | 使用系统 WebView（Chromium 80 及以上），支持系统文件保存和应用内更新检查 |
 
 安装包同时发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 与自建更新源 `lumatile.ishua.cloud`（互为备用渠道）。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
@@ -124,7 +124,7 @@
 - Windows 推荐使用 `LumaTile_v*_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `LumaTile.exe`，不要只复制可执行文件。
 - Apple Silicon Mac 下载 `LumaTile_v*_arm64.dmg`，打开后将 `LumaTile.app` 拖入“应用程序”。当前不提供 Intel Mac 版本。
 
-macOS DMG 当前未使用 Apple 开发者证书签名或公证。首次启动若被阻止：
+macOS 构建使用 ad-hoc 签名校验完整应用及其内嵌组件，尚未使用 Apple 开发者证书签名或公证。首次启动若被阻止：
 
 1. 先尝试打开一次 `LumaTile.app` 并关闭系统警告。
 2. 前往“系统设置 → 隐私与安全性”。
@@ -273,10 +273,16 @@ npm run dist:installer
 npm run dist:zip
 ```
 
-在 Apple Silicon Mac 上构建 DMG：
+在 Apple Silicon Mac 上构建 DMG（无需开发者证书，使用 ad-hoc 签名）：
 
 ```bash
 npm run dist:mac -- --arm64
+```
+
+可验证应用签名与内嵌资源是否完整：
+
+```bash
+codesign --verify --deep --strict --verbose=2 release/mac-arm64/LumaTile.app
 ```
 
 桌面产物输出到 `release/`；Python Worker 构建中间产物输出到 `backend-dist/` 和 `backend-build/`。
@@ -338,7 +344,7 @@ docs/                                 移动端方案、产品与发布文档
 - 仅适配 `https://jw.qlu.edu.cn/` 当前使用的教务系统和统一认证流程。
 - 登录、教务查询和 GitHub 更新检查均依赖用户当前网络环境。
 - 桌面端登录等待时间为 15 分钟。
-- macOS 仅提供 Apple Silicon 版本，DMG 尚未签名或公证。
+- macOS 仅提供 Apple Silicon 版本，使用 ad-hoc 签名，尚未使用开发者证书签名或公证。
 - Windows 安装包尚未数字签名，可能触发 SmartScreen 来源提示。
 - Android 依赖设备的 System WebView，需要 Chromium 80 及以上；更低版本会在启动时提示更新 WebView，且不承诺所有厂商系统和 WebView 版本均已验证。
 - 当前不提供 iOS 版本。

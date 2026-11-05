@@ -115,7 +115,7 @@ jobs:
           expected=$(node -p "require('./package.json').version")
           node -e 'const message=JSON.parse(process.argv[1]); if(message.id!=="smoke" || message.result.version!==process.argv[2]) process.exit(1)' "$response" "$expected"
 
-      - name: Package unsigned Apple Silicon DMG
+      - name: Package ad-hoc signed Apple Silicon DMG
         run: npx electron-builder --mac dmg --arm64 --publish never
 
       - name: Verify and mount DMG
@@ -130,6 +130,10 @@ jobs:
           trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
           hdiutil attach "$dmg" -nobrowse -mountpoint "$mount_dir"
           test -d "$mount_dir/LumaTile.app"
+          codesign --verify --deep --strict --verbose=2 "$mount_dir/LumaTile.app"
+          response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | "$mount_dir/LumaTile.app/Contents/Resources/backend/QLUToolboxWorker" --bridge)
+          expected=$(node -p "require('./package.json').version")
+          node -e 'const message=JSON.parse(process.argv[1]); if(message.id!=="smoke" || message.result?.version!==process.argv[2] || message.result.browserComponent.error) process.exit(1)' "$response" "$expected"
           hdiutil detach "$mount_dir"
           trap - EXIT
 

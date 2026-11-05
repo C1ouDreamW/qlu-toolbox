@@ -72,6 +72,9 @@
     "mac": {
       "icon": "assets/lumatile.icns",
       "category": "public.app-category.education",
+      "identity": "-",
+      "entitlements": "installer-assets/entitlements.mac.plist",
+      "entitlementsInherit": "installer-assets/entitlements.mac.plist",
       "target": ["dmg"],
       "artifactName": "LumaTile_v${version}_${arch}.${ext}",
       "extraResources": [
