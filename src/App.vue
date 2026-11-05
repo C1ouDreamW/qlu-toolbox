@@ -24,7 +24,7 @@ import type { Announcement, PageName } from '@/types'
 const update = ref<UpdateInfo | null>(null)
 const announcement = ref<Announcement | null>(null)
 const disclaimerConfirmed = ref(false)
-const api = window.qlu
+const api = window.lumatile
 const reloadApp = () => window.location.reload()
 const checkingUpdate = ref(false)
 const feedbackOpen = ref(false)
@@ -55,7 +55,7 @@ async function checkUpdate(manual = false) {
   if (!boot.value || checkingUpdate.value) return
   checkingUpdate.value = true
   try {
-    update.value = await window.qlu.checkUpdate(boot.value.version)
+    update.value = await window.lumatile.checkUpdate(boot.value.version)
     if (manual && !update.value) appStore.notify('当前已是最新版本', 'success')
   } catch (error) {
     if (manual) appStore.notify(`检查更新失败：${error instanceof Error ? error.message : error}`, 'error')
@@ -63,7 +63,7 @@ async function checkUpdate(manual = false) {
 }
 
 async function showAnnouncement() {
-  const item = await window.qlu.fetchAnnouncement()
+  const item = await window.lumatile.fetchAnnouncement()
   if (!item) return
   try {
     if (localStorage.getItem('lastAnnouncementId') === item.id) return
@@ -84,7 +84,7 @@ function runStartupTasks() {
   startupDone = true
   applyStartPage()
   if (boot.value.settings.check_updates) void checkUpdate()
-  if (boot.value.settings.anonymous_stats) void window.qlu.sendStatsBeacon()
+  if (boot.value.settings.anonymous_stats) void window.lumatile.sendStatsBeacon()
   void showAnnouncement()
 }
 onMounted(async () => {

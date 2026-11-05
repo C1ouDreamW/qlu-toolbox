@@ -34,7 +34,7 @@ class ScheduleUiTests(unittest.TestCase):
                     self.skipTest(f'Edge unavailable: {error}')
                 page = browser.new_page(viewport={'width':1200, 'height':850})
                 page.add_init_script('window.auditBoot=' + json.dumps(boot) + ''';
-window.qlu={onEvent:f=>window.auditEmit=f,windowAction:()=>{},fetchAnnouncement:async()=>null,
+window.lumatile={onEvent:f=>window.auditEmit=f,windowAction:()=>{},fetchAnnouncement:async()=>null,
 invoke:async(m,p)=>{if(m==='bootstrap')return structuredClone(auditBoot);if(m==='listSchedules')return structuredClone(auditBoot.schedules);if(m==='listTasks')return [];
 if(m==='saveSchedule'){if(window.failSave)throw Error('模拟磁盘写入失败');await new Promise(r=>setTimeout(r,120));auditBoot.schedules=[{...p,isActive:true,updatedAt:new Date().toISOString()}];return p;}}};''')
                 url = f'http://127.0.0.1:{server.server_port}'
@@ -140,7 +140,7 @@ if(m==='saveSchedule'){if(window.failSave)throw Error('模拟磁盘写入失败'
                 # First welcome acceptance runs startup tasks without a restart.
                 first = browser.new_page()
                 boot['settings'].update(welcome_accepted=False,check_updates=True,anonymous_stats=True)
-                first.add_init_script('window.auditBoot='+json.dumps(boot)+";\nwindow.calls={update:0,stats:0,announcement:0};window.qlu={onEvent:()=>{},windowAction:()=>{},\ncheckUpdate:async()=>{calls.update++;return null},sendStatsBeacon:async()=>{calls.stats++},\nfetchAnnouncement:async()=>{calls.announcement++;return {id:'regression',title:'测试公告',body:'第一行\\n第二行',level:'info'}},\ninvoke:async(m,p)=>{if(m==='bootstrap')return structuredClone(auditBoot);if(m==='saveSettings')return Object.assign(auditBoot.settings,p);if(m==='listSchedules')return auditBoot.schedules;if(m==='listTasks')return []}};\n")
+                first.add_init_script('window.auditBoot='+json.dumps(boot)+";\nwindow.calls={update:0,stats:0,announcement:0};window.lumatile={onEvent:()=>{},windowAction:()=>{},\ncheckUpdate:async()=>{calls.update++;return null},sendStatsBeacon:async()=>{calls.stats++},\nfetchAnnouncement:async()=>{calls.announcement++;return {id:'regression',title:'测试公告',body:'第一行\\n第二行',level:'info'}},\ninvoke:async(m,p)=>{if(m==='bootstrap')return structuredClone(auditBoot);if(m==='saveSettings')return Object.assign(auditBoot.settings,p);if(m==='listSchedules')return auditBoot.schedules;if(m==='listTasks')return []}};\n")
                 first.goto(url+'/dist-renderer/index.html')
                 first.get_by_role('button',name='确认并开始使用').wait_for()
                 self.assertEqual(first.evaluate('calls'),dict(update=0,stats=0,announcement=0))

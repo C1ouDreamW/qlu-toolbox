@@ -36,7 +36,7 @@ const display = (value: number | null, digits: number) => value === null ? '—'
 const semesterText = (course: GPACourse) => [course.academic_year, course.semester ? `第 ${course.semester} 学期` : ''].filter(Boolean).join(' · ')
 
 async function chooseFile() {
-  const selectedPath = await window.qlu.selectFile(props.data.settings.default_output_dir)
+  const selectedPath = await window.lumatile.selectFile(props.data.settings.default_output_dir)
   if (selectedPath) await loadFile(selectedPath)
 }
 
@@ -48,7 +48,7 @@ async function loadFile(filePath: string) {
   loading.value = true
   error.value = ''
   try {
-    workbook.value = await window.qlu.invoke<GPAWorkbook>('parseGradeWorkbook', { filePath })
+    workbook.value = await window.lumatile.invoke<GPAWorkbook>('parseGradeWorkbook', { filePath })
     query.value = ''
     appStore.notify(`已读取 ${workbook.value.courses.length} 门课程`, 'success')
   } catch (reason) {
@@ -67,7 +67,7 @@ async function drop(event: DragEvent) {
     error.value = '请选择 .xlsx 格式的分项成绩文件。'
     return
   }
-  await loadFile(window.qlu.getFilePath(file))
+  await loadFile(window.lumatile.getFilePath(file))
 }
 
 function toggleAll() {

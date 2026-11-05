@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Minus, Square, X } from 'lucide-vue-next'
 import { logoUrl } from '@/assets'
-const api = window.qlu
+const api = window.lumatile
 const isMac = api.platform === 'darwin'
 </script>
 

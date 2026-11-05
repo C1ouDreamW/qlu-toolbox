@@ -4,7 +4,7 @@ import type { MarkdownInline } from '@lumatile/update-notes'
 defineProps<{ tokens: MarkdownInline[] }>()
 
 function openLink(href: string) {
-  void window.qlu.openExternal(href)
+  void window.lumatile.openExternal(href)
 }
 </script>
 

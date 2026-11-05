@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface Window {
-  qlu: {
+  lumatile: {
     platform: string
     invoke<T>(method: string, params?: Record<string, unknown>): Promise<T>
     onEvent(callback: (name: string, payload: unknown) => void): () => void

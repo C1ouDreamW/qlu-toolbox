@@ -77,7 +77,7 @@ def capture(desktop_url: str, mobile_url: str, output: Path):
         page.add_init_script("""(fixture => {
           let listener;
           const boot = fixture.boot;
-          window.qlu = {
+          window.lumatile = {
             platform: 'win32', syncTheme() {}, windowAction() {},
             onEvent(callback) { listener = callback; return () => {}; },
             selectFile: async () => '虚拟展示成绩.xlsx', fetchAnnouncement: async () => null,

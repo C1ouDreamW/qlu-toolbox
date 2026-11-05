@@ -7,7 +7,7 @@ import { appStore } from '@/store'
 
 defineProps<{ data: BootstrapData }>()
 const emit = defineEmits<{ feedback: [] }>()
-const api = window.qlu
+const api = window.lumatile
 const qqGroupNumber = '438767737'
 
 function copyWithSelection(value: string) {

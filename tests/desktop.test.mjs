@@ -79,3 +79,32 @@ for (const platform of ['darwin', 'win32']) {
     assert.equal(options.cwd, '/resources')
   })
 }
+
+test('preload exposes the LumaTile API and forwards requests and events', async () => {
+  const exposed = new Map()
+  const ipc = new EventEmitter()
+  const sent = []
+  ipc.invoke = async (...args) => args
+  ipc.send = (...args) => sent.push(args)
+  loadElectronModule('electron/preload.cts', {
+    electron: {
+      contextBridge: { exposeInMainWorld: (name, api) => exposed.set(name, api) },
+      ipcRenderer: ipc,
+      webUtils: { getPathForFile: file => file.path },
+    },
+  }, { platform: 'darwin' })
+  assert.deepEqual([...exposed.keys()], ['lumatile'])
+  const api = exposed.get('lumatile')
+  assert.equal(api.platform, 'darwin')
+  assert.deepEqual(await api.invoke('listTasks', { limit: 2 }), ['bridge:invoke', 'listTasks', { limit: 2 }])
+  api.windowAction('minimize')
+  assert.deepEqual(sent, [['window:action', 'minimize']])
+
+  const events = []
+  const unsubscribe = api.onEvent((name, payload) => events.push([name, payload]))
+  ipc.emit('bridge:event', {}, 'scheduleImport', { taskId: 'test-task' })
+  assert.deepEqual(events, [['scheduleImport', { taskId: 'test-task' }]])
+  unsubscribe()
+  ipc.emit('bridge:event', {}, 'scheduleImport', {})
+  assert.equal(events.length, 1)
+})

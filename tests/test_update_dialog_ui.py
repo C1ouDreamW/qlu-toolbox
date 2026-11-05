@@ -42,7 +42,7 @@ class UpdateDialogMarkdownTests(unittest.TestCase):
                     self.skipTest(f'Edge unavailable: {error}')
                 page = browser.new_page(viewport={'width': 1200, 'height': 850})
                 page.add_init_script('window.auditBoot=' + json.dumps(boot) + ';window.auditUpdate=' + json.dumps(update) + ''';
-window.externalCalls=[];window.qlu={onEvent:()=>{},windowAction:()=>{},syncTheme:()=>{},openExternal:async(u)=>{window.externalCalls.push(u)},
+window.externalCalls=[];window.lumatile={onEvent:()=>{},windowAction:()=>{},syncTheme:()=>{},openExternal:async(u)=>{window.externalCalls.push(u)},
 checkUpdate:async()=>window.auditUpdate,fetchAnnouncement:async()=>null,sendStatsBeacon:async()=>{},
 invoke:async(m)=>{if(m==='bootstrap')return structuredClone(auditBoot);if(m==='listSchedules')return [];if(m==='listTasks')return [];return null}};''')
                 page.goto(f'http://127.0.0.1:{server.server_port}/dist-renderer/index.html')

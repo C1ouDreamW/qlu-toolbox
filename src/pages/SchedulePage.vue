@@ -220,7 +220,7 @@ function saveBook(book: ScheduleBook, makeActive = false) {
   const snapshot = JSON.parse(JSON.stringify(book)) as ScheduleBook
   saveQueue = saveQueue.then(() => run(async () => {
     validateSchedule(snapshot)
-    await window.qlu.invoke('saveSchedule', {
+    await window.lumatile.invoke('saveSchedule', {
       id: snapshot.id, name: snapshot.name, payload: JSON.stringify(snapshot), makeActive,
     })
     await load(snapshot.id)
@@ -324,13 +324,13 @@ function openImportPreview(source: ScheduleImportSource) {
 function importFromFile() {
   menu.value = null
   void run(async () => {
-    const filePath = await window.qlu.selectFile({
+    const filePath = await window.lumatile.selectFile({
       title: '选择课表文件',
       filterName: '课表文件（xls/xlsx/备份 JSON）',
       extensions: ['xls', 'xlsx', 'json'],
     })
     if (!filePath) return
-    const source = await window.qlu.invoke<ScheduleImportSource>('parseScheduleSource', { filePath })
+    const source = await window.lumatile.invoke<ScheduleImportSource>('parseScheduleSource', { filePath })
     openImportPreview(source)
   })
 }
@@ -391,21 +391,21 @@ function exportBackup() {
   if (!schedule.value) return
   const safe = schedule.value.name.replace(/[^\p{L}\p{N}._-]/gu, '_')
   void run(async () => {
-    const path = await window.qlu.saveTextFile({
+    const path = await window.lumatile.saveTextFile({
       defaultName: `${safe}.lumatile-schedule.json`,
       title: '导出课表备份',
       contents: JSON.stringify(schedule.value),
     })
     if (path) {
       appStore.notify('课表备份已导出', 'success')
-      void window.qlu.showItem(path)
+      void window.lumatile.showItem(path)
     }
   })
 }
 
 function activate(row: StoredSchedule) {
   void run(async () => {
-    await window.qlu.invoke('activateSchedule', { id: row.id })
+    await window.lumatile.invoke('activateSchedule', { id: row.id })
     await load(row.id)
     switching.value = false
   })
@@ -413,7 +413,7 @@ function activate(row: StoredSchedule) {
 
 function removeBook() {
   void run(async () => {
-    await window.qlu.invoke('deleteSchedule', { id: scheduleId.value })
+    await window.lumatile.invoke('deleteSchedule', { id: scheduleId.value })
     confirmDelete.value = false
     await load()
     appStore.notify('课表已删除', 'success')

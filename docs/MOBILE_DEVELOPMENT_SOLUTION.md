@@ -233,7 +233,7 @@ qlu-toolbox/
 
 ## 6. 跨端平台抽象
 
-当前页面直接调用 `window.qlu`。移动端开发前，应增加平台适配层，避免页面绑定 Electron。
+当前页面直接调用 `window.lumatile`。移动端开发前，应增加平台适配层，避免页面绑定 Electron。
 
 建议接口。`ArtifactHandle` 是对临时或导入工作簿的不透明引用，不包含 Base64、绝对路径或 Cookie；`SavedArtifact` 在 Android 上保存 `content://` URI 和显示元数据：
 

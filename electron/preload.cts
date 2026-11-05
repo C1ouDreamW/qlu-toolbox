@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron') as typeof import('electron')
 
-contextBridge.exposeInMainWorld('qlu', {
+contextBridge.exposeInMainWorld('lumatile', {
   platform: process.platform,
   invoke: (method: string, params?: Record<string, unknown>) => ipcRenderer.invoke('bridge:invoke', method, params),
   onEvent: (callback: (name: string, payload: unknown) => void) => {

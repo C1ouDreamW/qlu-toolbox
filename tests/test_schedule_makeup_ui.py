@@ -78,7 +78,7 @@ class ScheduleMakeupUiTests(unittest.TestCase):
                         start_page='schedule', check_updates=False, anonymous_stats=False),
                         schedules=[row], tasks=[], tools=[], browserComponent={}, paths={}, metadata={})
             page.add_init_script('window.auditBoot=' + json.dumps(boot) + ''';
-                window.qlu={onEvent:()=>{},windowAction:()=>{},fetchAnnouncement:async()=>null,
+                window.lumatile={onEvent:()=>{},windowAction:()=>{},fetchAnnouncement:async()=>null,
                 invoke:async(m)=>{if(m==='bootstrap')return structuredClone(auditBoot);
                 if(m==='listSchedules')return structuredClone(auditBoot.schedules);
                 if(m==='listTasks')return [];}};''')

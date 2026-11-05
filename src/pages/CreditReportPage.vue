@@ -9,7 +9,7 @@ import { appStore } from '@/store'
 import type { BootstrapData, CreditModuleStat, CreditRules, PageName } from '@/types'
 
 defineProps<{ data: BootstrapData }>()
-const api = window.qlu
+const api = window.lumatile
 const emit = defineEmits<{ navigate: [page: PageName] }>()
 const credit = appStore.state.credit
 const showLogs = ref(false)

@@ -5,7 +5,7 @@ import StatusPill from '@/components/StatusPill.vue'
 import type { BootstrapData, PageName } from '@/types'
 
 const props = defineProps<{ data: BootstrapData }>()
-const api = window.qlu
+const api = window.lumatile
 const emit = defineEmits<{ navigate: [page: PageName] }>()
 const formatTime = (value: string) => value ? new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—'
 </script>

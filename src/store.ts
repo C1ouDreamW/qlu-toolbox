@@ -59,31 +59,31 @@ function applyTheme(theme: Settings['theme']) {
   try {
     localStorage.setItem('qlu:theme', dark ? 'dark' : 'light')
   } catch (error) {}
-  window.qlu.syncTheme?.(theme)
+  window.lumatile.syncTheme?.(theme)
 }
 
 async function refreshTasks() {
   if (!state.boot) return
-  state.boot.tasks = await window.qlu.invoke<TaskRecord[]>('listTasks', { limit: 200 })
+  state.boot.tasks = await window.lumatile.invoke<TaskRecord[]>('listTasks', { limit: 200 })
 }
 
 async function refreshSchedules() {
   if (!state.boot) return
-  state.boot.schedules = await window.qlu.invoke<StoredSchedule[]>('listSchedules')
+  state.boot.schedules = await window.lumatile.invoke<StoredSchedule[]>('listSchedules')
 }
 
 async function saveSettings(patch: Partial<Settings>) {
   if (!state.boot) return
-  state.boot.settings = await window.qlu.invoke<Settings>('saveSettings', patch as Record<string, unknown>)
+  state.boot.settings = await window.lumatile.invoke<Settings>('saveSettings', patch as Record<string, unknown>)
   applyTheme(state.boot.settings.theme)
   notify('设置已保存', 'success')
 }
 
 async function initialize() {
   try {
-    state.boot = await window.qlu.invoke<BootstrapData>('bootstrap')
+    state.boot = await window.lumatile.invoke<BootstrapData>('bootstrap')
     applyTheme(state.boot.settings.theme)
-    window.qlu.onEvent((name, payload) => {
+    window.lumatile.onEvent((name, payload) => {
       if (name === 'browserComponent') {
         const event = (payload as { event: BrowserComponentEvent }).event
         if (event.type === 'progress') {
@@ -242,7 +242,7 @@ async function installBrowserComponent() {
   state.browser.message = '正在准备下载…'
   state.browser.error = ''
   try {
-    const status = await window.qlu.invoke<BrowserComponentStatus>('startBrowserInstall')
+    const status = await window.lumatile.invoke<BrowserComponentStatus>('startBrowserInstall')
     state.browser.installing = status.installing
     if (status.installed) {
       if (state.boot) state.boot.browserComponent = status
@@ -255,18 +255,18 @@ async function installBrowserComponent() {
 }
 
 async function cancelBrowserComponentInstall() {
-  await window.qlu.invoke('cancelBrowserInstall')
+  await window.lumatile.invoke('cancelBrowserInstall')
   state.browser.message = '正在取消下载…'
 }
 
 async function declineBrowserComponent() {
   if (state.browser.installing) await cancelBrowserComponentInstall()
-  await window.qlu.invoke('gradeCommand', { command: 'cancel' })
+  await window.lumatile.invoke('gradeCommand', { command: 'cancel' })
   state.browser.required = false
 }
 
 async function startScheduleImport() {
-  const response = await window.qlu.invoke<{ taskId: string }>('startScheduleImport')
+  const response = await window.lumatile.invoke<{ taskId: string }>('startScheduleImport')
   state.scheduleImport.running = true
   state.scheduleImport.taskId = response.taskId
   state.scheduleImport.stage = 'browser'
@@ -276,7 +276,7 @@ async function startScheduleImport() {
 }
 
 function cancelScheduleImport() {
-  return window.qlu.invoke('scheduleCommand', { command: 'cancel' })
+  return window.lumatile.invoke('scheduleCommand', { command: 'cancel' })
 }
 
 watch(() => state.page, (page) => {

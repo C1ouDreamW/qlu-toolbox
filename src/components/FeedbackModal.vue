@@ -18,7 +18,7 @@ async function submit() {
   submitting.value = true
   error.value = ''
   try {
-    const result = await window.qlu.submitFeedback({
+    const result = await window.lumatile.submitFeedback({
       type: type.value,
       content: content.value.trim(),
       contact: contact.value.trim(),

@@ -12,7 +12,7 @@ import { appStore } from '@/store'
 import type { BootstrapData, BrowserComponentStatus, Settings } from '@/types'
 
 const props = defineProps<{ data: BootstrapData }>()
-const api = window.qlu
+const api = window.lumatile
 const emit = defineEmits<{ 'check-update': [] }>()
 const form = reactive<Settings>({ ...props.data.settings })
 const confirmBrowserRemoval = ref(false)
@@ -35,14 +35,14 @@ function formatBytes(value: number) {
 }
 
 async function browse() {
-  const selected = await window.qlu.selectDirectory(form.default_output_dir)
+  const selected = await window.lumatile.selectDirectory(form.default_output_dir)
   if (selected) form.default_output_dir = selected
 }
 async function save() { await appStore.saveSettings({ ...form }) }
 async function clear(kind: 'clearProfiles'|'clearLogs') {
   const label = kind === 'clearProfiles' ? '浏览器登录状态' : '日志与缓存'
   if (!confirm(`确定清除${label}吗？此操作无法撤销。`)) return
-  await window.qlu.invoke(kind)
+  await window.lumatile.invoke(kind)
   appStore.notify(`${label}已清除`, 'success')
 }
 function openDataLocation(key: 'settings' | 'tasks' | 'schedules' | 'logs' | 'profiles' | 'browsers') {
