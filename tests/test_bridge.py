@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from qlu_toolbox.bridge import Bridge
+from lumatile.bridge import Bridge
 
 
 # Patch the home directory in the child, too: APPDATA alone does not isolate macOS.
@@ -42,11 +42,11 @@ class BridgeProcessTests(unittest.TestCase):
         process = Mock(pid=1234)
         process.poll.return_value = None
         with (
-            patch("qlu_toolbox.bridge.sys.platform", "darwin"),
+            patch("lumatile.bridge.sys.platform", "darwin"),
             patch(
-                "qlu_toolbox.bridge.os.getpgid", return_value=4321, create=True
+                "lumatile.bridge.os.getpgid", return_value=4321, create=True
             ),
-            patch("qlu_toolbox.bridge.os.killpg", create=True) as killpg,
+            patch("lumatile.bridge.os.killpg", create=True) as killpg,
         ):
             Bridge._terminate_process_tree(process)
         killpg.assert_called_once_with(4321, signal.SIGTERM)

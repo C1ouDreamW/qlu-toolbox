@@ -7,11 +7,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from qlu_toolbox.core.paths import AppPaths
-from qlu_toolbox.core.settings import AppSettings, SettingsStore
-from qlu_toolbox.core.tasks import TaskStore
-from qlu_toolbox.core.tools import ToolManifest, ToolRegistry
-from qlu_toolbox.modules.grade_export.domain import (
+from lumatile.core.paths import AppPaths
+from lumatile.core.settings import AppSettings, SettingsStore
+from lumatile.core.tasks import TaskStore
+from lumatile.core.tools import ToolManifest, ToolRegistry
+from lumatile.modules.grade_export.domain import (
     ExportOptions,
     atomic_save,
     output_path,
@@ -28,8 +28,8 @@ class AppPathsTests(unittest.TestCase):
                 "LOCALAPPDATA": str(root / "local"),
             }
             with (
-                patch("qlu_toolbox.core.paths.sys.platform", "win32"),
-                patch("qlu_toolbox.core.paths.Path.home", return_value=root / "home"),
+                patch("lumatile.core.paths.sys.platform", "win32"),
+                patch("lumatile.core.paths.Path.home", return_value=root / "home"),
                 patch.dict(os.environ, environment, clear=True),
             ):
                 paths = AppPaths.discover()
@@ -41,8 +41,8 @@ class AppPathsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             home = Path(temporary) / "home"
             with (
-                patch("qlu_toolbox.core.paths.sys.platform", "darwin"),
-                patch("qlu_toolbox.core.paths.Path.home", return_value=home),
+                patch("lumatile.core.paths.sys.platform", "darwin"),
+                patch("lumatile.core.paths.Path.home", return_value=home),
                 patch.dict(os.environ, {}, clear=True),
             ):
                 paths = AppPaths.discover()

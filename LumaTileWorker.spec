@@ -29,7 +29,7 @@ executable = EXE(
     analysis.binaries,
     analysis.datas,
     [],
-    name="QLUToolboxWorker",
+    name="LumaTileWorker",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

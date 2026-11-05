@@ -8,12 +8,12 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from qlu_toolbox.core.browser_component import (
+from lumatile.core.browser_component import (
     DOWNLOAD_SIZE_MIB,
     INSTALLED_SIZE_MIB,
     configure_browser_environment,
 )
-from qlu_toolbox.core.paths import AppPaths
+from lumatile.core.paths import AppPaths
 
 from .domain import (
     BASE_URL,

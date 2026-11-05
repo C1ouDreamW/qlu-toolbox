@@ -13,9 +13,10 @@
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "typecheck": "vue-tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
+    "test:desktop": "node --test tests/desktop.test.mjs",
     "build:renderer": "vite build",
     "build:electron": "tsc -p electron/tsconfig.json",
-    "build:backend": "uv run --locked pyinstaller --noconfirm --distpath backend-dist --workpath backend-build QLUToolboxWorker.spec",
+    "build:backend": "uv run --locked pyinstaller --noconfirm --distpath backend-dist --workpath backend-build LumaTileWorker.spec",
     "build": "npm run typecheck && npm run build:renderer && npm run build:electron",
     "dist": "npm run build:backend && npm run build && electron-builder --win dir",
     "dist:zip": "npm run build:backend && npm run build && electron-builder --win zip",
@@ -64,8 +65,8 @@
       "artifactName": "LumaTile_v${version}_${arch}.${ext}",
       "extraResources": [
         {
-          "from": "backend-dist/QLUToolboxWorker.exe",
-          "to": "backend/QLUToolboxWorker.exe"
+          "from": "backend-dist/LumaTileWorker.exe",
+          "to": "backend/LumaTileWorker.exe"
         }
       ]
     },
@@ -79,8 +80,8 @@
       "artifactName": "LumaTile_v${version}_${arch}.${ext}",
       "extraResources": [
         {
-          "from": "backend-dist/QLUToolboxWorker",
-          "to": "backend/QLUToolboxWorker"
+          "from": "backend-dist/LumaTileWorker",
+          "to": "backend/LumaTileWorker"
         }
       ]
     },

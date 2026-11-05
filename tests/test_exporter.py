@@ -10,7 +10,7 @@ from unittest.mock import patch
 from urllib.parse import parse_qs
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from qlu_toolbox.modules.grade_export.domain import (
+from lumatile.modules.grade_export.domain import (
     ExportError,
     ExportOptions,
     build_export_body,
@@ -21,8 +21,8 @@ from qlu_toolbox.modules.grade_export.domain import (
     xlsx_semester_scan,
     xlsx_semester_values,
 )
-from qlu_toolbox.core.paths import AppPaths
-from qlu_toolbox.modules.grade_export.service import _launch_context
+from lumatile.core.paths import AppPaths
+from lumatile.modules.grade_export.service import _launch_context
 
 
 SEMESTER_TABLE_STRINGS = """<?xml version="1.0" encoding="UTF-8"?>
@@ -76,7 +76,7 @@ class ExporterTests(unittest.TestCase):
             ready = threading.Event()
             ready.set()
             with patch(
-                "qlu_toolbox.modules.grade_export.service.AppPaths.discover",
+                "lumatile.modules.grade_export.service.AppPaths.discover",
                 return_value=paths,
             ):
                 context, transient = _launch_context(

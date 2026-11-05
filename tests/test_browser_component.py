@@ -5,12 +5,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from qlu_toolbox.core.browser_component import (
+from lumatile.core.browser_component import (
     browser_component_status,
     browser_install_command,
     directory_size,
 )
-from qlu_toolbox.core.paths import AppPaths
+from lumatile.core.paths import AppPaths
 
 
 class BrowserComponentTests(unittest.TestCase):
@@ -30,11 +30,11 @@ class BrowserComponentTests(unittest.TestCase):
             executable.write_bytes(b"browser")
             with (
                 patch(
-                    "qlu_toolbox.core.browser_component.expected_browser_executable",
+                    "lumatile.core.browser_component.expected_browser_executable",
                     return_value=executable,
                 ),
                 patch(
-                    "qlu_toolbox.core.browser_component._playwright_browser_metadata",
+                    "lumatile.core.browser_component._playwright_browser_metadata",
                     return_value=("1", "100.0"),
                 ),
             ):

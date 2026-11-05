@@ -12,13 +12,13 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from qlu_toolbox import __version__
-from qlu_toolbox.core.browser_component import (
+from lumatile import __version__
+from lumatile.core.browser_component import (
     browser_component_status,
     browser_install_command,
     configure_browser_environment,
 )
-from qlu_toolbox.core.metadata import (
+from lumatile.core.metadata import (
     AUTHOR_EMAIL,
     AUTHOR_GITHUB_URL,
     AUTHOR_NAME,
@@ -26,24 +26,24 @@ from qlu_toolbox.core.metadata import (
     RELEASES_URL,
     REPOSITORY_URL,
 )
-from qlu_toolbox.core.paths import AppPaths
-from qlu_toolbox.core.schedules import ScheduleStore
-from qlu_toolbox.core.settings import AppSettings, SettingsStore
-from qlu_toolbox.core.tasks import TaskStore
-from qlu_toolbox.modules.credit_report import MANIFEST as CREDIT_MANIFEST
-from qlu_toolbox.modules.credit_report.domain import (
+from lumatile.core.paths import AppPaths
+from lumatile.core.schedules import ScheduleStore
+from lumatile.core.settings import AppSettings, SettingsStore
+from lumatile.core.tasks import TaskStore
+from lumatile.modules.credit_report import MANIFEST as CREDIT_MANIFEST
+from lumatile.modules.credit_report.domain import (
     PLAN_SNAPSHOT_NAME,
     SNAPSHOT_DIR_NAME,
     load_rules,
     rules_path,
     save_rules,
 )
-from qlu_toolbox.modules.grade_export import MANIFEST
-from qlu_toolbox.modules.grade_export.domain import SEMESTERS, default_academic_year, validate_academic_year
-from qlu_toolbox.modules.gpa_calculator import MANIFEST as GPA_MANIFEST
-from qlu_toolbox.modules.gpa_calculator.domain import parse_grade_xlsx
-from qlu_toolbox.modules.schedule import MANIFEST as SCHEDULE_MANIFEST
-from qlu_toolbox.modules.schedule_io import parse_schedule_source
+from lumatile.modules.grade_export import MANIFEST
+from lumatile.modules.grade_export.domain import SEMESTERS, default_academic_year, validate_academic_year
+from lumatile.modules.gpa_calculator import MANIFEST as GPA_MANIFEST
+from lumatile.modules.gpa_calculator.domain import parse_grade_xlsx
+from lumatile.modules.schedule import MANIFEST as SCHEDULE_MANIFEST
+from lumatile.modules.schedule_io import parse_schedule_source
 
 
 class Bridge:

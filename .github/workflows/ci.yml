@@ -61,6 +61,9 @@ jobs:
       - name: Build Vue and Electron
         run: npm run build
 
+      - name: Test desktop integration
+        run: npm run test:desktop
+
       - name: Build Python worker
         run: npm run build:backend
 
@@ -104,6 +107,9 @@ jobs:
       - name: Build Vue and Electron
         run: npm run build
 
+      - name: Test desktop integration
+        run: npm run test:desktop
+
       - name: Build Python worker
         run: npm run build:backend
 
@@ -111,7 +117,7 @@ jobs:
         shell: bash
         run: |
           test "$(uname -m)" = "arm64"
-          response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | ./backend-dist/QLUToolboxWorker --bridge)
+          response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | ./backend-dist/LumaTileWorker --bridge)
           expected=$(node -p "require('./package.json').version")
           node -e 'const message=JSON.parse(process.argv[1]); if(message.id!=="smoke" || message.result.version!==process.argv[2]) process.exit(1)' "$response" "$expected"
 
@@ -121,7 +127,7 @@ jobs:
       - name: Verify and mount DMG
         shell: bash
         run: |
-          worker=$(find release -path '*/LumaTile.app/Contents/Resources/backend/QLUToolboxWorker' -type f -print -quit)
+          worker=$(find release -path '*/LumaTile.app/Contents/Resources/backend/LumaTileWorker' -type f -print -quit)
           dmg=$(find release -maxdepth 1 -name 'LumaTile_v*_arm64.dmg' -type f -print -quit)
           test -n "$worker"
           test -x "$worker"
@@ -131,7 +137,7 @@ jobs:
           hdiutil attach "$dmg" -nobrowse -mountpoint "$mount_dir"
           test -d "$mount_dir/LumaTile.app"
           codesign --verify --deep --strict --verbose=2 "$mount_dir/LumaTile.app"
-          response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | "$mount_dir/LumaTile.app/Contents/Resources/backend/QLUToolboxWorker" --bridge)
+          response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | "$mount_dir/LumaTile.app/Contents/Resources/backend/LumaTileWorker" --bridge)
           expected=$(node -p "require('./package.json').version")
           node -e 'const message=JSON.parse(process.argv[1]); if(message.id!=="smoke" || message.result?.version!==process.argv[2] || message.result.browserComponent.error) process.exit(1)' "$response" "$expected"
           hdiutil detach "$mount_dir"

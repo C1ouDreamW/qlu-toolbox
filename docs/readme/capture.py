@@ -16,8 +16,8 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
 sys.path.insert(0, str(ROOT))
-from qlu_toolbox.modules.gpa_calculator.domain import parse_grade_xlsx
-from qlu_toolbox.modules.credit_report.domain import CourseRecord, default_rules, rules_to_dict, summarize
+from lumatile.modules.gpa_calculator.domain import parse_grade_xlsx
+from lumatile.modules.credit_report.domain import CourseRecord, default_rules, rules_to_dict, summarize
 
 
 def synthetic_data():

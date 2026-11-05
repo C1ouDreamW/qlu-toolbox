@@ -9,12 +9,12 @@ import time
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from qlu_toolbox.core.browser_component import configure_browser_environment
-from qlu_toolbox.core.paths import AppPaths
-from qlu_toolbox.modules.grade_export.domain import BASE_URL as SCHOOL_BASE_URL
-from qlu_toolbox.modules.grade_export.domain import workbook_extension
-from qlu_toolbox.modules.grade_export.service import _launch_context, _wait_for_login
-from qlu_toolbox.modules.schedule_io import parse_schedule_source
+from lumatile.core.browser_component import configure_browser_environment
+from lumatile.core.paths import AppPaths
+from lumatile.modules.grade_export.domain import BASE_URL as SCHOOL_BASE_URL
+from lumatile.modules.grade_export.domain import workbook_extension
+from lumatile.modules.grade_export.service import _launch_context, _wait_for_login
+from lumatile.modules.schedule_io import parse_schedule_source
 
 from .domain import (
     CAPTURE_TIMEOUT_SECONDS,

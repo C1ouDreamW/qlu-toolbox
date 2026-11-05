@@ -4,7 +4,7 @@ import hashlib
 import json
 import unittest
 
-from qlu_toolbox.modules.schedule_import.domain import (
+from lumatile.modules.schedule_import.domain import (
     EXPORT_FORM_PATH_MARKER,
     MAX_EXPORT_BYTES,
     ScheduleImportError,
@@ -100,7 +100,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from qlu_toolbox.modules.schedule_import import service as capture_service
+from lumatile.modules.schedule_import import service as capture_service
 
 
 class FakeFrame:

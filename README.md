@@ -255,11 +255,16 @@ npm run build:electron
 npm run dev
 ```
 
-修改 `electron/` 下的 TypeScript 后，需要重新执行 `npm run build:electron` 再重启开发进程。桌面端验证命令：
+修改 `electron/` 下的 TypeScript 后，需要重新执行 `npm run build:electron` 再重启开发进程。
+
+开发版默认使用项目 `.venv` 中的 Python，可通过 `LUMATILE_PYTHON` 指定其他解释器。旧变量 `QLU_PYTHON` 继续作为兼容回退；同时设置时优先使用 `LUMATILE_PYTHON`。
+
+桌面端验证命令：
 
 ```powershell
 uv run --locked python -B -m unittest discover -s tests -v
 npm run typecheck
+npm run test:desktop
 npm run build
 ```
 
@@ -322,10 +327,10 @@ Release APK 必须配置长期正式签名，具体环境变量和密钥库要�
 src/                                  桌面 Vue 页面、组件和状态
 electron/                             Electron 主进程、preload 和 Python IPC 客户端
 main.py                               Python Bridge 与 Worker 统一入口
-qlu_toolbox/bridge.py                 设置、任务、浏览器组件和 Worker 调度
-qlu_toolbox/core/                     路径、设置、任务数据库和工具定义
-qlu_toolbox/modules/grade_export/     桌面分项成绩导出领域与 Playwright Worker
-qlu_toolbox/modules/gpa_calculator/   桌面 XLSX 解析与 GPA 规则
+lumatile/bridge.py                   设置、任务、浏览器组件和 Worker 调度
+lumatile/core/                       路径、设置、任务数据库和工具定义
+lumatile/modules/grade_export/       桌面分项成绩导出领域与 Playwright Worker
+lumatile/modules/gpa_calculator/     桌面 XLSX 解析与 GPA 规则
 apps/mobile/src/                      Android 端 Vue、Capacitor 和 Web Worker 代码
 apps/mobile/android/                  Kotlin Activity、原生插件、Room 和 Gradle 工程
 packages/contracts/                   移动端共享 TypeScript 数据契约

@@ -9,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from qlu_toolbox.core.settings import AppSettings, SettingsStore
+from lumatile.core.settings import AppSettings, SettingsStore
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _SPEC = importlib.util.spec_from_file_location(

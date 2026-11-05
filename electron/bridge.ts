@@ -19,10 +19,10 @@ export class PythonBridge {
       ? path.join(app.getAppPath(), '.venv', 'Scripts', 'python.exe')
       : path.join(app.getAppPath(), '.venv', 'bin', 'python')
     const workerExecutable = process.platform === 'win32'
-      ? 'QLUToolboxWorker.exe'
-      : 'QLUToolboxWorker'
+      ? 'LumaTileWorker.exe'
+      : 'LumaTileWorker'
     const program = development
-      ? (process.env.QLU_PYTHON || pythonExecutable)
+      ? (process.env.LUMATILE_PYTHON || process.env.QLU_PYTHON || pythonExecutable)
       : path.join(process.resourcesPath, 'backend', workerExecutable)
     const args = development ? [path.join(app.getAppPath(), 'main.py'), '--bridge'] : ['--bridge']
     this.process = spawn(program, args, {

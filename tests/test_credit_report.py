@@ -5,8 +5,8 @@ import json
 import unittest
 from pathlib import Path
 
-from qlu_toolbox.core.paths import AppPaths
-from qlu_toolbox.modules.credit_report.domain import (
+from lumatile.core.paths import AppPaths
+from lumatile.modules.credit_report.domain import (
     CourseRecord,
     classify_score,
     default_rules,

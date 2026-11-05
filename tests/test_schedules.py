@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from qlu_toolbox.core.paths import AppPaths
-from qlu_toolbox.core.schedules import (
+from lumatile.core.paths import AppPaths
+from lumatile.core.schedules import (
     MAX_PAYLOAD_BYTES,
     ScheduleStore,
     ScheduleValidationError,

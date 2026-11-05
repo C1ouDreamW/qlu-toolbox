@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from qlu_toolbox.core.paths import AppPaths
+from lumatile.core.paths import AppPaths
 
 
 PLAN_INDEX_URL = (

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from qlu_toolbox.core.paths import AppPaths
+from lumatile.core.paths import AppPaths
 
 from .domain import (
     ENROLL_QUERY_URL,
@@ -27,8 +27,8 @@ from .domain import (
     rules_from_dict,
     summarize,
 )
-from qlu_toolbox.modules.grade_export.domain import BASE_URL, SCORE_URL, ExportError, CancelledError
-from qlu_toolbox.modules.grade_export.service import _launch_context, _wait_for_login
+from lumatile.modules.grade_export.domain import BASE_URL, SCORE_URL, ExportError, CancelledError
+from lumatile.modules.grade_export.service import _launch_context, _wait_for_login
 
 
 YEARS_TO_QUERY = 8
@@ -426,7 +426,7 @@ def run_credit_report(
 
 
 def configure_browser_environment() -> None:
-    from qlu_toolbox.core.browser_component import configure_browser_environment as configure
+    from lumatile.core.browser_component import configure_browser_environment as configure
 
     configure(AppPaths.discover())
 

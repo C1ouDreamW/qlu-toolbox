@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import re
 
-from qlu_toolbox.core.xlsx_reader import WorkbookReadError, read_xlsx_rows
+from lumatile.core.xlsx_reader import WorkbookReadError, read_xlsx_rows
 
 REQUIRED_HEADERS = ("课程名称", "学分", "成绩", "成绩分项")
 MAX_FILE_SIZE = 20 * 1024 * 1024

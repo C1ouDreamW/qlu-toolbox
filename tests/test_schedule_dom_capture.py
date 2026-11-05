@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from qlu_toolbox.modules.schedule_import.domain import build_dom_capture_script
+from lumatile.modules.schedule_import.domain import build_dom_capture_script
 
 
 HTML = """

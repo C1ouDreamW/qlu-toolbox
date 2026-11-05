@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from qlu_toolbox.modules.schedule_io import ScheduleSourceError, parse_schedule_source
+from lumatile.modules.schedule_io import ScheduleSourceError, parse_schedule_source
 
 
 def _cell(column: str, row: int, value: str) -> str:
@@ -108,21 +108,21 @@ class ScheduleSourceTests(unittest.TestCase):
     def test_rejects_oversize_file(self):
         path = self.root / "big.json"
         path.write_bytes(b"{" + b" " * 64)
-        with patch("qlu_toolbox.modules.schedule_io.domain.MAX_FILE_SIZE", 8):
+        with patch("lumatile.modules.schedule_io.domain.MAX_FILE_SIZE", 8):
             with self.assertRaises(ScheduleSourceError):
                 parse_schedule_source(path)
 
     def test_rejects_oversize_backup(self):
         path = self.root / "big.json"
         path.write_bytes(b'{"a":"' + b"x" * 64 + b'"}')
-        with patch("qlu_toolbox.modules.schedule_io.domain.MAX_BACKUP_SIZE", 8):
+        with patch("lumatile.modules.schedule_io.domain.MAX_BACKUP_SIZE", 8):
             with self.assertRaises(ScheduleSourceError):
                 parse_schedule_source(path)
 
     def test_enforces_row_limit_for_xlsx(self):
         path = self.root / "wide.xlsx"
         create_xlsx(path, [["row"]] * 6)
-        with patch("qlu_toolbox.modules.schedule_io.domain.MAX_ROW_COUNT", 5):
+        with patch("lumatile.modules.schedule_io.domain.MAX_ROW_COUNT", 5):
             with self.assertRaises(ScheduleSourceError):
                 parse_schedule_source(path)
 
@@ -137,7 +137,7 @@ class ScheduleSourceTests(unittest.TestCase):
             ["", "大学英语"],
         ])
         book = fake_xls_book(sheet)
-        with patch("qlu_toolbox.modules.schedule_io.domain.xlrd.open_workbook", return_value=book):
+        with patch("lumatile.modules.schedule_io.domain.xlrd.open_workbook", return_value=book):
             result = parse_schedule_source(path)
         rows = result["rows"]
         self.assertEqual(result["kind"], "workbook")
@@ -150,7 +150,7 @@ class ScheduleSourceTests(unittest.TestCase):
         path.write_bytes(b"\xd0\xcf\x11\xe0" + b"\x00" * 8)
         sheet = fake_xls_sheet([["学分", 2.0], ["成绩", 86.5]])
         book = fake_xls_book(sheet)
-        with patch("qlu_toolbox.modules.schedule_io.domain.xlrd.open_workbook", return_value=book):
+        with patch("lumatile.modules.schedule_io.domain.xlrd.open_workbook", return_value=book):
             result = parse_schedule_source(path)
         rows = result["rows"]
         self.assertEqual(rows[0][1], "2")
@@ -159,7 +159,7 @@ class ScheduleSourceTests(unittest.TestCase):
     def test_xls_failure_is_wrapped(self):
         path = self.root / "broken.xls"
         path.write_bytes(b"\xd0\xcf\x11\xe0" + b"\x00" * 8)
-        with patch("qlu_toolbox.modules.schedule_io.domain.xlrd.open_workbook", side_effect=ValueError("boom")):
+        with patch("lumatile.modules.schedule_io.domain.xlrd.open_workbook", side_effect=ValueError("boom")):
             with self.assertRaises(ScheduleSourceError):
                 parse_schedule_source(path)
 

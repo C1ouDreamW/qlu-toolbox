@@ -4,7 +4,7 @@ from pathlib import Path
 
 import xlrd
 
-from qlu_toolbox.core.xlsx_reader import WorkbookReadError, read_xlsx_rows
+from lumatile.core.xlsx_reader import WorkbookReadError, read_xlsx_rows
 
 MAX_FILE_SIZE = 20 * 1024 * 1024
 MAX_BACKUP_SIZE = 2 * 1024 * 1024

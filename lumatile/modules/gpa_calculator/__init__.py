@@ -1,6 +1,6 @@
 """绩点计算器工具。"""
 
-from qlu_toolbox.core.tools import ToolManifest
+from lumatile.core.tools import ToolManifest
 
 
 MANIFEST = ToolManifest(

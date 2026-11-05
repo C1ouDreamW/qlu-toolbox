@@ -190,7 +190,7 @@ XLSX 解析选型验证顺序：
 qlu-toolbox/
 ├─ src/                         # 现有桌面 Vue 前端，暂时保持
 ├─ electron/                    # 现有 Electron 容器
-├─ qlu_toolbox/                 # 现有 Python 后端
+├─ lumatile/                    # 现有 Python 后端
 ├─ apps/
 │  └─ mobile/                   # 新增 Capacitor 移动端
 │     ├─ src/

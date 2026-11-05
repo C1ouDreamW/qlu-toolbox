@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
-from qlu_toolbox.modules.grade_export.domain import workbook_extension
+from lumatile.modules.grade_export.domain import workbook_extension
 
 BASE_URL = "https://jw.qlu.edu.cn/"
 SCHEDULE_URL = (

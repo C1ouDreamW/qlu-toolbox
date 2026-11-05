@@ -28,7 +28,7 @@ def main() -> int:
     configure_streams()
     arguments = build_parser().parse_args()
     if arguments.bridge:
-        from qlu_toolbox.bridge import bridge_main
+        from lumatile.bridge import bridge_main
 
         return bridge_main()
     if arguments.worker == "grade-export":
@@ -39,7 +39,7 @@ def main() -> int:
         ]
         if missing:
             raise SystemExit(f"后台任务缺少参数：{', '.join(missing)}")
-        from qlu_toolbox.modules.grade_export.worker import worker_main
+        from lumatile.modules.grade_export.worker import worker_main
 
         return worker_main(
             arguments.year,
@@ -50,7 +50,7 @@ def main() -> int:
             arguments.event_file,
         )
     if arguments.worker == "schedule-import":
-        from qlu_toolbox.modules.schedule_import.worker import worker_main
+        from lumatile.modules.schedule_import.worker import worker_main
 
         return worker_main(
             arguments.browser,
@@ -58,7 +58,7 @@ def main() -> int:
             arguments.event_file,
         )
     if arguments.worker == "credit-report":
-        from qlu_toolbox.modules.credit_report.worker import worker_main
+        from lumatile.modules.credit_report.worker import worker_main
 
         return worker_main(
             arguments.browser,

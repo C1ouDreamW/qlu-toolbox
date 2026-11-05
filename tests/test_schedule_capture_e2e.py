@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from qlu_toolbox.modules.schedule_import import service as capture_service
+from lumatile.modules.schedule_import import service as capture_service
 
 CONTENT = bytes.fromhex("D0CF11E0A1B11AE1") + b"mock-timetable-body"
 

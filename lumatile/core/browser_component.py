@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from qlu_toolbox.core.paths import AppPaths
+from lumatile.core.paths import AppPaths
 
 
 DOWNLOAD_SIZE_MIB = 180

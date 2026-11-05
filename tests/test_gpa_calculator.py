@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from qlu_toolbox.modules.gpa_calculator.domain import (
+from lumatile.modules.gpa_calculator.domain import (
     GPAParseError,
     grade_point,
     parse_grade_xlsx,
