@@ -15,6 +15,19 @@ from unittest.mock import Mock, patch
 from qlu_toolbox.bridge import Bridge
 
 
+# Patch the home directory in the child, too: APPDATA alone does not isolate macOS.
+ISOLATED_BRIDGE = """
+import sys
+from pathlib import Path
+from unittest.mock import patch
+from main import main
+
+home = Path(sys.argv.pop(1))
+with patch("pathlib.Path.home", return_value=home):
+    raise SystemExit(main())
+"""
+
+
 class BridgeProcessTests(unittest.TestCase):
     def test_schedule_worker_crash_uses_schedule_event_channel(self):
         bridge = Bridge.__new__(Bridge)
@@ -48,10 +61,12 @@ class BridgeIntegrationTests(unittest.TestCase):
                 **os.environ,
                 "APPDATA": str(root / "roaming"),
                 "LOCALAPPDATA": str(root / "local"),
+                "XDG_CONFIG_HOME": str(root / "config"),
+                "XDG_DATA_HOME": str(root / "data"),
                 "PYTHONUTF8": "1",
             }
             process = subprocess.Popen(
-                [sys.executable, "main.py", "--bridge"],
+                [sys.executable, "-c", ISOLATED_BRIDGE, str(root / "home"), "--bridge"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -64,6 +79,7 @@ class BridgeIntegrationTests(unittest.TestCase):
             process.stdin.flush()
             bootstrap = json.loads(process.stdout.readline())
             self.assertEqual(bootstrap["channel"], "response")
+            self.assertTrue(Path(bootstrap["result"]["paths"]["data"]).is_relative_to(root))
             self.assertEqual(bootstrap["result"]["tool"]["id"], "schedule")
             self.assertEqual(
                 [tool["id"] for tool in bootstrap["result"]["tools"]],
@@ -102,10 +118,12 @@ class BridgeIntegrationTests(unittest.TestCase):
                 **os.environ,
                 "APPDATA": str(root / "roaming"),
                 "LOCALAPPDATA": str(root / "local"),
+                "XDG_CONFIG_HOME": str(root / "config"),
+                "XDG_DATA_HOME": str(root / "data"),
                 "PYTHONUTF8": "1",
             }
             process = subprocess.Popen(
-                [sys.executable, "main.py", "--bridge"],
+                [sys.executable, "-c", ISOLATED_BRIDGE, str(root / "home"), "--bridge"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
