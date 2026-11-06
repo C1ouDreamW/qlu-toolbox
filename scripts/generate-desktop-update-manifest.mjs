@@ -1,28 +1,61 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
+import { artifactFileNames, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { validateReleaseConfig } from './release-config.mjs'
 
-const [artifactsArg, outputArg, version, baseUrl, notesArg] = process.argv.slice(2)
-if (![artifactsArg, outputArg, version, baseUrl, notesArg].every(Boolean)) {
-  throw new Error('Usage: node scripts/generate-desktop-update-manifest.mjs <artifacts> <output> <version> <baseUrl> <notes>')
+/** Pure generation entry for verified build artifacts; the CLI resolves identity from Git. */
+export async function generateDesktopManifest({ platform, version, tag, commit, artifacts, notes, bridgeVersion = null, publishedAt = new Date().toISOString() }) {
+  const target = platform === 'windows' ? desktopTarget('win32', 'x64') : platform === 'macos' ? desktopTarget('darwin', 'arm64') : null
+  if (!target || desktopTagVersion(tag, target, bridgeVersion) !== version) throw new Error('Desktop release target, tag and version do not match')
+  if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Expected a full commit SHA')
+  const files = await readdir(artifacts)
+  const names = artifactFileNames(target, version, tag === `v${bridgeVersion}`)
+  const entries = {}
+  for (const [role, file] of Object.entries(names)) {
+    if (!files.includes(file)) {
+      if (role === target.primary) throw new Error(`Missing artifact: ${file}`)
+      continue
+    }
+    const bytes = await readFile(resolve(artifacts, file))
+    entries[role] = {
+      url: `${UPDATE_ORIGIN}/releases/${tag}/${file}`,
+      fallbackUrl: `https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${file}`,
+      sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length,
+    }
+  }
+  return validateDesktopManifest({
+    schemaVersion: 2, platform, arch: target.arch, channel: 'stable', version, tag, commit,
+    name: `LumaTile for ${platform === 'windows' ? 'Windows' : 'macOS'} ${version}`,
+    notes: notes.trim(), publishedAt, artifacts: entries,
+  }, target, bridgeVersion)
 }
 
-const files = await readdir(resolve(artifactsArg))
-const find = pattern => files.find(file => pattern.test(file))
-const windows = find(/^LumaTile_v.+_x64_Setup\.exe$/)
-const mac = find(/^LumaTile_v.+_arm64\.dmg$/)
-if (!windows || !mac) throw new Error('Windows installer or macOS DMG is missing')
-
-const root = baseUrl.replace(/\/$/, '')
-const manifest = {
-  schemaVersion: 1,
-  version,
-  name: `一格有光 v${version}`,
-  notes: (await readFile(resolve(notesArg), 'utf8')).trim(),
-  publishedAt: new Date().toISOString(),
-  downloads: {
-    win32: `${root}/${windows}`,
-    darwin: `${root}/${mac}`,
-  },
+export function taggedDesktopIdentity(root, tag, platform) {
+  if (typeof tag !== 'string' || !/^(?:win-v|mac-v|v)(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(tag)) throw new Error('Invalid desktop release tag')
+  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+  const commit = git(['rev-parse', '--verify', `refs/tags/${tag}^{commit}`])
+  if (git(['rev-parse', 'HEAD']) !== commit) throw new Error('Release tag must point to the checked-out commit')
+  const versions = validateReleaseConfig(JSON.parse(git(['show', `${commit}:config/release-versions.json`])))
+  const policy = validateMigrationPolicy(JSON.parse(git(['show', `${commit}:config/release-migration.json`])))
+  if (!Object.hasOwn(versions, platform) || platform === 'android') throw new Error('Expected windows or macos')
+  return { version: versions[platform].version, commit, bridgeVersion: policy.bridgeVersion,
+    publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString() }
 }
 
-await writeFile(resolve(outputArg), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const { values } = parseArgs({ options: {
+    platform: { type: 'string' }, artifacts: { type: 'string' }, output: { type: 'string' }, tag: { type: 'string' }, notes: { type: 'string' },
+  } })
+  if (!values.platform || !values.artifacts || !values.output || !values.tag || !values.notes) {
+    throw new Error('Usage: node scripts/generate-desktop-update-manifest.mjs --platform <windows|macos> --artifacts <dir> --output <file> --tag <tag> --notes <file>')
+  }
+  const root = fileURLToPath(new URL('../', import.meta.url))
+  const identity = taggedDesktopIdentity(root, values.tag, values.platform)
+  const manifest = await generateDesktopManifest({ ...values, ...identity, notes: await readFile(resolve(values.notes), 'utf8') })
+  await mkdir(dirname(resolve(values.output)), { recursive: true })
+  await writeFile(resolve(values.output), `${JSON.stringify(manifest, null, 2)}\n`)
+}
