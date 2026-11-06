@@ -16,7 +16,7 @@
     "predev": "node scripts/prepare-release.mjs --platform host",
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "typecheck": "vue-tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
-    "test:desktop": "node --test tests/desktop.test.mjs",
+    "test:desktop": "npm run build:electron && node --test tests/desktop.test.mjs tests/updates.test.mjs",
     "build:renderer": "vite build",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build:backend": "uv run --locked pyinstaller --noconfirm --distpath backend-dist --workpath backend-build LumaTileWorker.spec",
@@ -60,6 +60,7 @@
       "dist-renderer/**/*",
       "dist-electron/**/*",
       "package.json",
+      "config/release-migration.json",
       "assets/**/*"
     ],
     "win": {

@@ -4,10 +4,11 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "allowJs": true,
     "outDir": "../dist-electron",
     "rootDir": ".",
     "types": ["node", "electron"],
     "skipLibCheck": true
   },
-  "include": ["*.ts", "*.cts"]
+  "include": ["*.ts", "*.cts", "*.mjs"]
 }

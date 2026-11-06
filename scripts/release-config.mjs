@@ -1,19 +1,13 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { assertStableVersion } from '../electron/update-contract.mjs'
+export { assertStableVersion } from '../electron/update-contract.mjs'
 
 export const RELEASE_TARGETS = Object.freeze({
   windows: { target: 'windows-x64', prefix: 'win-v' },
   macos: { target: 'macos-arm64', prefix: 'mac-v' },
   android: { target: 'android', prefix: 'android-v' },
 })
-
-export function assertStableVersion(version) {
-  if (typeof version !== 'string' || version.trim() !== version || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) ||
-      !version.split('.').every(part => Number.isSafeInteger(Number(part)))) {
-    throw new Error(`Invalid stable version: ${version}; expected major.minor.patch`)
-  }
-  return version
-}
 
 export function validateReleaseConfig(config) {
   if (!config || config.schemaVersion !== 1) throw new Error('Unsupported release config schema')

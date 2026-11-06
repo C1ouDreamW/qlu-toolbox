@@ -5,67 +5,15 @@ import { release } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PythonBridge } from './bridge.js'
+import { checkDesktopUpdate, verifyBootstrapVersion } from './updates.js'
+import { validateMigrationPolicy } from './update-contract.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const bridge = new PythonBridge()
 let mainWindow: BrowserWindow | null = null
-const UPDATE_MANIFEST_URL = 'https://lumatile.ishua.cloud/stable/desktop.json'
 const ANNOUNCEMENT_URL = 'https://lumatile.ishua.cloud/stable/announcement.json'
 const STATS_BEACON_URL = 'https://lumatile.ishua.cloud/beacon/desktop'
 const FEEDBACK_URL = 'https://lumatile.ishua.cloud/api/feedback'
-
-function isNewerVersion(candidate: string, current: string) {
-  const numeric = (value: string) => value.replace(/^v/, '').split('-')[0].split('.').map(Number)
-  const [a, b] = [numeric(candidate), numeric(current)]
-  return a.some((part, i) => part > (b[i] || 0) && a.slice(0, i).every((value, j) => value === (b[j] || 0)))
-}
-
-function isTrustedUpdateUrl(value: string) {
-  try {
-    const url = new URL(value)
-    if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return false
-    if (url.hostname === 'lumatile.ishua.cloud') return url.pathname.startsWith('/releases/')
-    return url.hostname === 'github.com' && (
-      url.pathname.startsWith('/C1ouDreamW/qlu-toolbox/releases/') ||
-      url.pathname.startsWith('/C1ouDreamW/lumatile/releases/')
-    )
-  } catch {
-    return false
-  }
-}
-
-async function checkSelfHostedUpdate(currentVersion: string) {
-  const response = await fetch(UPDATE_MANIFEST_URL, {
-    headers: { Accept: 'application/json', 'User-Agent': 'LumaTile-UpdateChecker' },
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (!response.ok) throw new Error(`更新源返回 ${response.status}`)
-  const item = await response.json() as Record<string, unknown>
-  const downloads = item.downloads as Record<string, unknown> | undefined
-  const url = downloads?.[process.platform]
-  if (item.schemaVersion !== 1 || typeof item.version !== 'string' || typeof item.name !== 'string' ||
-      typeof item.notes !== 'string' || typeof url !== 'string' || !isTrustedUpdateUrl(url)) {
-    throw new Error('更新清单无效')
-  }
-  return isNewerVersion(item.version, currentVersion)
-    ? { version: item.version, name: item.name, notes: item.notes, url }
-    : null
-}
-
-async function checkGithubUpdate(currentVersion: string) {
-  const response = await fetch('https://api.github.com/repos/C1ouDreamW/qlu-toolbox/releases?per_page=20', {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'LumaTile-UpdateChecker' },
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (!response.ok) throw new Error(`GitHub 返回 ${response.status}`)
-  const releases = await response.json() as Array<Record<string, unknown>>
-  const currentPrerelease = currentVersion.includes('-')
-  const latest = releases.find(item => !item.draft && (currentPrerelease || !item.prerelease))
-  if (!latest || !isNewerVersion(String(latest.tag_name || ''), currentVersion)) return null
-  const url = String(latest.html_url || '')
-  if (!isTrustedUpdateUrl(url)) throw new Error('GitHub 更新地址无效')
-  return { version: String(latest.tag_name), name: String(latest.name || ''), notes: String(latest.body || ''), url }
-}
 
 async function loadInstallId(): Promise<string> {
   const file = path.join(app.getPath('userData'), 'stats-client.json')
@@ -183,7 +131,10 @@ function createWindow() {
 }
 
 function registerIpc() {
-  ipcMain.handle('bridge:invoke', (_event, method: string, params = {}) => bridge.invoke(method, params))
+  ipcMain.handle('bridge:invoke', async (_event, method: string, params = {}) => {
+    const result = await bridge.invoke(method, params)
+    return method === 'bootstrap' ? verifyBootstrapVersion(result, app.getVersion()) : result
+  })
   ipcMain.on('theme:sync', (_event, theme: string) => {
     if (theme === 'light' || theme === 'dark' || theme === 'system') nativeTheme.themeSource = theme
   })
@@ -225,13 +176,12 @@ function registerIpc() {
     if (!['https:', 'mailto:'].includes(parsed.protocol)) throw new Error('不允许打开此链接')
     await shell.openExternal(url)
   })
-  ipcMain.handle('system:check-update', async (_event, currentVersion: string) => {
-    try {
-      const primary = await checkSelfHostedUpdate(currentVersion)
-      if (primary) return primary
-    } catch { return checkGithubUpdate(currentVersion) }
-    // A stale but reachable mirror must not hide a published GitHub update.
-    return checkGithubUpdate(currentVersion)
+  ipcMain.handle('system:check-update', async () => {
+    const policyFile = path.join(app.getAppPath(), 'config', 'release-migration.json')
+    const policy = validateMigrationPolicy(JSON.parse(await readFile(policyFile, 'utf8')))
+    return checkDesktopUpdate(app.getVersion(), {
+      platform: process.platform, arch: process.arch, bridgeVersion: policy.bridgeVersion,
+    })
   })
   ipcMain.handle('system:send-stats-beacon', () => sendStatsBeacon())
   ipcMain.handle('system:fetch-announcement', () => fetchAnnouncement())
