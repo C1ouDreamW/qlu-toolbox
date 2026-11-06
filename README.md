@@ -248,6 +248,8 @@ npm ci
 
 ### 桌面端
 
+客户端版本统一维护在 [`config/release-versions.json`](config/release-versions.json)，开发和打包入口自动准备对应平台版本，可能产生可见的版本载体改动。只读检查、平台日志及独立发布迁移进度见[平台版本说明](config/README.md)。桌面开发仅支持原生 Windows x64、macOS arm64，Rosetta 下请切换到 arm64 Node/Python。
+
 首次启动开发环境前先编译 Electron 主进程：
 
 ```powershell
@@ -281,7 +283,7 @@ npm run dist:zip
 在 Apple Silicon Mac 上构建 DMG（无需开发者证书，使用 ad-hoc 签名）：
 
 ```bash
-npm run dist:mac -- --arm64
+npm run dist:mac
 ```
 
 可验证应用签名与内嵌资源是否完整：

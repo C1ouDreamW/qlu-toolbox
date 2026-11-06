@@ -47,8 +47,10 @@ WebView renderer/完整进程回收测试、已保存 URI 失效处理和多设�
 
 ## 构建
 
+Android 的版本与 versionCode 统一维护在 [`config/release-versions.json`](../../config/release-versions.json)，不再手动修改移动 package 或 Gradle 的版本。`mobile:build` 自动注入 Web 版本，随后必须 `mobile:sync`；Gradle 会检查同步资源的版本及 code，拒绝打包旧 Web 资源。只读预检可用 `npm run release:prepare -- --platform android --check`，详细迁移进度见[平台版本说明](../../config/README.md)。
+
 ```powershell
-npm install
+npm ci
 npm run mobile:build
 npm run mobile:sync
 cd apps/mobile/android
