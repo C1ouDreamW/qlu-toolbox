@@ -6,7 +6,7 @@
 
 - 阶段 A：版本配置、平台与目标解析、只读检查、版本注入、平台日志、本地入口和 CI 已接入。
 - 阶段 B：平台桌面更新器、新清单、GitHub 分页兜底和旧格式生成器已实现，并通过模拟升级与故障测试。
-- 阶段 C：三条独立工作流、制品身份与正式签名校验、单平台构件、draft 发布与重试保护、原子部署工具已实现；尚未运行 GitHub Actions 或非公开正式构建演练。
+- 阶段 C：三条独立工作流、制品身份与正式签名校验、单平台构件、draft 发布与重试保护、原子部署工具已实现；已创建 [PR #17](https://github.com/C1ouDreamW/qlu-toolbox/pull/17) 并启动 CI 与构建演练，结果以该 PR 的 Checks 为准。
 - 阶段 D：选择桌面桥接版本、真实安装与升级链实测、生产切换，待实施。
 
 现有 `release.yml` 仍由旧 `v*` 标签触发，仍是三端共同发布；它要求标签与三端配置分别一致，版本准备与本地使用相同脚本。三个独立工作流已登记对应标签，但 `release-migration.json` 中 `independentPublishingEnabled: false` 会在首个构建步骤阻止发布。不要提前创建 `win-v*`、`mac-v*`、`android-v*` 标签。阶段 A 的本地准备允许三端版本不同，不代表旧发布流程已经支持这种状态。
@@ -99,3 +99,23 @@ node scripts/publish-platform-release.mjs windows win-vX.Y.Z update-source/relea
 - 桌面测试 30 项通过，包含超过 100 条无关发布后的分页、两端隔离、严格版本、无效/缺失清单、GitHub 限流、主源故障、远程 commit/哈希冲突和显式桥接链的模拟数据。
 - 发布测试 29 项通过，包含单平台构件、APK 多源同包、只替换本端 stable、两端并行部署、迟到旧版拒绝、同码冲突、draft 补齐重试、已公开资产不可覆盖、上传后再次检查单调性，以及缺少 digest 时校验远端文件内容。
 - `npm run build`、类型检查、`uv lock --check`、锁文件离线安装预检，以及修改后工作流的 YAML 解析和 `bash -n` 通过。本机 actionlint 安装遇到下载超时及模块校验服务访问失败，未运行完整 actionlint；仍须通过 Actions 演练验证。真实的 Windows/macOS 发布制品、正式签名的新 APK、GitHub draft/公开上传和服务器切换尚未执行；不能以模拟测试替代阶段 D 的安装与迁移验收。
+
+## CI 与非公开构建演练
+
+2026-11-06 已推送实施分支并创建草稿 PR #17。首轮 Windows 验证通过；macOS job 因旧 runner 不可用而取消。GitHub 已在 2026-11-02 [退役 macOS 14 镜像](https://github.com/actions/runner-images#available-images)，相关入口已迁移到 `macos-15`，仍要求 `uname -m`、Electron 和 Python worker 为 arm64，未改变交付架构。CI 另增加独立的 Workflow verification，使用固定版本 actionlint 校验所有工作流。
+
+`release-rehearsal.yml` 在发布相关源码发生 PR 变更时运行，也提供 `workflow_dispatch` 入口（合入默认分支后可手动选择目标 ref）。三个 job 独立构建 Windows NSIS/ZIP、macOS ad-hoc DMG 与正式签名 Android APK，复用正式制品的版本、架构、证书与 bootstrap 核验。fork PR 不运行正式 Android 签名 job；同仓库 PR 使用已有 Android Secrets，私钥文件只在签名步骤存在并在退出时删除。
+
+演练直接读取 HEAD commit 中的版本和迁移配置，不创建 Git 标签，也不要求开启发布开关或填写正式版本日志。输出只有 `LumaTile-Rehearsal-*` 安装包、`rehearsal-record.json` 与 SHA256SUMS，作为保存 7 天的 Actions 构件；不生成 stable 清单、Release、部署分支或服务器操作。
+
+演练身份与 verification 均标记 `purpose: rehearsal`、`deployable: false`，正式清单构建器和发布器会拒绝此身份。演练包使用源配置的版本号/code，不能作为同版本的正式替换包推广。安装测试前须选择适当的隔离测试设备或环境；阶段 D 的正式桥接与安装验证仍须使用独立记录。
+
+演练入口示例（CI 会先完成实际打包）：
+
+```bash
+node scripts/rehearse-release.mjs macos
+node scripts/verify-release-build.mjs --rehearsal macos /path/to/LumaTile.app verification.json
+node scripts/rehearse-release.mjs macos --record verification.json artifacts rehearsal-output
+```
+
+新增演练隔离、发布拒绝与 PE 架构测试后，发布测试为 33 项；桌面测试仍为 30 项。真实三端制品与 actionlint 的运行记录见 PR Checks 和对应 rehearsal 构件。
