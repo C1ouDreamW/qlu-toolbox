@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { parseArgs } from 'node:util'
-import { assertWindowsX64, repositoryRoot, taggedRelease } from './release-artifacts.mjs'
+import { assertWindowsProductVersion, assertWindowsX64, repositoryRoot, taggedRelease } from './release-artifacts.mjs'
 import { rehearsalIdentity } from './rehearse-release.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 
@@ -44,7 +44,8 @@ if (platform === 'android') {
     const nativeVersion = execFileSync('pwsh', ['-NoProfile', '-Command', '(Get-Item -LiteralPath $env:LUMATILE_VERIFY_EXE).VersionInfo.ProductVersion'], {
       env: { ...process.env, LUMATILE_VERIFY_EXE: join(location, 'LumaTile.exe') }, encoding: 'utf8',
     }).trim()
-    if (nativeVersion !== identity.version) throw new Error('Windows executable version mismatch')
+    assertWindowsProductVersion(nativeVersion, identity.version)
+    checks.nativeProductVersion = nativeVersion
     checks.signing = 'unsigned'
   }
   const worker = join(resources, 'backend', platform === 'windows' ? 'LumaTileWorker.exe' : 'LumaTileWorker')

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { rehearsalIdentity, recordRehearsal } from '../scripts/rehearse-release.mjs'
-import { assertWindowsX64, createReleaseBundle } from '../scripts/release-artifacts.mjs'
+import { assertWindowsProductVersion, assertWindowsX64, createReleaseBundle } from '../scripts/release-artifacts.mjs'
 import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
 
 async function fixture(t) {
@@ -79,4 +79,9 @@ test('Windows native metadata rejects arm64, x86, truncated and invalid PE heade
   assert.throws(() => assertWindowsX64(bytes.subarray(0, 64)), /x64/)
   bytes.writeUInt32LE(0xffffffff, 0x3c)
   assert.throws(() => assertWindowsX64(bytes), /x64/)
+})
+
+test('Windows four-part resource versions match the application version without accepting other releases', () => {
+  for (const actual of ['2.0.4', '2.0.4.0', '2.0.4.83']) assert.doesNotThrow(() => assertWindowsProductVersion(actual, '2.0.4'))
+  for (const actual of ['2.0.5.0', '2.0.40.0', '2.0.4-beta', '2.0.4.0.0', '2.0.4.foo', '2.0.4.-1', '2.0.4.65536', '2.0.4.00', undefined]) assert.throws(() => assertWindowsProductVersion(actual, '2.0.4'), /mismatch/)
 })

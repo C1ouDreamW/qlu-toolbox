@@ -16,6 +16,15 @@ export function assertWindowsX64(bytes) {
   if (offset > bytes.length - 6 || bytes.readUInt32LE(offset) !== 0x00004550 || bytes.readUInt16LE(offset + 4) !== 0x8664) throw new Error('Expected a Windows x64 executable')
 }
 
+// PE ProductVersion may include the builder's fourth numeric build component.
+export function assertWindowsProductVersion(actual, expected) {
+  compareVersions(expected, expected)
+  if (typeof actual !== 'string') throw new Error('Windows executable version mismatch')
+  const parts = actual.split('.')
+  if ((parts.length !== 3 && parts.length !== 4) || parts.slice(0, 3).join('.') !== expected ||
+      (parts.length === 4 && (!/^(0|[1-9]\d*)$/.test(parts[3]) || Number(parts[3]) > 65535))) throw new Error('Windows executable version mismatch')
+}
+
 export function taggedRelease(root, platform, tag, requireEnabled = true) {
   if (!/^(win-v|mac-v|android-v)(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag)) throw new Error('Invalid independent release tag')
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
