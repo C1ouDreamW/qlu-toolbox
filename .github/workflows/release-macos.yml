@@ -1,0 +1,81 @@
+name: Release macOS
+
+on:
+  push:
+    tags: ['mac-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-macos-stable
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish macOS arm64
+    runs-on: macos-14
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate immutable release identity and rollout gate
+        id: version
+        run: |
+          node scripts/validate-independent-release.mjs macos "$GITHUB_REF_NAME"
+          echo "version=$(node -p "require('./config/release-versions.json').macos.version")" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          uv sync --locked
+          uv lock --check
+      - name: Prepare and verify macOS version
+        run: |
+          test "$(uname -m)" = arm64
+          node scripts/prepare-release.mjs --platform macos
+          node scripts/prepare-release.mjs --platform macos --verify
+      - name: Test and build macOS application
+        run: |
+          uv run --locked python -B -m unittest discover -s tests -v
+          npm run test:release
+          npm run build:backend
+          npm run build
+          npm run test:desktop
+          npx electron-builder --mac dmg --arm64 --publish never
+      - name: Verify mounted DMG, signature, architecture and runtime versions
+        run: |
+          version=$(node -p "require('./config/release-versions.json').macos.version")
+          mount_dir=$(mktemp -d)
+          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach "release/LumaTile_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"
+          node scripts/verify-release-build.mjs macos "$GITHUB_REF_NAME" "$mount_dir/LumaTile.app" verification.json
+          hdiutil detach "$mount_dir"
+          trap - EXIT
+          mkdir artifacts
+          cp "release/LumaTile_v${version}_arm64.dmg" "artifacts/LumaTile-macOS-v${version}-arm64.dmg"
+      - name: Build macOS-only update source bundle
+        run: node scripts/build-release-bundle.mjs macos "$GITHUB_REF_NAME" artifacts verification.json update-source
+      - name: Upload verified deployment bundle before publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-source-macos-${{ steps.version.outputs.version }}
+          path: update-source
+          if-no-files-found: error
+      - name: Publish complete release through a verified draft
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/publish-platform-release.mjs macos "$GITHUB_REF_NAME" "update-source/releases/$GITHUB_REF_NAME"

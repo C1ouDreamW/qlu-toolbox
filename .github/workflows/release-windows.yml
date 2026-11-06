@@ -1,0 +1,86 @@
+name: Release Windows
+
+on:
+  push:
+    tags: ['win-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-windows-stable
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate immutable release identity and rollout gate
+        id: version
+        shell: bash
+        run: |
+          node scripts/validate-independent-release.mjs windows "$GITHUB_REF_NAME"
+          echo "version=$(node -p "require('./config/release-versions.json').windows.version")" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          npm ci
+          uv sync --locked
+          uv lock --check
+      - name: Prepare and verify Windows version
+        shell: bash
+        run: |
+          node scripts/prepare-release.mjs --platform windows
+          node scripts/prepare-release.mjs --platform windows --verify
+      - name: Test and build Windows application
+        shell: bash
+        run: |
+          uv run --locked python -B -m unittest discover -s tests -v
+          npm run test:release
+          npm run build:backend
+          npm run build
+          npm run test:desktop
+          npx electron-builder --win dir nsis --x64 --publish never
+      - name: Verify packaged executable, Electron and Python versions
+        run: node scripts/verify-release-build.mjs windows $env:GITHUB_REF_NAME release/win-unpacked verification.json
+      - name: Prepare installer and portable ZIP
+        shell: pwsh
+        run: |
+          $version = node -p "require('./config/release-versions.json').windows.version"
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item "release/LumaTile_v${version}_x64_Setup.exe" "artifacts/LumaTile-Windows-v${version}-x64-Setup.exe"
+          $ws = New-Object -ComObject WScript.Shell
+          $lnk = $ws.CreateShortcut("$PWD\release\win-unpacked\LumaTile.lnk")
+          $lnk.TargetPath = '.\LumaTile.exe'
+          $lnk.Save()
+          Rename-Item release/win-unpacked LumaTile
+          Compress-Archive -Path release/LumaTile -DestinationPath "artifacts/LumaTile-Windows-v${version}-x64.zip"
+      - name: Build Windows-only update source bundle
+        run: node scripts/build-release-bundle.mjs windows $env:GITHUB_REF_NAME artifacts verification.json update-source
+      - name: Upload verified deployment bundle before publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-source-windows-${{ steps.version.outputs.version }}
+          path: update-source
+          if-no-files-found: error
+      - name: Publish complete release through a verified draft
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/publish-platform-release.mjs windows $env:GITHUB_REF_NAME "update-source/releases/$env:GITHUB_REF_NAME"

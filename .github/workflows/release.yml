@@ -8,8 +8,19 @@ permissions:
   contents: read
 
 jobs:
+  validate-legacy-release:
+    name: Validate legacy release rollout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/validate-legacy-release.mjs "$GITHUB_REF_NAME"
+
   build-windows:
     name: Build Windows artifacts
+    needs: [validate-legacy-release]
     runs-on: windows-latest
 
     steps:
@@ -73,6 +84,7 @@ jobs:
 
   build-macos:
     name: Build macOS arm64 artifact
+    needs: [validate-legacy-release]
     runs-on: macos-14
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -149,6 +161,7 @@ jobs:
 
   build-android:
     name: Build signed Android migration APK
+    needs: [validate-legacy-release]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
