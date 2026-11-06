@@ -38,6 +38,7 @@ export function validateMigrationPolicy(value) {
   if (!value || typeof value !== 'object') throw new Error('Invalid release migration policy')
   const policy = /** @type {{ schemaVersion?: unknown, bridgeVersion?: unknown }} */ (value)
   if (policy.schemaVersion !== 1 || !Object.hasOwn(policy, 'bridgeVersion')) throw new Error('Invalid release migration policy')
+  if (Object.hasOwn(policy, 'independentPublishingEnabled') && typeof policy.independentPublishingEnabled !== 'boolean') throw new Error('Invalid independent publishing flag')
   return { schemaVersion: 1, bridgeVersion: policy.bridgeVersion === null ? null : assertStableVersion(policy.bridgeVersion) }
 }
 

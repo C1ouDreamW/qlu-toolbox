@@ -12,7 +12,7 @@
   "type": "module",
   "scripts": {
     "release:prepare": "node scripts/prepare-release.mjs",
-    "test:release": "node --test tests/release.test.mjs tests/desktop-manifest.test.mjs",
+    "test:release": "node --test tests/release.test.mjs tests/desktop-manifest.test.mjs tests/release-pipeline.test.mjs",
     "predev": "node scripts/prepare-release.mjs --platform host",
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "typecheck": "vue-tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
@@ -38,6 +38,7 @@
     "vue": "^3.5.17"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@vitejs/plugin-vue": "^6.0.0",
     "concurrently": "^9.2.0",
     "cross-env": "^7.0.3",

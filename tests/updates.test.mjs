@@ -169,6 +169,7 @@ test('only the explicitly configured bridge tag is accepted by primary and GitHu
   assert.deepEqual(validateMigrationPolicy({ schemaVersion: 1, bridgeVersion: null }), { schemaVersion: 1, bridgeVersion: null })
   assert.throws(() => validateMigrationPolicy({ schemaVersion: 1, bridgeVersion: 'v2.0.5' }))
   assert.throws(() => validateMigrationPolicy({ schemaVersion: 1 }))
+  assert.throws(() => validateMigrationPolicy({ schemaVersion: 1, bridgeVersion: null, independentPublishingEnabled: 'true' }))
   assert.throws(() => validateDesktopManifest(bridge, windows))
   validateDesktopManifest(bridge, windows, '2.0.5')
   const net = network([bridge])
