@@ -10,6 +10,12 @@ import { generateDesktopManifest } from './generate-desktop-update-manifest.mjs'
 export const repositoryRoot = fileURLToPath(new URL('../', import.meta.url))
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 
+export function assertWindowsX64(bytes) {
+  if (bytes.length < 64 || bytes.toString('ascii', 0, 2) !== 'MZ') throw new Error('Expected a Windows x64 executable')
+  const offset = bytes.readUInt32LE(0x3c)
+  if (offset > bytes.length - 6 || bytes.readUInt32LE(offset) !== 0x00004550 || bytes.readUInt16LE(offset + 4) !== 0x8664) throw new Error('Expected a Windows x64 executable')
+}
+
 export function taggedRelease(root, platform, tag, requireEnabled = true) {
   if (!/^(win-v|mac-v|android-v)(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag)) throw new Error('Invalid independent release tag')
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
@@ -74,6 +80,7 @@ function artifactIdentity(artifacts) {
 }
 
 export async function createReleaseBundle({ identity, artifacts, verification, output }) {
+  if (identity.purpose === 'rehearsal' || identity.deployable === false || verification.purpose === 'rehearsal' || verification.deployable === false) throw new Error('Rehearsal artifacts cannot generate a release bundle')
   const { platform, version, tag, commit, bridgeVersion } = identity
   if (verification.platform !== platform || verification.version !== version || verification.commit !== commit || verification.target !== identity.target || verification.verified !== true) throw new Error('Build verification does not match release identity')
   const names = platform === 'android' ? { apk: `LumaTile-Android-v${version}.apk` } : artifactFileNames(targetFor(platform), version)

@@ -1,13 +1,17 @@
 import { execFileSync } from 'node:child_process'
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
-import { repositoryRoot, taggedRelease } from './release-artifacts.mjs'
+import { parseArgs } from 'node:util'
+import { assertWindowsX64, repositoryRoot, taggedRelease } from './release-artifacts.mjs'
+import { rehearsalIdentity } from './rehearse-release.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 
-const [platform, tag, input, output] = process.argv.slice(2)
-if (![platform, tag, input, output].every(Boolean)) throw new Error('Usage: node scripts/verify-release-build.mjs <platform> <tag> <app-or-apk> <output.json>')
-const identity = taggedRelease(repositoryRoot, platform, tag)
+const { values, positionals } = parseArgs({ options: { rehearsal: { type: 'boolean' } }, allowPositionals: true })
+const [platform, ...args] = positionals
+const [tag, input, output] = values.rehearsal ? [null, ...args] : args
+if (!platform || !input || !output || (!values.rehearsal && !tag)) throw new Error('Usage: node scripts/verify-release-build.mjs [--rehearsal] <platform> [tag] <app-or-apk> <output.json>')
+const identity = values.rehearsal ? rehearsalIdentity(repositoryRoot, platform) : taggedRelease(repositoryRoot, platform, tag)
 const location = resolve(input)
 const checks = {}
 if (platform === 'android') {
@@ -36,6 +40,7 @@ if (platform === 'android') {
     execFileSync('codesign', ['--verify', '--deep', '--strict', location])
     checks.signing = 'ad-hoc'
   } else {
+    assertWindowsX64(await readFile(join(location, 'LumaTile.exe')))
     const nativeVersion = execFileSync('pwsh', ['-NoProfile', '-Command', '(Get-Item -LiteralPath $env:LUMATILE_VERIFY_EXE).VersionInfo.ProductVersion'], {
       env: { ...process.env, LUMATILE_VERIFY_EXE: join(location, 'LumaTile.exe') }, encoding: 'utf8',
     }).trim()
@@ -43,10 +48,13 @@ if (platform === 'android') {
     checks.signing = 'unsigned'
   }
   const worker = join(resources, 'backend', platform === 'windows' ? 'LumaTileWorker.exe' : 'LumaTileWorker')
+  if (platform === 'windows') assertWindowsX64(await readFile(worker))
+  else if (execFileSync('lipo', ['-archs', worker], { encoding: 'utf8' }).trim() !== 'arm64') throw new Error('Expected a native arm64 Python worker')
   const messages = execFileSync(worker, ['--bridge'], { input: '{"id":"release-version","method":"bootstrap","params":{}}\n', encoding: 'utf8', timeout: 30_000 }).trim().split('\n').map(line => JSON.parse(line))
   const bootstrap = messages.find(message => message.id === 'release-version')?.result
   if (bootstrap?.version !== identity.version || bootstrap?.browserComponent?.error) throw new Error('Packaged Python bootstrap version or browser component check failed')
   checks.electronVersion = pkg.version
   checks.pythonVersion = bootstrap.version
 }
-await writeFile(resolve(output), `${JSON.stringify({ platform, version: identity.version, commit: identity.commit, target: identity.target, verified: true, checks }, null, 2)}\n`)
+await writeFile(resolve(output), `${JSON.stringify({ platform, version: identity.version, commit: identity.commit, target: identity.target,
+  purpose: values.rehearsal ? 'rehearsal' : 'release', deployable: !values.rehearsal, verified: true, checks }, null, 2)}\n`)
