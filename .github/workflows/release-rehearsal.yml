@@ -79,6 +79,8 @@ jobs:
     timeout-minutes: 45
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Allow only the existing ad-hoc signing path; this job receives no cert.
+      CSC_FOR_PULL_REQUEST: 'true'
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
     steps:
