@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "windows": { "version": "2.0.4" },
+  "macos": { "version": "2.0.4" },
+  "android": { "version": "2.0.4", "versionCode": 15 }
+}

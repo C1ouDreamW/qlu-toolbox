@@ -23,6 +23,27 @@ if (testAppIdSuffix && !testAppIdSuffix.startsWith('.')) {
 def testAppLabel = (project.findProperty('appLabel') ?: '一格有光（测试）').toString().trim()
 def webViewCompatibilityFile = rootProject.file('../webview-compatibility.json')
 def webViewCompatibility = new JsonSlurper().parse(webViewCompatibilityFile)
+def releaseVersions = new JsonSlurper().parse(rootProject.file('../../../config/release-versions.json'))
+def androidVersion = releaseVersions.android
+if (releaseVersions.schemaVersion != 1 || !(androidVersion?.version instanceof String) ||
+        !(androidVersion.version ==~ /(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)/) ||
+        !(androidVersion.versionCode instanceof Integer) || androidVersion.versionCode <= 0 || androidVersion.versionCode > 2100000000) {
+    throw new GradleException('Invalid Android release version configuration')
+}
+def verifyWebVersion = tasks.register('verifyWebVersion') {
+    def metadataFile = file('src/main/assets/public/lumatile-version.json')
+    inputs.file rootProject.file('../../../config/release-versions.json')
+    // Check on every build, including after cap sync replaces generated assets.
+    doLast {
+        if (!metadataFile.exists()) {
+            throw new GradleException('Missing Android Web version metadata; run npm run mobile:build && npm run mobile:sync')
+        }
+        def metadata = new JsonSlurper().parse(metadataFile)
+        if (metadata.platform != 'android' || metadata.version != androidVersion.version || metadata.versionCode != androidVersion.versionCode) {
+            throw new GradleException('Android Web/native version mismatch; run npm run mobile:build && npm run mobile:sync')
+        }
+    }
+}
 def generatedWebViewAssetsDir = file("$buildDir/generated/webviewAssets")
 def buildWebViewAssets = tasks.register('buildWebViewAssets', Exec) {
     workingDir rootProject.file('../../..')
@@ -50,8 +71,8 @@ android {
         applicationId "io.github.c1oudreamw.lumatile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 15
-        versionName "2.0.4"
+        versionCode androidVersion.versionCode
+        versionName androidVersion.version
         buildConfigField "int", "MIN_WEBVIEW_MAJOR", webViewCompatibility.minimumMajor.toString()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -98,7 +119,7 @@ android {
     }
 }
 
-tasks.named('preBuild').configure { dependsOn buildWebViewAssets }
+tasks.named('preBuild').configure { dependsOn buildWebViewAssets, verifyWebVersion }
 
 tasks.matching { it.name == 'packageRelease' || it.name == 'assembleRelease' }.configureEach {
     doFirst {

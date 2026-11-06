@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node ../../scripts/prepare-release.mjs --platform android",
     "dev": "vite",
-    "prebuild": "node scripts/build-webview-assets.mjs",
+    "prebuild": "node ../../scripts/prepare-release.mjs --platform android && node scripts/build-webview-assets.mjs",
     "build": "vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
     "cap:add": "cap add android",
+    "precap:sync": "node ../../scripts/prepare-release.mjs --platform android --verify",
     "cap:sync": "cap sync android",
     "android": "cap open android"
   },
