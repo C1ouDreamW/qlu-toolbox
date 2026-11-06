@@ -5,11 +5,11 @@
 ## 当前进度
 
 - 阶段 A：版本配置、平台与目标解析、只读检查、版本注入、平台日志、本地入口和 CI 已接入。
-- 阶段 B：平台桌面更新器、新清单与 GitHub 兜底，待实施。
-- 阶段 C：三条独立工作流、单平台部署构件与发布重试保护，待实施。
+- 阶段 B：平台桌面更新器、新清单、GitHub 分页兜底和旧格式生成器已实现，并通过模拟升级与故障测试。
+- 阶段 C：三条独立工作流、制品身份与正式签名校验、单平台构件、draft 发布与重试保护、原子部署工具已实现；尚未运行 GitHub Actions 或非公开正式构建演练。
 - 阶段 D：选择桌面桥接版本、真实安装与升级链实测、生产切换，待实施。
 
-现有 `release.yml` 仍由旧 `v*` 标签触发，仍是三端共同发布；它现在要求标签与三端配置分别一致，版本准备与本地使用相同脚本。独立标签尚未启用，不要提前创建 `win-v*`、`mac-v*`、`android-v*` 标签。阶段 A 的本地准备允许三端版本不同，不代表旧发布流程已经支持这种状态。
+现有 `release.yml` 仍由旧 `v*` 标签触发，仍是三端共同发布；它要求标签与三端配置分别一致，版本准备与本地使用相同脚本。三个独立工作流已登记对应标签，但 `release-migration.json` 中 `independentPublishingEnabled: false` 会在首个构建步骤阻止发布。不要提前创建 `win-v*`、`mac-v*`、`android-v*` 标签。阶段 A 的本地准备允许三端版本不同，不代表旧发布流程已经支持这种状态。
 
 ## 基线核对（2026-11-05）
 
@@ -60,3 +60,42 @@ CI 保留三端原有检查名称，在依赖安装后准备本端并校验，�
 - 两份修改后的工作流通过 YAML 解析和 `git diff --check`。原生安装包、签名及 GitHub Actions 尚未执行；本机缺少 JDK 21 / Android SDK，原生 APK 构建及 Gradle 版本拒绝路径仍需在 Android CI 验证。
 
 2026-11-06：使用已配置的 Corretto JDK 21 与 Android SDK 36，`lintDebug testDebugUnitTest assembleDebug` 本地通过。正式签名及旧客户端覆盖升级仍留待桥接验收。
+
+缺少同步的 Web 元数据、或 versionCode 与原生配置不同的两个负向 Gradle 测试均按预期失败，测试后已恢复生成资源。`aapt dump badging` 与 APK 内 Web 元数据均确认为 2.0.4 / code 15。
+
+## 更新协议与桥接配置
+
+新桌面入口为 `stable/windows-x64.json`、`stable/macos-arm64.json`（schema 2）。下载地址必须精确匹配本平台、架构、标签和文件名；`publishedAt`、commit、SHA-256 和文件大小均须有效。不支持的主机架构会直接说明，不推荐其他架构包。桌面仍然只打开下载地址，不宣称实现下载后的哈希校验。
+
+GitHub 兜底分页列出 Release、按严格数字版本排序，排除 draft、预发布和其他端。它读取 `update-<target>.json`，检查远程标签 commit、资产名称、大小和可用的 GitHub digest，再使用清单中的 GitHub 下载地址。最高版本缺少有效资产时继续寻找其他候选；列表失败、限流或没有可核验的较新候选时报告不可用。
+
+`release-migration.json` 的 `bridgeVersion` 当前为 `null`，因此任何旧 `v*` Release 都不会被新客户端当作普通独立更新。阶段 D 须选择高于已发布桌面的 B，在同一份配置中明确登记 B。届时新清单和客户端只额外允许 `vB`，桥接安装包继续使用旧文件名。`generate-legacy-desktop-update-manifest.mjs` 单独保留 schema 1，要求 Windows/macOS 两个匹配版本的产物；新生成器每次只需要目标端产物。
+
+生成独立桌面清单时，CLI 从实际 Git 标签的 commit 读取版本配置，要求标签指向 HEAD，再从实际安装包计算校验值。平台日志提取仍使用同一纯逻辑。桥接生成器允许显式登记的 `vB`；旧 `stable/desktop.json` 在阶段 D 切换后冻结于 B，并长期保留下载文件。旧客户端在主源断开时的内置兜底限制仍然存在，需要手动桥接下载指引。
+
+## 独立发布构件与恢复
+
+三个工作流分别只构建本端，使用平台/stable 并发组且不取消正在上传的发布。依赖先锁定安装，再准备版本；打包后核对 Windows 原生元数据、Electron/Python 版本，或 macOS 挂载 DMG、arm64 与签名，或 Android 原生/Web 版本与正式证书。
+
+Android 的正式证书 SHA-256 已从公开 2.0.4 APK 核实为 `5ed4182baad6566311708db3699f13615f791811b389e5163917dd89ec4b3899`，记录于迁移配置。该 APK 内容哈希与前述基线一致，`apksigner verify` 确认 v2 签名有效；后续签名不同的 APK 会被拒绝，Debug 包不能作为正式产物发布。
+
+每端生成 `update-source-<platform>-<version>`，其中 stable 只含本端文件，releases 目录包含安装包、对应更新清单、`release-record.json`、更新说明和 `SHA256SUMS.txt`。Android 的主源/备用清单复用同一 APK，只改变下载 URL。构件先上传供失败恢复，再执行发布。
+
+发布脚本在创建 draft 前及公开前分别检查主源和已有 GitHub 发布的单调性；Android 还检查可达的两个 raw 备用清单及既有独立 Release 的 versionCode。同标签已有文件时核对实际哈希，禁止覆盖；已公开 Release 必须完整且所有哈希一致才视为可复用。缺失 digest 时下载远端资产核验。失败保留 draft，不公开半份安装包。
+
+重试应下载已上传的完整构件，校验 `SHA256SUMS.txt`，在该标签 checkout 运行以下命令，不重新构建或用 `--clobber` 替换资产：
+
+```bash
+# 仅在完成桥接、正式启用门禁并确实需要发布时执行；需要 contents-write 的 GITHUB_TOKEN
+node scripts/publish-platform-release.mjs windows win-vX.Y.Z update-source/releases/win-vX.Y.Z
+```
+
+同版本重新构建（尤其 DMG）可能产生不同哈希，不能直接替换 draft 中的旧文件；应复用原构件。确需更改公开产物时升补丁版本，Android 同时增加 code。Android 备用清单使用单独 worktree 生成分支及 PR 链接，生成前与最新 main 清单核验单调性；合并前还须确认没有更高 code 已合入，保留 main 的必需检查；不会自动部署服务器。
+
+当阶段 D 的两端旧版主源升级、桥接后单端升级和主源断开兜底均实测通过，才能将 `independentPublishingEnabled` 设为 `true` 并提交。开关与 B 都从发布标签所指 commit 读取，临时修改工作区不能绕过。启用后旧三端发布工作流会主动失败。桥接标签 B 会保留给后续一次性的桌面桥接入口，不再通过旧流程附带发布 Android。
+
+## 阶段 B / C 验证记录（2026-11-06）
+
+- 桌面测试 30 项通过，包含超过 100 条无关发布后的分页、两端隔离、严格版本、无效/缺失清单、GitHub 限流、主源故障、远程 commit/哈希冲突和显式桥接链的模拟数据。
+- 发布测试 29 项通过，包含单平台构件、APK 多源同包、只替换本端 stable、两端并行部署、迟到旧版拒绝、同码冲突、draft 补齐重试、已公开资产不可覆盖、上传后再次检查单调性，以及缺少 digest 时校验远端文件内容。
+- `npm run build`、类型检查、`uv lock --check`、锁文件离线安装预检，以及修改后工作流的 YAML 解析和 `bash -n` 通过。本机 actionlint 安装遇到下载超时及模块校验服务访问失败，未运行完整 actionlint；仍须通过 Actions 演练验证。真实的 Windows/macOS 发布制品、正式签名的新 APK、GitHub draft/公开上传和服务器切换尚未执行；不能以模拟测试替代阶段 D 的安装与迁移验收。

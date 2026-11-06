@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/C1ouDreamW/qlu-toolbox/releases/latest"><img src="https://img.shields.io/badge/Release-v2.0.4-0370F0" alt="当前版本 v2.0.4"></a>
+  <a href="#支持平台"><img src="https://img.shields.io/badge/LumaTile-平台下载-0370F0" alt="按平台下载 LumaTile"></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D6?logo=windows11&logoColor=white" alt="Windows x64">
   <img src="https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white" alt="macOS Apple Silicon">
   <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0 及以上">
 </p>
 
 <p align="center">
-  <a href="https://github.com/C1ouDreamW/qlu-toolbox/releases/latest"><strong>下载最新版</strong></a> ·
+  <a href="#支持平台"><strong>按平台下载</strong></a> ·
   <a href="#功能演示">功能演示</a> ·
   <a href="#支持平台">平台支持</a> ·
   <a href="#桌面版">桌面版</a> ·
@@ -86,13 +86,15 @@
 
 ## 支持平台
 
-| 平台 | 当前版本 | 发布形式 | 说明 |
+| 平台 | 当前版本 | 下载 | 说明 |
 |---|---:|---|---|
-| Windows x64 | 2.0.4 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
-| macOS Apple Silicon | 2.0.4 | DMG | 使用 ad-hoc 签名，未公证，首次打开需在系统设置中确认 |
-| Android 7.0 及以上 | 2.0.4（versionCode 15） | APK | 使用系统 WebView（Chromium 80 及以上），支持系统文件保存和应用内更新检查 |
+| Windows x64 | 2.0.4 | [NSIS 安装包](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_x64_Setup.exe)、[免安装 ZIP](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4.zip) | 支持 Edge、Chrome 和按需下载的 Chromium |
+| macOS Apple Silicon | 2.0.4 | [DMG](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_arm64.dmg) | 使用 ad-hoc 签名，未公证，首次打开需在系统设置中确认 |
+| Android 7.0 及以上 | 2.0.4（versionCode 15） | [APK](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile-Android-v2.0.4.apk) | 使用系统 WebView（Chromium 80 及以上），支持系统文件保存和应用内更新检查 |
 
 安装包同时发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 与自建更新源 `lumatile.ishua.cloud`（互为备用渠道）。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+
+下载表只列已公开版本。独立发布迁移尚未切换生产，当前三端仍为 2.0.4；后续各平台分别维护下载链接与版本，不以仓库的单个 latest Release 代表所有平台。迁移进度及平台更新日志见[平台版本说明](config/README.md)。
 
 ## 桌面版
 
@@ -121,8 +123,8 @@
 
 前往 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载对应平台的文件：
 
-- Windows 推荐使用 `LumaTile_v*_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `LumaTile.exe`，不要只复制可执行文件。
-- Apple Silicon Mac 下载 `LumaTile_v*_arm64.dmg`，打开后将 `LumaTile.app` 拖入“应用程序”。当前不提供 Intel Mac 版本。
+- Windows 推荐使用 x64 Setup 安装包。独立发布后的文件名为 `LumaTile-Windows-v*-x64-Setup.exe`，现有 2.0.4 使用 `LumaTile_v2.0.4_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `LumaTile.exe`，不要只复制可执行文件。
+- Apple Silicon Mac 下载 arm64 DMG，打开后将 `LumaTile.app` 拖入“应用程序”。独立发布后的文件名为 `LumaTile-macOS-v*-arm64.dmg`，现有 2.0.4 使用 `LumaTile_v2.0.4_arm64.dmg`。当前不提供 Intel Mac 版本。
 
 macOS 构建使用 ad-hoc 签名校验完整应用及其内嵌组件，尚未使用 Apple 开发者证书签名或公证。首次启动若被阻止：
 
