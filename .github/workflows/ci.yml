@@ -26,6 +26,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verify-workflows:
+    name: Workflow verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+      - name: Install pinned actionlint
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+      - name: Validate GitHub Actions workflows
+        run: actionlint -shellcheck= -pyflakes=
+
   verify-windows:
     name: Windows verification
     runs-on: windows-latest

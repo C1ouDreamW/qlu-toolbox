@@ -1,0 +1,180 @@
+name: Release rehearsal
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'config/**'
+      - 'scripts/**'
+      - 'electron/**'
+      - 'package*.json'
+      - 'changelogs/**'
+      - 'apps/mobile/package.json'
+      - 'apps/mobile/vite.config.ts'
+      - 'apps/mobile/android/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Rehearse Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - name: Build Windows installer without a release tag
+        shell: bash
+        run: |
+          node scripts/rehearse-release.mjs windows
+          npm ci
+          uv sync --locked
+          uv lock --check
+          node scripts/prepare-release.mjs --platform windows
+          node scripts/prepare-release.mjs --platform windows --verify
+          npm run build:backend
+          npm run build
+          npx electron-builder --win dir nsis --x64 --publish never
+      - name: Verify packaged versions and architecture
+        run: node scripts/verify-release-build.mjs --rehearsal windows release/win-unpacked verification.json
+      - name: Collect rehearsal-only installer and ZIP
+        shell: pwsh
+        run: |
+          $version = node -p "require('./config/release-versions.json').windows.version"
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item "release/LumaTile_v${version}_x64_Setup.exe" artifacts/LumaTile-Rehearsal-Windows-x64-Setup.exe
+          $ws = New-Object -ComObject WScript.Shell
+          $lnk = $ws.CreateShortcut("$PWD\release\win-unpacked\LumaTile.lnk")
+          $lnk.TargetPath = '.\LumaTile.exe'
+          $lnk.Save()
+          Rename-Item release/win-unpacked LumaTile
+          Compress-Archive -Path release/LumaTile -DestinationPath artifacts/LumaTile-Rehearsal-Windows-x64.zip
+      - name: Record non-deployable artifact identity and hashes
+        run: node scripts/rehearse-release.mjs windows --record verification.json artifacts rehearsal-output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-windows-x64-${{ github.sha }}
+          path: rehearsal-output
+          if-no-files-found: error
+          retention-days: 7
+
+  macos:
+    name: Rehearse macOS arm64
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - name: Build native arm64 DMG without a release tag
+        run: |
+          test "$(uname -m)" = arm64
+          node scripts/rehearse-release.mjs macos
+          npm ci
+          uv sync --locked
+          uv lock --check
+          node scripts/prepare-release.mjs --platform macos
+          node scripts/prepare-release.mjs --platform macos --verify
+          npm run build:backend
+          npm run build
+          npx electron-builder --mac dmg --arm64 --publish never
+      - name: Verify mounted DMG, signature and runtime versions
+        run: |
+          version=$(node -p "require('./config/release-versions.json').macos.version")
+          mount_dir=$(mktemp -d)
+          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach "release/LumaTile_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"
+          node scripts/verify-release-build.mjs --rehearsal macos "$mount_dir/LumaTile.app" verification.json
+          hdiutil detach "$mount_dir"
+          trap - EXIT
+          mkdir artifacts
+          cp "release/LumaTile_v${version}_arm64.dmg" artifacts/LumaTile-Rehearsal-macOS-arm64.dmg
+      - name: Record non-deployable artifact identity and hashes
+        run: node scripts/rehearse-release.mjs macos --record verification.json artifacts rehearsal-output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-macos-arm64-${{ github.sha }}
+          path: rehearsal-output
+          if-no-files-found: error
+          retention-days: 7
+
+  android:
+    name: Rehearse signed Android APK
+    # Fork PRs must never receive production signing material. Use pull_request,
+    # never pull_request_target, to preserve GitHub's untrusted-code boundary.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install SDK and build native Web assets
+        run: |
+          node scripts/rehearse-release.mjs android
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+          npm ci
+          npm run mobile:build
+          npm run mobile:sync
+          node scripts/prepare-release.mjs --platform android --verify
+      - name: Test and build with the existing production signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_FILE: release-signing.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          trap 'rm -f apps/mobile/android/release-signing.jks' EXIT
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > apps/mobile/android/release-signing.jks
+          bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleRelease
+      - name: Verify APK native/Web metadata and production certificate
+        run: |
+          node scripts/verify-release-build.mjs --rehearsal android apps/mobile/android/app/build/outputs/apk/release/app-release.apk verification.json
+          mkdir artifacts
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk artifacts/LumaTile-Rehearsal-Android.apk
+          node scripts/rehearse-release.mjs android --record verification.json artifacts rehearsal-output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-android-${{ github.sha }}
+          path: rehearsal-output
+          if-no-files-found: error
+          retention-days: 7
