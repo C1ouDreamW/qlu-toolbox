@@ -118,4 +118,6 @@ node scripts/verify-release-build.mjs --rehearsal macos /path/to/LumaTile.app ve
 node scripts/rehearse-release.mjs macos --record verification.json artifacts rehearsal-output
 ```
 
-新增演练隔离、发布拒绝与 PE 架构测试后，发布测试为 33 项；桌面测试仍为 30 项。真实三端制品与 actionlint 的运行记录见 PR Checks 和对应 rehearsal 构件。
+新增演练隔离、发布拒绝、PE 架构与 Windows 四段资源版本测试后，发布测试为 34 项；桌面测试仍为 30 项。Windows 资源中的第四段属于构建号，核验前三段与应用版本一致，并保留原始资源版本供追溯。
+
+本机已校验官方 actionlint 1.7.7 压缩包的 SHA-256 并完成全部工作流检查。首轮 DMG 演练暴露 electron-builder 默认跳过 PR 签名的问题；Mac CI 与演练 job 已为现有 `identity: "-"` 显式启用 PR ad-hoc 签名，不传入开发者证书或私钥。真实三端制品的最新结果见 PR Checks 和对应 rehearsal 构件。
