@@ -55,6 +55,12 @@ jobs:
       - name: Check Python lockfile
         run: uv lock --check
 
+      - name: Prepare and verify Windows version
+        run: |
+          node scripts/prepare-release.mjs --platform windows
+          node scripts/prepare-release.mjs --platform windows --verify
+          npm run test:release
+
       - name: Run Python tests
         run: uv run --locked python -B -m unittest discover -s tests -v
 
@@ -100,6 +106,12 @@ jobs:
 
       - name: Check Python lockfile
         run: uv lock --check
+
+      - name: Prepare and verify macOS version
+        run: |
+          node scripts/prepare-release.mjs --platform macos
+          node scripts/prepare-release.mjs --platform macos --verify
+          npm run test:release
 
       - name: Run Python tests
         run: uv run --locked python -B -m unittest discover -s tests -v
@@ -186,6 +198,12 @@ jobs:
 
       - name: Install npm dependencies
         run: npm ci
+
+      - name: Prepare and verify Android version
+        run: |
+          node scripts/prepare-release.mjs --platform android
+          node scripts/prepare-release.mjs --platform android --verify
+          npm run test:release
 
       - name: Build and sync Android web assets
         run: |

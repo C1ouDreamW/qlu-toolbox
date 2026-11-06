@@ -21,13 +21,6 @@ jobs:
           node-version: "22"
           cache: npm
 
-      - name: Set release version from tag
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
-          npm version $version --no-git-tag-version --allow-same-version
-          node scripts/set-python-version.mjs $version
-
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@v5
         with:
@@ -38,6 +31,14 @@ jobs:
 
       - name: Sync Python dependencies
         run: uv sync --locked
+
+      - name: Prepare legacy windows release version
+        shell: bash
+        run: |
+          expected=$(node -p "require('./config/release-versions.json').windows.version")
+          test "v$expected" = "$GITHUB_REF_NAME"
+          node scripts/prepare-release.mjs --platform windows
+          node scripts/prepare-release.mjs --platform windows --verify
 
       - name: Build application
         run: |
@@ -85,13 +86,6 @@ jobs:
           node-version: "22"
           cache: npm
 
-      - name: Set release version from tag
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          npm version "$version" --no-git-tag-version --allow-same-version
-          node scripts/set-python-version.mjs "$version"
-
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@v5
         with:
@@ -102,6 +96,14 @@ jobs:
 
       - name: Sync Python dependencies
         run: uv sync --locked
+
+      - name: Prepare legacy macos release version
+        shell: bash
+        run: |
+          expected=$(node -p "require('./config/release-versions.json').macos.version")
+          test "v$expected" = "$GITHUB_REF_NAME"
+          node scripts/prepare-release.mjs --platform macos
+          node scripts/prepare-release.mjs --platform macos --verify
 
       - name: Build application
         run: |
@@ -197,12 +199,14 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Verify mobile version matches tag
+      - name: Verify Android config matches legacy tag
         shell: bash
         run: |
           expected="${GITHUB_REF_NAME#v}"
-          actual=$(node -p "require('./apps/mobile/package.json').version")
+          actual=$(node -p "require('./config/release-versions.json').android.version")
           test "$actual" = "$expected"
+          node scripts/prepare-release.mjs --platform android
+          node scripts/prepare-release.mjs --platform android --verify
 
       - name: Build and sync Android web assets
         run: |
@@ -275,7 +279,7 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          version_code=$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9]\+\).*$/\1/p' apps/mobile/android/app/build.gradle | head -n 1)
+          version_code=$(node -p "require('./config/release-versions.json').android.versionCode")
           apk=$(find artifacts -maxdepth 1 -name 'LumaTile-Android-v*.apk' -type f -print -quit)
           release_dir="update-source/releases/${GITHUB_REF_NAME}"
           mkdir -p "$release_dir" update-source/stable
@@ -297,7 +301,7 @@ jobs:
           apk=$(find artifacts -maxdepth 1 -name 'LumaTile-Android-v*.apk' -type f -print -quit)
           test -n "$apk"
           version="${GITHUB_REF_NAME#v}"
-          version_code=$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9]\+\).*$/\1/p' apps/mobile/android/app/build.gradle | head -n 1)
+          version_code=$(node -p "require('./config/release-versions.json').android.versionCode")
           test -n "$version_code"
           git fetch origin main
           git checkout -B main origin/main
@@ -308,7 +312,7 @@ jobs:
           if git diff --cached --quiet; then exit 0; fi
           branch="automation/android-update-${GITHUB_REF_NAME}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git checkout -b "$branch"
-          git commit -m "chore: publish Android update manifest for $GITHUB_REF_NAME"
+          git commit -m "chore(android): 更新 $GITHUB_REF_NAME 的公开更新清单"
           git push --set-upstream origin "$branch"
           compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}?quick_pull=1"
           {
