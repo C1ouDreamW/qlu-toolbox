@@ -79,7 +79,7 @@ jobs:
 
   verify-macos:
     name: macOS arm64 verification
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 40
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"

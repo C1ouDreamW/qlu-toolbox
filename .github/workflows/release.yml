@@ -85,7 +85,7 @@ jobs:
   build-macos:
     name: Build macOS arm64 artifact
     needs: [validate-legacy-release]
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
