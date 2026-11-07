@@ -13,6 +13,7 @@ import { readBuildInventory } from '../scripts/inventory-artifacts.mjs'
 import { writeInventoryFixture } from './inventory-fixture.mjs'
 import { verifyDesktopBridgeBundle } from '../scripts/verify-desktop-bridge-bundle.mjs'
 import { sha256 } from '../scripts/release-artifacts.mjs'
+import yaml from 'js-yaml'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'lumatile-bridge-'))
@@ -167,4 +168,42 @@ test('single-platform bundle and publisher cannot accidentally publish half a de
   let called = false
   await assert.rejects(publishPlatformRelease({ identity, fetcher: async () => { called = true } }), /both desktop targets/)
   assert.equal(called, false)
+})
+
+test('bridge build workflow keeps both native builds and final assembly read-only with exact same-run inputs', async () => {
+  const workflow = yaml.load(await readFile(new URL('../.github/workflows/desktop-bridge-build.yml', import.meta.url), 'utf8'))
+  assert.deepEqual(workflow.on, { push: { tags: ['v*'] } })
+  assert.deepEqual(workflow.permissions, { contents: 'read' })
+  assert.equal(workflow.concurrency['cancel-in-progress'], false)
+  assert.deepEqual(Object.keys(workflow.jobs), ['validate', 'windows', 'macos', 'bundle'])
+  assert.deepEqual(workflow.jobs.bundle.needs, ['validate', 'windows', 'macos'])
+  assert.doesNotMatch(JSON.stringify(workflow), /secrets\s*[.\[]|github\.token|:\s*write\b|publish-platform-release|publish-desktop-bridge|promote-update-manifest|workflow_run|pull_request_target/)
+  for (const [name, job] of Object.entries(workflow.jobs)) {
+    assert.equal(job.environment, undefined)
+    assert.equal(job.permissions?.contents ?? workflow.permissions.contents, 'read')
+    const recheck = job.steps.findIndex(step => step.run?.includes('validate-desktop-bridge.mjs'))
+    assert.ok(recheck >= 0)
+    for (const [index, step] of job.steps.entries()) {
+      if (step.uses) assert.match(step.uses, /^[\w-]+\/[\w-]+@[a-f0-9]{40}$/)
+      if (step.uses?.startsWith('actions/checkout@')) {
+        assert.equal(step.with['persist-credentials'], false)
+        if (name !== 'validate') assert.equal(step.with.ref, '${{ needs.validate.outputs.commit }}')
+      }
+      assert.doesNotMatch(step.run ?? '', /git (?:push|tag)\b/)
+      if (step.run?.includes('npm ci')) assert.ok(index > recheck)
+      if (step.uses?.startsWith('actions/download-artifact@')) assert.match(step.with.name, /github.run_id.*github.run_attempt/)
+      if (name === 'bundle') assert.doesNotMatch(step.run ?? '', /\b(?:npm|npx|uv|gradle|gradlew)\b/)
+    }
+  }
+  for (const platform of ['windows', 'macos']) {
+    const job = workflow.jobs[platform]
+    assert.deepEqual(job.needs, ['validate'])
+    assert.match(JSON.stringify(job.steps), new RegExp(`verify-release-build.mjs --bridge ${platform}`))
+    assert.match(JSON.stringify(job.steps), /generate-build-inventory.mjs/)
+    const upload = job.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
+    const download = workflow.jobs.bundle.steps.find(step => step.uses?.startsWith('actions/download-artifact@') && step.with.name.startsWith(`bridge-${platform}-`))
+    assert.equal(download.with.name, upload.with.name)
+  }
+  assert.match(JSON.stringify(workflow.jobs.bundle), /build-desktop-bridge-bundle.mjs/)
+  assert.match(JSON.stringify(workflow.jobs.bundle), /verify-desktop-bridge-bundle.mjs/)
 })

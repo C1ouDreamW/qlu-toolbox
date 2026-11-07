@@ -16,6 +16,8 @@ Android 两个独立应用 ID 各自维护单调递增的 `versionCode`（正整
 
 迁移配置新增三个默认关闭的状态：`desktopBridgePublishingEnabled` 允许发布指定桥接 B；`desktopCutoverEnabled` 表示允许受控首次桌面切换；`desktopMigrationComplete` 记录两端链路已验收完成。B 为空时不能启用任何状态，完成状态必须伴随受控切换、并关闭桥接发布。当前 B 仍为 null，三个状态均为 false；不把声明字段存在视为真实验收完成。受控切换的证据绑定和发布门禁仍需后续实现。
 
+`desktop-bridge-build.yml` 接入只读的 validate → Windows / macOS → bundle 流程。它仅在本仓库标签 push 后接受脚本核验过的指定 B，并在依赖安装前和最终汇总前复核主线来源、两端晋级与公开 Alpha 状态。两端安装包 / 许可材料和汇总构件按同一 run / attempt 命名，最终由无 npm / Python 构建任务的全新 runner 重新校验；归档 `desktop-bridge-<version>-<run>-<attempt>` 保留 7 天。重试汇总时必须有同一 attempt 的两端输入，不能复用上次 attempt 的同名包。此工作流没有任何 Secret、contents:write、Release 公开或服务器推广步骤；桥接公开与旧版安装验收仍未接入。维护人要求本轮不正式发版，因此不选 B、不打开开关、不创建标签或运行该流程，当前仅做代码与无 Secret PR 检查。
+
 - 阶段 A：版本配置、平台与目标解析、只读检查、版本注入、平台日志、本地入口和 CI 已接入。
 - 阶段 B：平台桌面更新器、新清单、GitHub 分页兜底和旧格式生成器已实现，并通过模拟升级与故障测试。
 - 阶段 C：三条独立工作流、制品身份与正式签名校验、单平台构件、draft 发布与重试保护、原子部署工具已实现；已创建 [PR #17](https://github.com/C1ouDreamW/qlu-toolbox/pull/17) 并启动 CI 与构建演练，结果以该 PR 的 Checks 为准。

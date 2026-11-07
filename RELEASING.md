@@ -64,7 +64,7 @@ Alpha 公开后即可被 GitHub 兜底更新器发现，必须先完成发布级
 
 按 [晋级记录规范](config/promotions/README.md)填写本平台真实 Alpha 来源、观察记录和维护人结论；只读预检使用 `node scripts/check-stable-promotion.mjs <platform> [full-commit]`。模板不是批准，不填写虚构时间、测试者或通过结果。Stable 从已验收业务源码按自己的身份和证书重新构建，保留 Stable 用户升级链。
 
-Android Stable 不依赖桌面 B，仍检查自身门禁、来源、正式证书和晋级证据。Windows / macOS 还须完成旧版 → 桥接 B → 本平台独立版本的真实链路，包括正式私有数据保留和主源断开后的 GitHub 兜底。B 尚未选定，桌面专用桥接入口仍待实现，不能使用旧三端组合工作流附带发布 Android；也不能用 Alpha 身份代替 Stable 桥接验收。
+Android Stable 不依赖桌面 B，仍检查自身门禁、来源、正式证书和晋级证据。Windows / macOS 还须完成旧版 → 桥接 B → 本平台独立版本的真实链路，包括正式私有数据保留和主源断开后的 GitHub 兜底。B 尚未选定；桌面专用的只读构建 / 双端归档入口已实现，桥接公开与受控推广仍待接入，不能使用旧三端组合工作流附带发布 Android，也不能用 Alpha 身份代替 Stable 桥接验收。维护人已明确本轮不发布正式版；Stable / 桥接标签、公开 Release 和正式更新源推广都等后续功能集中完成后另行决定。
 
 ## 部署、失败与恢复
 
