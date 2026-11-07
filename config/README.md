@@ -98,7 +98,7 @@ node scripts/publish-platform-release.mjs windows win-vX.Y.Z update-source/relea
 
 同版本重新构建（尤其 DMG）可能产生不同哈希，不能直接替换 draft 中的旧文件；应复用原构件。确需更改公开产物时升补丁版本，Android 同时增加 code。Android 备用清单使用单独 worktree 生成分支及 PR 链接，生成前与最新 main 清单核验单调性；合并前还须确认没有更高 code 已合入，保留 main 的必需检查；不会自动部署服务器。
 
-当阶段 D 的两端旧版主源升级、桥接后单端升级和主源断开兜底均实测通过，才能将 `independentPublishingEnabled` 设为 `true` 并提交。开关与 B 都从发布标签所指 commit 读取，临时修改工作区不能绕过。启用后旧三端发布工作流会主动失败。桥接标签 B 会保留给后续一次性的桌面桥接入口，不再通过旧流程附带发布 Android。
+`independentPublishingEnabled` 仍为 `false`，须在维护人批准对应 Stable 独立发布时启用。Android 只检查自身来源、签名与晋级条件，不要求桌面 B 就绪；Windows / macOS 额外要求桥接 B 及相应旧版升级、独立更新和主源断开兜底验收。开关与 B 都从发布标签所指 commit 读取，临时修改工作区不能绕过。启用后旧三端发布工作流会主动失败。桥接标签 B 会保留给后续一次性的桌面桥接入口，不再通过旧流程附带发布 Android。
 
 ## 阶段 B / C 验证记录（2026-11-06）
 
@@ -162,4 +162,4 @@ node scripts/promote-update-manifest.mjs windows bundle/alpha/windows-x64.json /
 
 Stable 独立发布必须在标签 commit 中包含本平台的晋级审查记录。脚本对照 Alpha 标签 / commit 与 Stable 的实际源码差异，只放行精确的版本载体、构建身份和发布说明；业务、依赖、构建规则或其他目标的变化需要新 Alpha，紧急例外须逐路径记录批准。审查记录随 `release-record.json` 归档。
 
-工作流在注入长期 Secret 前，还核验 Alpha 的公开 prerelease、源码 commit、目标清单与安装资产；发布器在上传前和公开前复查。只读预检、记录格式和紧急修复要求见 [`promotions/README.md`](promotions/README.md)。该机制不自动生成验收结论，也不打开当前发布门禁。本轮发布回归共 69 项通过，当前源码没有实际晋级批准记录；预检当前 Stable 版本会明确报缺少记录，不能视为具备发版资格。
+工作流在注入长期 Secret 前，还核验 Alpha 的公开 prerelease、源码 commit、目标清单与安装资产；发布器在上传前和公开前复查。只读预检、记录格式和紧急修复要求见 [`promotions/README.md`](promotions/README.md)。该机制不自动生成验收结论，也不打开当前发布门禁。本轮发布回归共 70 项通过，当前源码没有实际晋级批准记录；预检当前 Stable 版本会明确报缺少记录，不能视为具备发版资格。

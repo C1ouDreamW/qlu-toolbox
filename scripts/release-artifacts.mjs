@@ -38,8 +38,8 @@ export function taggedRelease(root, platform, tag, requireEnabled = true) {
   const policy = JSON.parse(git(['show', `${commit}:config/release-migration.json`]))
   const { bridgeVersion } = validateMigrationPolicy(policy)
   if (requireEnabled && channel === 'alpha' && policy.alphaPublishingEnabled !== true) throw new Error('Alpha publishing is disabled until its channel is configured')
-  if (requireEnabled && channel === 'stable' && (policy.independentPublishingEnabled !== true || bridgeVersion === null)) {
-    throw new Error('Independent publishing is disabled until the desktop bridge upgrade chains are verified')
+  if (requireEnabled && channel === 'stable' && (policy.independentPublishingEnabled !== true || (platform !== 'android' && bridgeVersion === null))) {
+    throw new Error(platform === 'android' ? 'Independent Android publishing is disabled' : 'Independent publishing is disabled until the desktop bridge upgrade chains are verified')
   }
   const androidSigningSha256 = channel === 'alpha' ? policy.androidAlphaSigningSha256 : policy.androidSigningSha256
   if (platform === 'android' && requireEnabled && (!/^[a-f0-9]{64}$/.test(androidSigningSha256) || (channel === 'alpha' && androidSigningSha256 === policy.androidSigningSha256))) throw new Error('Missing or invalid independent Android signing certificate digest')

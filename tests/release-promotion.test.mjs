@@ -231,3 +231,17 @@ test('drafts, moved tags, missing artifacts and invalid Alpha review/publication
   ]) await assert.rejects(validatePublishedAlpha(promotion, publicAlpha(promotion, change).fetcher))
   for (const code of [403, 404, 429, 503]) await assert.rejects(validatePublishedAlpha(promotion, async () => new Response('unavailable', { status: code })), /Cannot verify/)
 })
+
+test('Android Stable does not wait for a desktop bridge while preserving its own explicit publishing gate', async t => {
+  const android = await fixture(t, 'android')
+  await android.mutate('config/release-migration.json', p => { p.bridgeVersion = null })
+  await android.finish()
+  assert.equal(taggedRelease(android.root, 'android', android.identity.tag).promotion.alpha.commit, android.alphaCommit)
+  await android.mutate('config/release-migration.json', p => { p.independentPublishingEnabled = false })
+  await android.finish()
+  assert.throws(() => taggedRelease(android.root, 'android', android.identity.tag), /Android publishing is disabled/)
+  const windows = await fixture(t)
+  await windows.mutate('config/release-migration.json', p => { p.bridgeVersion = null })
+  await windows.finish()
+  assert.throws(() => taggedRelease(windows.root, 'windows', windows.identity.tag), /desktop bridge/)
+})

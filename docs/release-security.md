@@ -12,7 +12,7 @@
 - 旧组合发布的 Android job 仍主动失败，等待后续桌面桥接入口替换；不会恢复 PR 正式签名。
 - Windows / macOS 的独立发布基础保留；现有本地修复尚未推送，不代表远端工作流已经变更。
 
-独立 Android 发布代码已经恢复为分离任务，但原有 `independentPublishingEnabled=false` / 桥接门槛保持不变，不会因本轮实现自动发版。Alpha 已使用独立凭据选择步骤与关闭的独立门禁；旧组合发布不恢复。无需配置 Environment 或找回原正式密码。
+独立 Android 发布代码已经恢复为分离任务，但 `independentPublishingEnabled=false` 保持不变；Android 不依赖桌面桥接 B，Windows / macOS 仍保留桥接门槛，不会因本轮实现自动发版。Alpha 已使用独立凭据选择步骤与关闭的独立门禁；旧组合发布不恢复。无需配置 Environment 或找回原正式密码。
 
 ## 仓库 Secrets 使用规则
 
