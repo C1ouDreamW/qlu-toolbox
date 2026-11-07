@@ -179,3 +179,11 @@ Stable 独立发布必须在标签 commit 中包含本平台的晋级审查记�
 本机已用临时测试 key 验证实际 Alpha Release APK 的候选签名路径、证书 / Web / 原生 / 最终摘要与非部署标记；测试 key 和测试签名包已清理。长期 Secret 的有效性、主线实际调度、Windows/macOS Alpha 安装及两次覆盖升级仍需候选验收。PR CI 只验证这些来源约束、拒绝边界、工作流语法和 Debug 包，不触发此手动入口。
 
 候选入口实现回归：发布 / 渠道 / 来源测试共 79 项通过，类型检查与 actionlint 通过；Windows PR CI 还会解析工作流内嵌 PowerShell（只解析，不执行），覆盖主线候选尚未调度时的脚本语法。
+
+## 构建依赖清单与许可材料
+
+`scripts/generate-build-inventory.mjs <platform> <empty-output-dir> [android-native-sbom.json]` 从已安装、已锁定的生产依赖生成 CycloneDX 1.6 清单、第三方许可原文、项目条款快照、待审查许可记录及未签名的构建来源记录。它只接受当前 commit 对应的构建身份和准确的自动生成版本载体；未提交源码、依赖修改、旧原生清单或缺失依赖会失败。
+
+桌面清单包括 npm 生产依赖、Python 运行时依赖、PyInstaller 引导程序、实际 Electron / Playwright Node 运行时及随附第三方通知。Android 原生清单使用固定版本的 Gradle CycloneDX 插件，命令为 `bash apps/mobile/android/gradlew -p apps/mobile/android --init-script "$PWD/scripts/android-sbom.init.gradle" :app:cyclonedxDirectBom`，输出位于 `apps/mobile/android/app/build/reports/sbom/android.cdx.json`。仅在显式执行清单任务时加载插件，普通 Debug 开发无需运行它。
+
+现有 README 非商业使用说明保留在 `PROJECT-TERMS.txt`；维护人尚未选定正式项目许可证，不填入 MIT / Apache 等授权。依赖声明和许可原文分别保留，缺失许可明确列为待审查。清单范围是实际解析的生产依赖输入；厂商运行时内部组件覆盖不完整、系统组件及另行下载的浏览器均明确标注边界。这些材料不是许可证合规批准，也不是签名的供应链证明。

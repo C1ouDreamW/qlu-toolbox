@@ -18,6 +18,7 @@ htmlcov/
 /dist-electron/
 /backend-dist/
 /backend-build/
+/build-metadata/
 node_modules/
 /packages/*/dist/
 /packages/*/coverage/

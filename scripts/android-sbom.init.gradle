@@ -1,0 +1,37 @@
+// Opt-in dependency inventory; ordinary Debug builds do not load this plugin.
+initscript {
+    repositories { gradlePluginPortal() }
+    dependencies { classpath 'org.cyclonedx.bom:org.cyclonedx.bom.gradle.plugin:3.5.1' }
+}
+
+import groovy.json.JsonSlurper
+import org.cyclonedx.gradle.CyclonedxPlugin
+import org.cyclonedx.gradle.CyclonedxDirectTask
+import org.cyclonedx.Version
+import org.cyclonedx.model.Component
+import org.gradle.api.file.RegularFile
+
+rootProject {
+    def metadata = new JsonSlurper().parse(file('../build-info.json'))
+    def variant = metadata.channel == 'debug' ? 'debug' : 'release'
+    // Give Gradle project components the versions of their actual npm sources.
+    // Set these before resolution so references and components use the same IDs.
+    allprojects { target ->
+        def packageFile = new File(target.projectDir.parentFile, 'package.json')
+        target.version = packageFile.exists() ? new JsonSlurper().parse(packageFile).version : metadata.version
+    }
+    project(':app') {
+        apply plugin: CyclonedxPlugin
+        tasks.named('cyclonedxDirectBom', CyclonedxDirectTask) {
+            includeConfigs = [variant + 'RuntimeClasspath']
+            projectType = Component.Type.APPLICATION
+            componentDescription = 'LumaTile Android ' + metadata.channel + ' resolved runtime dependencies for commit ' + metadata.commit
+            includeLicenseText = true
+            includeBuildSystem = false
+            includeBomSerialNumber = false
+            schemaVersion = Version.VERSION_16
+            jsonOutput = layout.buildDirectory.file('reports/sbom/android.cdx.json')
+            xmlOutput.convention((RegularFile) null)
+        }
+    }
+}
