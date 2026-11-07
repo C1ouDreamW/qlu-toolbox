@@ -11,7 +11,7 @@ import { assertPromotion, manifestTarget, repositoryRoot, sha256, taggedRelease,
 
 // All mutations are confined to this platform's draft until every asset is verified.
 export async function publishPlatformRelease({ identity, directory, token, fetcher = fetch }) {
-  if (identity.purpose === 'rehearsal' || identity.deployable === false) throw new Error('Rehearsal artifacts cannot be published')
+  if (identity.purpose === 'rehearsal' || identity.deployable === false) throw new Error('Non-deployable candidate or rehearsal artifacts cannot be published')
   const channel = identity.channel ?? 'stable'
   if (!['stable', 'alpha'].includes(channel)) throw new Error('Invalid publication channel')
   assertChannelVersion(identity.version, channel)
@@ -47,7 +47,7 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
   }
   const names = await verifyReleaseFiles(directory)
   const record = JSON.parse(await readFile(join(directory, 'release-record.json'), 'utf8'))
-  if (record.verification?.purpose === 'rehearsal' || record.verification?.deployable === false) throw new Error('Rehearsal verification cannot authorize publication')
+  if (record.verification?.purpose === 'rehearsal' || record.verification?.deployable === false) throw new Error('Non-deployable verification cannot authorize publication')
   for (const key of ['platform', 'version', 'tag', 'commit', 'target']) if (record[key] !== identity[key]) throw new Error(`Release record mismatch: ${key}`)
   if (!isDeepStrictEqual(record.promotion ?? null, identity.promotion ?? null)) throw new Error('Release promotion evidence does not match the immutable source')
   if (record.channel !== channel || (record.verification?.channel ?? 'stable') !== channel) throw new Error('Release record channel mismatch')

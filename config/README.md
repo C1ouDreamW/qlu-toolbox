@@ -163,3 +163,19 @@ node scripts/promote-update-manifest.mjs windows bundle/alpha/windows-x64.json /
 Stable 独立发布必须在标签 commit 中包含本平台的晋级审查记录。脚本对照 Alpha 标签 / commit 与 Stable 的实际源码差异，只放行精确的版本载体、构建身份和发布说明；业务、依赖、构建规则或非版本配置变化需要新 Alpha，紧急例外须逐路径记录批准。审查记录随 `release-record.json` 归档。
 
 工作流在注入长期 Secret 前，还核验 Alpha 的公开 prerelease、源码 commit、目标清单与安装资产；发布器在上传前和公开前复查。只读预检、记录格式和紧急修复要求见 [`promotions/README.md`](promotions/README.md)。该机制不自动生成验收结论，也不打开当前发布门禁。本轮发布回归共 71 项通过，当前源码没有实际晋级批准记录；预检当前 Stable 版本会明确报缺少记录，不能视为具备发版资格。
+
+## 主线 Alpha 候选验收入口
+
+`alpha-candidate.yml` 只提供 `workflow_dispatch`，选择一个平台并填写当次 main 的完整 commit。工作流与脚本均要求本仓库、main ref、dispatch SHA、checkout 和已 fetch 的 origin/main 精确相同；不接受 PR、任意分支或“虽然合入过但不是当次主线”的来源。若构建期间 main 前进，签名前复核会失败，应重新选择最新 main 的明确 commit。
+
+三个平台候选均使用真实 Alpha 身份与 Release 级配置。Windows / macOS 无长期证书；Android 仍拆分无密钥构建与仅签名 job，只给一个签名步骤注入四项 Alpha 仓库 Secrets。全部 job 只读、所有 Action 固定 SHA，不创建 tag、Release、更新清单或部署分支，不访问生产服务器，也不改变正式 / Alpha 公开发布开关。
+
+输出 `alpha-candidate-<platform>-<run>-<attempt>`，保留 7 天：安装包、`candidate-record.json`、`SHA256SUMS.txt`。安装包名包含平台、Alpha 版本和源码 commit；记录固定为 `purpose: candidate` / `deployable: false`，公开发布工具拒绝直接推广。Android 额外将最终已签名 APK 的证书、原生 / Web 身份、最终字节摘要绑定到同次 run / attempt。
+
+这是显式手动请求的主线候选签名入口，**公开发布开关关闭并不禁用此入口的 Alpha 签名**。它用于在公开发版前验证 Alpha 凭据和安装升级；不是 PR 演练，也不允许调用正式签名 Secrets。首次实际调用须在代码审核并合入 main 后，明确授权目标、commit 和签名用途；当前仅实现入口，尚未执行长期签名。
+
+候选安装在同一个 Alpha 应用中，使用长期 Alpha 证书。每次交给测试者的不同构件都应增加 Alpha 序号及对应原生构建号 / Android code，保留原构件及记录；同版本重试只复用同哈希文件。候选 → 下一候选 → 首个公开 Alpha 继续递增，避免已安装候选的用户遇到同 code 异包或收不到更新。不能把带 candidate 标记的归档改名当成正式发布 bundle。
+
+本机已用临时测试 key 验证实际 Alpha Release APK 的候选签名路径、证书 / Web / 原生 / 最终摘要与非部署标记；测试 key 和测试签名包已清理。长期 Secret 的有效性、主线实际调度、Windows/macOS Alpha 安装及两次覆盖升级仍需候选验收。PR CI 只验证这些来源约束、拒绝边界、工作流语法和 Debug 包，不触发此手动入口。
+
+候选入口实现回归：发布 / 渠道 / 来源测试共 79 项通过，类型检查与 actionlint 通过；Windows PR CI 还会解析工作流内嵌 PowerShell（只解析，不执行），覆盖主线候选尚未调度时的脚本语法。

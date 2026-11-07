@@ -87,7 +87,7 @@ function artifactIdentity(artifacts) {
 }
 
 export async function createReleaseBundle({ identity, artifacts, verification, output }) {
-  if (identity.purpose === 'rehearsal' || identity.deployable === false || verification.purpose === 'rehearsal' || verification.deployable === false) throw new Error('Rehearsal artifacts cannot generate a release bundle')
+  if (identity.purpose === 'rehearsal' || identity.deployable === false || verification.purpose === 'rehearsal' || verification.deployable === false) throw new Error('Non-deployable candidate or rehearsal artifacts cannot generate a release bundle')
   const { platform, version, tag, commit, bridgeVersion } = identity
   const channel = identity.channel ?? 'stable'
   assertChannelVersion(version, channel)

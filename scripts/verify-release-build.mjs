@@ -7,16 +7,19 @@ import { homedir } from 'node:os'
 import { parseArgs } from 'node:util'
 import { assertWindowsProductVersion, assertWindowsX64, repositoryRoot, taggedRelease } from './release-artifacts.mjs'
 import { sha256 } from './release-artifacts.mjs'
+import { alphaCandidateIdentity } from './alpha-candidate.mjs'
 import { rehearsalIdentity } from './rehearse-release.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 import { assertAndroidApkIdentity } from './android-apk-verification.mjs'
 import { validateBuildInformation } from '../electron/channel-contract.mjs'
 
-const { values, positionals } = parseArgs({ options: { rehearsal: { type: 'boolean' } }, allowPositionals: true })
+const { values, positionals } = parseArgs({ options: { rehearsal: { type: 'boolean' }, candidate: { type: 'boolean' } }, allowPositionals: true })
 const [platform, ...args] = positionals
-const [tag, input, output] = values.rehearsal ? [null, ...args] : args
-if (!platform || !input || !output || (!values.rehearsal && !tag)) throw new Error('Usage: node scripts/verify-release-build.mjs [--rehearsal] <platform> [tag] <app-or-apk> <output.json>')
-const identity = values.rehearsal ? rehearsalIdentity(repositoryRoot, platform) : taggedRelease(repositoryRoot, platform, tag)
+if (values.rehearsal && values.candidate) throw new Error('Choose one verification purpose')
+const untagged = values.rehearsal || values.candidate
+const [tag, input, output] = untagged ? [null, ...args] : args
+if (!platform || !input || !output || (!untagged && !tag)) throw new Error('Usage: node scripts/verify-release-build.mjs [--rehearsal|--candidate] <platform> [tag] <app-or-apk> <output.json>')
+const identity = values.rehearsal ? rehearsalIdentity(repositoryRoot, platform) : values.candidate ? alphaCandidateIdentity(repositoryRoot, platform, undefined, process.env.RELEASE_EXPECTED_COMMIT) : taggedRelease(repositoryRoot, platform, tag)
 const location = resolve(input)
 const checks = {}
 if (platform === 'android') {
@@ -76,4 +79,4 @@ if (platform === 'android') {
   checks.applicationId = information.applicationId
 }
 await writeFile(resolve(output), `${JSON.stringify({ platform, channel: identity.channel, version: identity.version, commit: identity.commit, target: identity.target,
-  purpose: values.rehearsal ? 'rehearsal' : 'release', deployable: !values.rehearsal, verified: true, checks }, null, 2)}\n`)
+  purpose: values.rehearsal ? 'rehearsal' : values.candidate ? 'candidate' : 'release', deployable: !untagged, verified: true, checks }, null, 2)}\n`)
