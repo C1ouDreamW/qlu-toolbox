@@ -113,7 +113,7 @@ ANDROID_KEY_PASSWORD
 
 没有正式签名配置时只能构建 Debug APK，`assembleRelease` 会主动失败，防止误发布无法延续升级链的未签名包。密钥文件和密码不得提交到仓库。
 
-GitHub Actions 正式签名正在迁移至受保护流程，旧 Android 自动签名入口暂时主动失败。恢复前按 [签名安全整改清单](../../docs/release-security.md) 核验 Environment 审批和可信来源；以下凭据应配置在受保护的 `android-stable-signing` 环境中，不再保留可供普通 PR 访问的仓库级副本：
+GitHub Actions 正式签名继续使用现有仓库 Secrets，保持以下四项的值和作用域，不要求迁移到 Environment。当前分支的旧 Android 自动签名入口暂时主动失败，后续按 [签名规则与恢复发布说明](../../docs/release-security.md) 补齐来源校验、签名与产物核验后恢复：
 
 ```text
 ANDROID_KEYSTORE_BASE64
@@ -122,4 +122,4 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-普通 PR 演练仅使用 runner 自动生成的 Debug key。新的正式流程须分离无 Secret 构建、受保护签名和独立发布，并核验最终 APK 的应用 ID、版本、证书与哈希；完成前不能直接恢复旧的带密钥 Gradle 构建。
+普通 PR 演练仅使用 runner 自动生成的 Debug key。正式流程分离无 Secret 构建、读取本渠道仓库 Secrets 的签名步骤和独立发布，并核验最终 APK 的应用 ID、版本、证书与哈希。Alpha 后续使用独立的 `ANDROID_ALPHA_*` 仓库 Secrets。无需为继续开发找回原正式密码或将正式密钥放到 Mac；现有 Secret 有效时 CI 可直接使用。本轮文档调整不触发签名或发布。
