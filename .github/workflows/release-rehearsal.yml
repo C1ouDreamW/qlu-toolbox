@@ -55,6 +55,7 @@ jobs:
           npm run build:backend
           npm run build
           npx electron-builder --win dir nsis --x64 --publish never
+          node scripts/generate-build-inventory.mjs windows build-metadata
       - name: Verify packaged versions and architecture
         run: node scripts/verify-release-build.mjs --rehearsal windows release/win-unpacked verification.json
       - name: Collect rehearsal-only installer and ZIP
@@ -62,6 +63,7 @@ jobs:
         run: |
           $version = node -p "require('./package.json').version"
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item build-metadata/* artifacts
           Copy-Item "release/LumaTile-Debug_v${version}_x64_Setup.exe" artifacts/LumaTile-Rehearsal-Windows-x64-Setup.exe
           $ws = New-Object -ComObject WScript.Shell
           $lnk = $ws.CreateShortcut("$PWD\release\win-unpacked\LumaTile.lnk")
@@ -111,6 +113,7 @@ jobs:
           npm run build:backend
           npm run build
           npx electron-builder --mac dmg --arm64 --publish never
+          node scripts/generate-build-inventory.mjs macos build-metadata
       - name: Verify mounted DMG, signature and runtime versions
         run: |
           version=$(node -p "require('./package.json').version")
@@ -121,6 +124,7 @@ jobs:
           bash scripts/detach-dmg.sh "$mount_dir"
           trap - EXIT
           mkdir artifacts
+          cp build-metadata/* artifacts/
           cp "release/LumaTile-Debug_v${version}_arm64.dmg" artifacts/LumaTile-Rehearsal-macOS-arm64.dmg
       - name: Record non-deployable artifact identity and hashes
         run: node scripts/rehearse-release.mjs macos --record verification.json artifacts rehearsal-output
@@ -168,10 +172,13 @@ jobs:
       - name: Test and build an isolated Debug APK
         run: |
           bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleDebug
+          bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon --init-script "$PWD/scripts/android-sbom.init.gradle" :app:cyclonedxDirectBom
+          node scripts/generate-build-inventory.mjs android build-metadata apps/mobile/android/app/build/reports/sbom/android.cdx.json
       - name: Verify Debug identity and runner certificate
         run: |
           node scripts/verify-release-build.mjs --rehearsal android apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk verification.json
           mkdir artifacts
+          cp build-metadata/* artifacts/
           cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk artifacts/LumaTile-Rehearsal-Android-Debug.apk
           node scripts/rehearse-release.mjs android --record verification.json artifacts rehearsal-output
       - uses: actions/upload-artifact@v4

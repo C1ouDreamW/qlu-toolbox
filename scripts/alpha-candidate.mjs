@@ -7,6 +7,8 @@ import { buildInformation, validateBuildInformation } from '../electron/channel-
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 import { assertCandidateSource, releaseRunContext } from './release-source.mjs'
 import { sha256 } from './release-artifacts.mjs'
+import { readBuildInventory, copyBuildInventory } from './inventory-artifacts.mjs'
+import { INVENTORY_FILES } from './build-inventory.mjs'
 
 export function alphaCandidateIdentity(root, platform, context = releaseRunContext(), expectedCommit) {
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
@@ -36,7 +38,7 @@ export async function recordCandidate({ identity, verification, artifacts, outpu
   if (identity.purpose !== 'candidate' || identity.deployable !== false || verification.purpose !== 'candidate' || verification.deployable !== false || verification.verified !== true) throw new Error('Expected a non-deployable candidate verification')
   for (const key of ['platform', 'channel', 'version', 'target', 'commit']) if (identity[key] !== verification[key]) throw new Error(`Candidate verification mismatch: ${key}`)
   const names = candidateArtifactNames(identity)
-  const files = (await readdir(artifacts)).sort()
+  const files = (await readdir(artifacts)).filter(file => !INVENTORY_FILES.includes(file)).sort()
   if (JSON.stringify([...names].sort()) !== JSON.stringify(files)) throw new Error('Candidate artifact set does not match its identity')
   const entries = []
   for (const name of files) {
@@ -55,12 +57,15 @@ export async function recordCandidate({ identity, verification, artifacts, outpu
     const checks = verification.checks
     if (!checks || checks.channel !== 'alpha' || checks.applicationId !== identity.information.applicationId || checks.electronVersion !== identity.version || checks.pythonVersion !== identity.version) throw new Error('Candidate desktop identity differs from verification')
   }
+  const inventory = await readBuildInventory(artifacts, identity.information, identity.platform === 'android' ? verification.checks.inventorySha256 : undefined)
+  if (identity.platform === 'android' && !/^[a-f0-9]{64}$/.test(verification.checks.inventorySha256)) throw new Error('Signed candidate lacks a bound inventory digest')
   if ((await readdir(output).catch(error => { if (error.code === 'ENOENT') return []; throw error })).length) throw new Error('Candidate output must be empty')
   await mkdir(output, { recursive: true })
   for (const name of files) await copyFile(join(artifacts, name), join(output, name), constants.COPYFILE_EXCL)
-  const record = { schemaVersion: 1, ...identity, verification, artifacts: entries }
+  await copyBuildInventory(artifacts, output)
+  const record = { schemaVersion: 1, ...identity, verification, artifacts: entries, inventory: { provenanceSha256: inventory.provenanceSha256, entries: inventory.entries } }
   await writeFile(join(output, 'candidate-record.json'), `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' })
-  const sums = entries.map(item => `${item.sha256}  ${item.file}`)
+  const sums = [...entries, ...inventory.entries].map(item => `${item.sha256}  ${item.file}`)
   sums.push(`${sha256(await readFile(join(output, 'candidate-record.json')))}  candidate-record.json`)
   await writeFile(join(output, 'SHA256SUMS.txt'), `${sums.join('\n')}\n`, { flag: 'wx' })
   return record

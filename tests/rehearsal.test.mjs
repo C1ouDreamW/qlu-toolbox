@@ -8,6 +8,7 @@ import { rehearsalIdentity, recordRehearsal } from '../scripts/rehearse-release.
 import { assertWindowsProductVersion, assertWindowsX64, createReleaseBundle } from '../scripts/release-artifacts.mjs'
 import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
 import { assertAndroidApkIdentity } from '../scripts/android-apk-verification.mjs'
+import { writeInventoryFixture, INVENTORY_FILES } from './inventory-fixture.mjs'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'lumatile-rehearsal-'))
@@ -46,10 +47,11 @@ test('rehearsal artifacts are recorded with hashes and no stable or release poin
     const output = join(root, `${platform}-output`)
     await mkdir(artifacts)
     for (const file of files) await writeFile(join(artifacts, file), `${platform} bytes`)
+    await writeInventoryFixture(artifacts, identity)
     const record = await recordRehearsal({ identity, verification, artifacts, output })
     assert.equal(record.deployable, false)
     assert.equal(record.artifacts.length, files.length)
-    assert.deepEqual((await readdir(output)).sort(), [...files, 'rehearsal-record.json', 'SHA256SUMS.txt'].sort())
+    assert.deepEqual((await readdir(output)).sort(), [...files, ...INVENTORY_FILES, 'rehearsal-record.json', 'SHA256SUMS.txt'].sort())
     const sums = await readFile(join(output, 'SHA256SUMS.txt'), 'utf8')
     assert.match(sums, /[a-f0-9]{64}  rehearsal-record.json/)
     assert.ok(!sums.includes('release-record.json'))

@@ -15,7 +15,7 @@ const context = { repository: 'C1ouDreamW/qlu-toolbox', event: 'push', ref: 'ref
   sha: identity.commit, runId: '42', runAttempt: '1' }
 const bytes = Buffer.from('unsigned APK fixture')
 function receipt() {
-  return { schemaVersion: 1, purpose: 'unsigned-android-release', deployable: false,
+  return { schemaVersion: 2, inventorySha256: 'd'.repeat(64), purpose: 'unsigned-android-release', deployable: false,
     platform: 'android', channel: 'stable', tag: identity.tag, commit: identity.commit, version: identity.version,
     versionCode: identity.versionCode, applicationId: 'io.github.c1oudreamw.lumatile', signingSha256: identity.androidSigningSha256,
     repository: context.repository, runId: context.runId, runAttempt: context.runAttempt,

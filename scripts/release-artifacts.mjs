@@ -10,6 +10,7 @@ import { generateDesktopManifest } from './generate-desktop-update-manifest.mjs'
 import { androidArtifactName, validateAndroidManifest } from '../electron/android-update-contract.mjs'
 export { validateAndroidManifest } from '../electron/android-update-contract.mjs'
 import { assertChannelVersion, compareChannelVersions, channelIdentity, buildInformation } from '../electron/channel-contract.mjs'
+import { readBuildInventory, copyBuildInventory } from './inventory-artifacts.mjs'
 
 export const repositoryRoot = fileURLToPath(new URL('../', import.meta.url))
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
@@ -110,6 +111,8 @@ export async function createReleaseBundle({ identity, artifacts, verification, o
       throw new Error('Signed APK differs from the verified release identity or final bytes')
     }
   }
+  const inventory = await readBuildInventory(artifacts, identity.information, platform === 'android' ? verification.checks.inventorySha256 : undefined)
+  if (platform === 'android' && !/^[a-f0-9]{64}$/.test(verification.checks.inventorySha256)) throw new Error('Signed APK verification lacks a bound inventory digest')
   if ((await readdir(output).catch(error => { if (error.code === 'ENOENT') return []; throw error })).length) throw new Error('Bundle output must be empty')
   await mkdir(releaseDir, { recursive: true })
   let manifest
@@ -122,9 +125,11 @@ export async function createReleaseBundle({ identity, artifacts, verification, o
     manifest = await generateDesktopManifest({ ...identity, channel, artifacts, notes: identity.notes })
   }
   for (const name of Object.values(names)) await copyFile(join(artifacts, name), join(releaseDir, name))
+  await copyBuildInventory(artifacts, releaseDir)
   const manifestName = `update-${manifestTarget(platform)}.json`
   await writeFile(join(releaseDir, manifestName), `${JSON.stringify(manifest, null, 2)}\n`)
-  const record = { schemaVersion: 1, platform, version, tag, commit, target: identity.target, channel, promotion: identity.promotion ?? null, verification }
+  const record = { schemaVersion: 1, platform, version, tag, commit, target: identity.target, channel, promotion: identity.promotion ?? null, verification,
+    inventory: { provenanceSha256: inventory.provenanceSha256, entries: inventory.entries } }
   await writeFile(join(releaseDir, 'release-record.json'), `${JSON.stringify(record, null, 2)}\n`)
   await writeFile(join(releaseDir, 'release-notes.md'), `${identity.notes}\n`)
   const sums = []

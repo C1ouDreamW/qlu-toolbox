@@ -64,6 +64,7 @@ jobs:
           npm run build
           npm run test:desktop
           npx electron-builder --win dir nsis --x64 --publish never
+          node scripts/generate-build-inventory.mjs windows build-metadata
       - name: Verify packaged executable, Electron and Python versions
         run: node scripts/verify-release-build.mjs windows $env:GITHUB_REF_NAME release/win-unpacked verification.json
       - name: Prepare installer and portable ZIP
@@ -74,6 +75,7 @@ jobs:
           $prefix = if ($info.channel -eq 'alpha') { 'LumaTile-Alpha' } else { 'LumaTile' }
           $productName = $info.productName
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item build-metadata/* artifacts
           Copy-Item "release/${prefix}_v${version}_x64_Setup.exe" "artifacts/${prefix}-Windows-v${version}-x64-Setup.exe"
           $ws = New-Object -ComObject WScript.Shell
           $lnk = $ws.CreateShortcut("$PWD\release\win-unpacked\${productName}.lnk")

@@ -118,4 +118,6 @@ Android 无密钥构建后，签名 job 使用两个条件互斥的步骤：
 
 `alpha-candidate.yml` 是明确区分于 PR Debug 演练的主线手动入口。运行者指定一个平台和完整 main commit；来源约束在开始构建、签名前、验证和归档时检查。Android 签名 job 仅处理同次 run / attempt 的 unsigned APK，不执行依赖安装或应用构建；只接收 Alpha Secret，无正式 Secret，无发布写权限。
 
+构建依赖与许可清单由无 Secret job 生成。Android schema 2 unsigned 回执绑定清单来源记录摘要，完整回执摘要另作为 build job output 传给签名 job；签名 job 在读取凭据前核对该摘要、APK 和清单各文件及来源中的 run / attempt。最终签名报告和归档继续绑定清单摘要，避免只校验 APK 而允许旁挂材料被替换。公开来源记录仅保存允许的工具版本 / 平台 / 工作流字段及源码输入哈希，不收集环境变量快照、用户目录或签名路径。
+
 候选签名不依赖公开发布开关，因为其用途正是先验收凭据、安装和连续升级。它必须在 main 上明确手动请求，不能通过 PR、tag push 或工作流链间接触发。候选报告和归档均为不可部署，公开发布器拒绝直接使用。完整步骤和版本递增要求见 [`config/README.md`](../config/README.md#主线-alpha-候选验收入口)。首次长期签名与实际设备操作仍需具体授权，目前未运行。

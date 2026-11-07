@@ -10,6 +10,10 @@ import { createBuildInventory, androidRuntimeInventory, INVENTORY_FILES } from '
 import { assertInventorySource } from '../scripts/inventory-source.mjs'
 import { prepareRelease } from '../scripts/prepare-release.mjs'
 import { sha256 } from '../scripts/release-artifacts.mjs'
+import { readBuildInventory } from '../scripts/inventory-artifacts.mjs'
+import { readUnsignedBuildInput } from '../scripts/unsigned-build-input.mjs'
+import { writeInventoryFixture } from './inventory-fixture.mjs'
+import yaml from 'js-yaml'
 
 const versions = JSON.parse(await readFile(new URL('../config/release-versions.json', import.meta.url)))
 const information = (platform = 'android', commit = 'a'.repeat(40)) => buildInformation(resolveRelease(versions, { platform, channel: 'alpha' }), commit)
@@ -94,5 +98,65 @@ test('source provenance rejects untracked inputs, unrelated edits and changed ex
   if (process.platform !== 'win32') {
     await chmod(join(f.root, 'package.json'), 0o755)
     await assert.rejects(assertInventorySource(f.root, f.info), /file modes/)
+  }
+})
+
+test('downloaded inventories cannot change channel, notices or source identity after being bound to a build', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'lumatile-inventory-download-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const info = information(), identity = { information: info }
+  const inventory = await writeInventoryFixture(directory, identity)
+  await readBuildInventory(directory, info, inventory.provenanceSha256)
+  await assert.rejects(readBuildInventory(directory, information('macos'), inventory.provenanceSha256), /identity mismatch/)
+  await writeFile(join(directory, 'THIRD-PARTY-NOTICES.txt'), 'replacement')
+  await assert.rejects(readBuildInventory(directory, info, inventory.provenanceSha256), /content differs/)
+})
+
+test('signing rejects a coherently replaced inventory and receipt even if the unsigned APK is unchanged', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'lumatile-unsigned-inventory-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const info = information(), identity = { ...info, information: info, tag: 'android-alpha-v' + info.version, androidSigningSha256: 'c'.repeat(64) }
+  const context = { repository: 'C1ouDreamW/qlu-toolbox', event: 'push', ref: `refs/tags/${identity.tag}`, sha: info.commit, runId: '42', runAttempt: '1' }
+  const inventoryDirectory = join(directory, 'inventory'); await mkdir(inventoryDirectory)
+  const inventory = await writeInventoryFixture(inventoryDirectory, identity, { repository: context.repository, runId: context.runId, runAttempt: context.runAttempt })
+  const apk = join(directory, 'app-release-unsigned.apk'), receiptPath = join(directory, 'unsigned-receipt.json'), bytes = Buffer.from('unsigned APK fixture')
+  await writeFile(apk, bytes)
+  const receipt = { schemaVersion: 2, purpose: 'unsigned-android-release', deployable: false, inventorySha256: inventory.provenanceSha256,
+    platform: 'android', channel: 'alpha', tag: identity.tag, commit: info.commit, version: info.version, versionCode: info.versionCode,
+    applicationId: info.applicationId, signingSha256: identity.androidSigningSha256, repository: context.repository, runId: context.runId, runAttempt: context.runAttempt,
+    artifact: { file: 'app-release-unsigned.apk', sha256: sha256(bytes), size: bytes.length } }
+  const original = JSON.stringify(receipt); await writeFile(receiptPath, original)
+  const input = { identity, context, apk, receiptPath, expectedSha256: sha256(bytes), expectedReceiptSha256: sha256(original) }
+  await readUnsignedBuildInput(input)
+  // Recompute every downloaded local hash; the independent job output still anchors the receipt.
+  const provenancePath = join(inventoryDirectory, 'build-provenance.json')
+  const provenance = JSON.parse(await readFile(provenancePath)); provenance.builder.runId = '43'
+  const replacement = JSON.stringify(provenance); await writeFile(provenancePath, replacement)
+  receipt.inventorySha256 = sha256(replacement); await writeFile(receiptPath, JSON.stringify(receipt))
+  await assert.rejects(readUnsignedBuildInput(input), /validated build job output/)
+  await assert.rejects(readUnsignedBuildInput({ ...input, expectedReceiptSha256: sha256(JSON.stringify(receipt)) }), /workflow run and attempt/)
+  await assert.rejects(readUnsignedBuildInput({ ...input, expectedReceiptSha256: undefined }), /validated build job output/)
+})
+
+test('all distributed build workflows generate inventory without credentials; Android signers bind a separate receipt job output', async () => {
+  for (const file of ['release-windows.yml', 'release-macos.yml', 'release-android.yml', 'alpha-candidate.yml', 'release-rehearsal.yml']) {
+    const workflow = yaml.load(await readFile(new URL('../.github/workflows/' + file, import.meta.url), 'utf8'))
+    let generators = 0
+    for (const [name, job] of Object.entries(workflow.jobs)) {
+      for (const step of job.steps) {
+        if (step.run?.includes('generate-build-inventory.mjs')) {
+          generators++
+          assert.doesNotMatch(JSON.stringify(step), /secrets\s*[.\[]/)
+          assert.ok(!['sign', 'android-sign', 'publish'].includes(name))
+        }
+        if (['sign', 'android-sign'].includes(name)) assert.doesNotMatch(step.run ?? '', /generate-build-inventory|cyclonedxDirectBom/)
+      }
+    }
+    assert.equal(generators, ['alpha-candidate.yml', 'release-rehearsal.yml'].includes(file) ? 3 : 1)
+    const build = workflow.jobs.build ?? workflow.jobs['android-build'], sign = workflow.jobs.sign ?? workflow.jobs['android-sign']
+    if (sign) {
+      assert.equal(build.outputs.receipt_sha256, '${{ steps.receipt.outputs.receipt_sha256 }}')
+      assert.equal(sign.env.RELEASE_RECEIPT_SHA256, '${{ needs.' + (workflow.jobs.build ? 'build' : 'android-build') + '.outputs.receipt_sha256 }}')
+    }
   }
 })

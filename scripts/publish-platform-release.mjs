@@ -7,6 +7,7 @@ import { assertChannelVersion, compareChannelVersions } from '../electron/channe
 import { androidArtifactName, androidReleaseTag } from '../electron/android-update-contract.mjs'
 import { validatePublishedAlpha } from './promotion-publication.mjs'
 import { parseReleaseTag } from './release-config.mjs'
+import { readBuildInventory } from './inventory-artifacts.mjs'
 import { assertPromotion, manifestTarget, repositoryRoot, sha256, taggedRelease, targetFor, validatePlatformManifest, verifyReleaseFiles } from './release-artifacts.mjs'
 
 // All mutations are confined to this platform's draft until every asset is verified.
@@ -52,6 +53,9 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
   if (!isDeepStrictEqual(record.promotion ?? null, identity.promotion ?? null)) throw new Error('Release promotion evidence does not match the immutable source')
   if (record.channel !== channel || (record.verification?.channel ?? 'stable') !== channel) throw new Error('Release record channel mismatch')
   if (record.verification?.verified !== true) throw new Error('Unverified release build')
+  if (!record.inventory?.provenanceSha256) throw new Error('Release lacks its bound build inventory')
+  const inventory = await readBuildInventory(directory, identity.information, record.inventory.provenanceSha256)
+  if (!isDeepStrictEqual(record.inventory.entries, inventory.entries) || (identity.platform === 'android' && record.verification.checks?.inventorySha256 !== inventory.provenanceSha256)) throw new Error('Release inventory differs from the verified build')
   const manifest = validatePlatformManifest(identity.platform, JSON.parse(await readFile(join(directory, `update-${manifestTarget(identity.platform)}.json`), 'utf8')), identity.bridgeVersion, channel)
   if ((identity.platform === 'android' ? manifest.versionName : manifest.version) !== identity.version) throw new Error('Release manifest version mismatch')
   if (identity.platform === 'android') {

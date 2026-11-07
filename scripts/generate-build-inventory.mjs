@@ -28,7 +28,7 @@ if (process.env.GITHUB_ACTIONS === 'true') {
     if (!/^[1-9]\d*$/.test(process.env[env] ?? '')) throw new Error('Invalid GitHub build provenance context')
     builder[key] = process.env[env]
   }
-  builder.repository = 'C1ouDreamW/qlu-toolbox'
+  builder.repository = process.env.GITHUB_REPOSITORY ?? ''
   builder.workflow = process.env.GITHUB_WORKFLOW ?? ''
   builder.event = process.env.GITHUB_EVENT_NAME ?? ''
 }

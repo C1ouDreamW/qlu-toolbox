@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { androidArtifactName } from '../electron/android-update-contract.mjs'
-import { channelIdentity } from '../electron/channel-contract.mjs'
+import { buildInformation, channelIdentity } from '../electron/channel-contract.mjs'
+import { writeInventoryFixture, INVENTORY_FILES } from './inventory-fixture.mjs'
 import { artifactFileNames, desktopTarget } from '../electron/update-contract.mjs'
 import { assertPromotion, createReleaseBundle, manifestTarget, sha256, taggedRelease, verifyReleaseFiles } from '../scripts/release-artifacts.mjs'
 import { prepareAndroidBackup } from '../scripts/prepare-android-backup.mjs'
@@ -25,13 +26,15 @@ async function buildFixture(t, platform = 'windows', version = '2.0.6', code = 1
   const identity = { platform, channel, target: target?.id ?? 'android', version, versionCode: code, tag: `${prefix}${version}`,
     commit: 'a'.repeat(40), bridgeVersion: '2.0.5', androidSigningSha256: 'b'.repeat(64), notes: '- Platform fix', publishedAt: '2026-11-06T00:00:00Z' }
   const artifacts = join(root, 'artifacts')
+  identity.information = buildInformation(identity, identity.commit)
   await mkdir(artifacts)
+  const inventory = await writeInventoryFixture(artifacts, identity)
   const names = platform === 'android' ? { apk: androidArtifactName(version, channel) } : artifactFileNames(target, version, false, channel)
   for (const [role, name] of Object.entries(names)) await writeFile(join(artifacts, name), `${platform} ${version} ${role} fixture`)
   const verification = { platform, channel, version, commit: identity.commit, target: identity.target, verified: true, checks: { testFixture: true } }
   if (platform === 'android') {
     const bytes = await readFile(join(artifacts, names.apk))
-    verification.checks = { applicationId: channelIdentity(channel, 'android').applicationId, debuggable: false, nativeVersionCode: code,
+    verification.checks = { inventorySha256: inventory.provenanceSha256, applicationId: channelIdentity(channel, 'android').applicationId, debuggable: false, nativeVersionCode: code,
       signingSha256: identity.androidSigningSha256, signedSha256: sha256(bytes), signedSize: bytes.length }
   }
   const output = join(root, 'bundle')
@@ -56,6 +59,7 @@ test('each deployment bundle contains exactly its own stable pointer and verifie
     assert.deepEqual(await readdir(join(fixture.output, 'stable')), [`${manifestTarget(platform)}.json`])
     const files = await verifyReleaseFiles(fixture.releaseDir)
     assert.ok(files.includes('release-record.json'))
+    assert.ok(INVENTORY_FILES.every(file => files.includes(file)))
     assert.ok(files.includes(`update-${manifestTarget(platform)}.json`))
     assert.ok(!files.some(file => platform !== 'android' && file.endsWith('.apk')))
     if (platform === 'android') {
@@ -76,6 +80,19 @@ test('bundle generation refuses missing portable assets and mismatched build ide
   await rm(join(fixture.artifacts, 'LumaTile-Windows-v2.0.6-x64.zip'))
   await assert.rejects(createReleaseBundle(options), /ENOENT/)
   await assert.rejects(readdir(options.output), /ENOENT/)
+})
+
+test('bundle and publisher reject changed inventory even when the outer release checksums are recomputed', async t => {
+  const fixture = await buildFixture(t, 'android')
+  await writeFile(join(fixture.artifacts, 'THIRD-PARTY-NOTICES.txt'), 'replaced notices')
+  await assert.rejects(createReleaseBundle({ identity: fixture.identity, artifacts: fixture.artifacts, verification: fixture.verification, output: join(fixture.root, 'invalid-bundle') }), /content differs/)
+  await writeFile(join(fixture.releaseDir, 'THIRD-PARTY-NOTICES.txt'), 'replaced notices')
+  const sums = []
+  for (const name of (await readdir(fixture.releaseDir)).filter(name => name !== 'SHA256SUMS.txt').sort()) sums.push(`${sha256(await readFile(join(fixture.releaseDir, name)))}  ${name}`)
+  await writeFile(join(fixture.releaseDir, 'SHA256SUMS.txt'), sums.join('\n') + '\n')
+  let called = false
+  await assert.rejects(publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher: async () => { called = true } }), /content differs/)
+  assert.equal(called, false, 'Reject downloaded metadata before any publication requests')
 })
 
 test('independent promotion preserves other platforms and refuses late older deployments', async t => {

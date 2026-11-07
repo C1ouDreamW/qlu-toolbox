@@ -24,6 +24,7 @@ jobs:
       version: ${{ steps.receipt.outputs.version }}
       channel: ${{ steps.receipt.outputs.channel }}
       unsigned_sha256: ${{ steps.receipt.outputs.unsigned_sha256 }}
+      receipt_sha256: ${{ steps.receipt.outputs.receipt_sha256 }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -57,7 +58,10 @@ jobs:
           npm run mobile:build
           npm run mobile:sync
           bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleRelease -PunsignedRelease=true
+          bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon --init-script "$PWD/scripts/android-sbom.init.gradle" :app:cyclonedxDirectBom
+          node scripts/generate-build-inventory.mjs android build-metadata apps/mobile/android/app/build/reports/sbom/android.cdx.json
           mkdir unsigned
+          cp -R build-metadata unsigned/inventory
           cp apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk unsigned/app-release-unsigned.apk
       - name: Verify unsigned native and Web identity and bind its digest
         id: receipt
@@ -77,6 +81,7 @@ jobs:
     env:
       RELEASE_EXPECTED_COMMIT: ${{ needs.build.outputs.commit }}
       RELEASE_UNSIGNED_SHA256: ${{ needs.build.outputs.unsigned_sha256 }}
+      RELEASE_RECEIPT_SHA256: ${{ needs.build.outputs.receipt_sha256 }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:

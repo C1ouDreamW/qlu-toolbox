@@ -43,8 +43,9 @@ function signingIdentity(identity) {
     version: identity.version, versionCode: identity.versionCode, applicationId: channelIdentity(identity.channel, 'android').applicationId, signingSha256: identity.androidSigningSha256 }
 }
 
-export async function createUnsignedReceipt({ identity, context, apk, tools, env = process.env }) {
+export async function createUnsignedReceipt({ identity, context, apk, tools, inventorySha256, env = process.env }) {
   signingRun(identity, context)
+  if (!/^[a-f0-9]{64}$/.test(inventorySha256)) throw new Error('Missing verified inventory digest')
   const expected = signingIdentity(identity)
   const toolEnv = toolEnvironment(env)
   assertAndroidApkMetadata({ identity, ...apkMetadata(apk, tools, toolEnv) })
@@ -52,14 +53,14 @@ export async function createUnsignedReceipt({ identity, context, apk, tools, env
   if (result.error || result.status === null) throw new Error('Cannot check unsigned APK')
   if (result.status === 0) throw new Error('Expected an unsigned APK, not an already-signed package')
   const bytes = await readFile(apk)
-  return { schemaVersion: 1, purpose: receiptPurpose(identity), deployable: false, ...expected,
+  return { schemaVersion: 2, purpose: receiptPurpose(identity), deployable: false, inventorySha256, ...expected,
     repository: context.repository, runId: context.runId, runAttempt: context.runAttempt,
     artifact: { file: 'app-release-unsigned.apk', sha256: sha256(bytes), size: bytes.length } }
 }
 
 export function assertUnsignedReceipt({ identity, context, receipt, bytes, expectedSha256 }) {
   signingRun(identity, context)
-  if (!receipt || receipt.schemaVersion !== 1 || receipt.purpose !== receiptPurpose(identity) || receipt.deployable !== false) throw new Error('Invalid unsigned build receipt')
+  if (!receipt || receipt.schemaVersion !== 2 || receipt.purpose !== receiptPurpose(identity) || receipt.deployable !== false || !/^[a-f0-9]{64}$/.test(receipt.inventorySha256)) throw new Error('Invalid unsigned build receipt')
   const expected = { ...signingIdentity(identity), repository: context.repository, runId: context.runId, runAttempt: context.runAttempt }
   for (const [key, value] of Object.entries(expected)) if (receipt[key] !== value) throw new Error(`Unsigned build receipt mismatch: ${key}`)
   if (!/^[a-f0-9]{64}$/.test(expectedSha256) || receipt.artifact?.file !== 'app-release-unsigned.apk' ||
@@ -95,7 +96,7 @@ export async function signAndroidRelease({ identity, context, receipt, apk, expe
     const finalBytes = await readFile(signed)
     const report = { platform: identity.platform, channel: identity.channel, version: identity.version, commit: identity.commit, target: identity.target,
       purpose: identity.purpose === 'candidate' ? 'candidate' : 'release', deployable: identity.purpose !== 'candidate', verified: true,
-      checks: { ...checks, unsignedSha256: expectedSha256, signedSha256: sha256(finalBytes), signedSize: finalBytes.length,
+      checks: { ...checks, inventorySha256: receipt.inventorySha256, unsignedSha256: expectedSha256, signedSha256: sha256(finalBytes), signedSize: finalBytes.length,
         runId: context.runId, runAttempt: context.runAttempt } }
     await copyFile(signed, output, constants.COPYFILE_EXCL)
     await writeFile(verification, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })

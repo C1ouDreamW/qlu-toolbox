@@ -7,6 +7,8 @@ import { resolveRelease, validateReleaseConfig } from './release-config.mjs'
 import { sha256, repositoryRoot } from './release-artifacts.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 import { buildInformation } from '../electron/channel-contract.mjs'
+import { readBuildInventory, copyBuildInventory } from './inventory-artifacts.mjs'
+import { INVENTORY_FILES } from './build-inventory.mjs'
 
 // A rehearsal uses immutable HEAD metadata without creating a tag or enabling rollout.
 export function rehearsalIdentity(root, platform) {
@@ -28,7 +30,7 @@ export async function recordRehearsal({ identity, verification, artifacts, outpu
   if (identity.purpose !== 'rehearsal' || identity.deployable !== false || verification.purpose !== 'rehearsal' || verification.deployable !== false || !verification.verified) throw new Error('Expected a non-deployable rehearsal verification')
   for (const key of ['platform', 'version', 'target', 'commit']) if (identity[key] !== verification[key]) throw new Error(`Rehearsal identity mismatch: ${key}`)
   const extensions = identity.platform === 'windows' ? ['.exe', '.zip'] : identity.platform === 'macos' ? ['.dmg'] : ['.apk']
-  const files = (await readdir(artifacts)).sort()
+  const files = (await readdir(artifacts)).filter(file => !INVENTORY_FILES.includes(file)).sort()
   if (files.length !== extensions.length || !extensions.every(extension => files.filter(name => name.startsWith('LumaTile-Rehearsal-') && name.endsWith(extension)).length === 1)) throw new Error('Rehearsal must include exactly this platform\'s build artifacts')
   if ((await readdir(output).catch(error => { if (error.code === 'ENOENT') return []; throw error })).length) throw new Error('Rehearsal output must be empty')
   const entries = []
@@ -39,11 +41,13 @@ export async function recordRehearsal({ identity, verification, artifacts, outpu
     if (!bytes.length) throw new Error('Empty rehearsal artifact')
     entries.push({ file: basename(name), sha256: sha256(bytes), size: bytes.length })
   }
+  const inventory = await readBuildInventory(artifacts, identity.information)
   await mkdir(output, { recursive: true })
   for (const file of files) await copyFile(join(artifacts, file), join(output, file))
-  const record = { schemaVersion: 1, ...identity, verification, artifacts: entries }
+  await copyBuildInventory(artifacts, output)
+  const record = { schemaVersion: 1, ...identity, verification, artifacts: entries, inventory: { provenanceSha256: inventory.provenanceSha256, entries: inventory.entries } }
   await writeFile(join(output, 'rehearsal-record.json'), `${JSON.stringify(record, null, 2)}\n`)
-  const sums = entries.map(entry => `${entry.sha256}  ${entry.file}`)
+  const sums = [...entries, ...inventory.entries].map(entry => `${entry.sha256}  ${entry.file}`)
   sums.push(`${sha256(await readFile(join(output, 'rehearsal-record.json')))}  rehearsal-record.json`)
   await writeFile(join(output, 'SHA256SUMS.txt'), `${sums.join('\n')}\n`)
   return record

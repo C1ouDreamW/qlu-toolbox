@@ -187,3 +187,9 @@ Stable 独立发布必须在标签 commit 中包含本平台的晋级审查记�
 桌面清单包括 npm 生产依赖、Python 运行时依赖、PyInstaller 引导程序、实际 Electron / Playwright Node 运行时及随附第三方通知。Android 原生清单使用固定版本的 Gradle CycloneDX 插件，命令为 `bash apps/mobile/android/gradlew -p apps/mobile/android --init-script "$PWD/scripts/android-sbom.init.gradle" :app:cyclonedxDirectBom`，输出位于 `apps/mobile/android/app/build/reports/sbom/android.cdx.json`。仅在显式执行清单任务时加载插件，普通 Debug 开发无需运行它。
 
 现有 README 非商业使用说明保留在 `PROJECT-TERMS.txt`；维护人尚未选定正式项目许可证，不填入 MIT / Apache 等授权。依赖声明和许可原文分别保留，缺失许可明确列为待审查。清单范围是实际解析的生产依赖输入；厂商运行时内部组件覆盖不完整、系统组件及另行下载的浏览器均明确标注边界。这些材料不是许可证合规批准，也不是签名的供应链证明。
+
+三端 Debug 演练、主线 Alpha 候选和独立 Alpha / Stable 发布均在无密钥构建 job 生成材料。归档包含 `dependency-inventory.cdx.json`、`THIRD-PARTY-NOTICES.txt`、`PROJECT-TERMS.txt`、`license-review.json`、`build-provenance.json`，并由候选 / 演练 / 发布记录与 `SHA256SUMS.txt` 绑定。发布 job 在任何 GitHub 写入前重验身份及摘要。
+
+Android unsigned 回执采用 schema 2：除 APK 摘要，还绑定构建来源记录摘要；完整回执摘要单独登记为 build job output。全新签名 runner 从同次 run / attempt 下载输入，签名前同时校验独立回执摘要、APK、所有清单文件和来源记录中的 run / attempt。签名报告保存清单摘要，最终归档再核对；签名 job 不运行 npm、Gradle、Python 清单生成或构件携带脚本。
+
+本机已从提交 `afd6fd1` 的已安装依赖实际生成 macOS 37 个、Android 102 个组件的清单，二者通过官方 CycloneDX 1.6 JSON schema 校验，未包含本机用户目录路径。桌面清单有厂商组件覆盖边界，项目与自有工作区许可证仍待维护人决定；这不是完整许可审查完成记录。

@@ -10,6 +10,7 @@ import { assertCandidateRun, assertCandidateSource } from '../scripts/release-so
 import { assertUnsignedReceipt, signAndroidRelease } from '../scripts/android-signing.mjs'
 import { createReleaseBundle, sha256 } from '../scripts/release-artifacts.mjs'
 import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
+import { writeInventoryFixture, INVENTORY_FILES } from './inventory-fixture.mjs'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'lumatile-alpha-candidate-'))
@@ -35,7 +36,7 @@ async function fixture(t) {
 }
 
 function unsigned(identity, context, bytes) {
-  return { schemaVersion: 1, purpose: 'unsigned-android-candidate', deployable: false, platform: 'android', channel: 'alpha', tag: null,
+  return { schemaVersion: 2, inventorySha256: 'd'.repeat(64), purpose: 'unsigned-android-candidate', deployable: false, platform: 'android', channel: 'alpha', tag: null,
     commit: identity.commit, version: identity.version, versionCode: identity.versionCode, applicationId: identity.information.applicationId, signingSha256: identity.androidSigningSha256,
     repository: context.repository, runId: context.runId, runAttempt: context.runAttempt, artifact: { file: 'app-release-unsigned.apk', sha256: sha256(bytes), size: bytes.length } }
 }
@@ -101,12 +102,13 @@ test('candidate records bind final signed APK bytes and never produce deployable
   const artifacts = join(f.root, 'artifacts'); await mkdir(artifacts)
   const name = candidateArtifactNames(identity)[0], bytes = Buffer.from('signed fixture')
   await writeFile(join(artifacts, name), bytes)
+  const inventory = await writeInventoryFixture(artifacts, identity)
   const verification = { platform: identity.platform, channel: 'alpha', target: identity.target, version: identity.version, commit: identity.commit, purpose: 'candidate', deployable: false, verified: true,
-    checks: { applicationId: identity.information.applicationId, debuggable: false, nativeVersionCode: identity.versionCode, signingSha256: identity.androidSigningSha256, signedSha256: sha256(bytes), signedSize: bytes.length, runId: identity.runId, runAttempt: identity.runAttempt } }
+    checks: { inventorySha256: inventory.provenanceSha256, applicationId: identity.information.applicationId, debuggable: false, nativeVersionCode: identity.versionCode, signingSha256: identity.androidSigningSha256, signedSha256: sha256(bytes), signedSize: bytes.length, runId: identity.runId, runAttempt: identity.runAttempt } }
   const output = join(f.root, 'out')
   const record = await recordCandidate({ identity, verification, artifacts, output })
   assert.equal(record.deployable, false)
-  assert.deepEqual((await readdir(output)).sort(), [name, 'SHA256SUMS.txt', 'candidate-record.json'].sort())
+  assert.deepEqual((await readdir(output)).sort(), [name, ...INVENTORY_FILES, 'SHA256SUMS.txt', 'candidate-record.json'].sort())
   await assert.rejects(createReleaseBundle({ identity, verification }), /cannot generate a release bundle/)
   let called = false
   await assert.rejects(publishPlatformRelease({ identity, fetcher: async () => { called = true } }), /cannot be published/)
@@ -153,6 +155,7 @@ test('desktop candidate archives require all target files and matching Alpha wor
     const identity = alphaCandidateIdentity(f.root, platform, f.context)
     const artifacts = join(f.root, platform); await mkdir(artifacts)
     const names = candidateArtifactNames(identity)
+    await writeInventoryFixture(artifacts, identity)
     for (const name of names) await writeFile(join(artifacts, name), 'native candidate fixture')
     const verification = { platform, channel: 'alpha', target: identity.target, commit: identity.commit, version: identity.version, purpose: 'candidate', deployable: false, verified: true,
       checks: { channel: 'alpha', applicationId: identity.information.applicationId, electronVersion: identity.version, pythonVersion: identity.version } }
