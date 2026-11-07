@@ -1,9 +1,8 @@
-export const UPDATE_APPLICATION_ID = 'io.github.c1oudreamw.lumatile'
-
 export interface CurrentAppVersion {
   applicationId: string
   versionCode: number
   versionName: string
+  channel: 'stable' | 'alpha' | 'debug'
 }
 
 export interface UpdateManifest {
@@ -11,7 +10,9 @@ export interface UpdateManifest {
   applicationId: string
   versionCode: number
   versionName: string
-  channel: 'stable' | 'beta'
+  channel: 'stable' | 'alpha'
+  tag?: string
+  commit?: string
   title: string
   notes: string
   publishedAt: string

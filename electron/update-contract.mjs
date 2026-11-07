@@ -1,3 +1,6 @@
+import { assertStableVersion, assertChannelVersion } from './version-contract.mjs'
+export { assertStableVersion, compareVersions } from './version-contract.mjs'
+
 // Pure release contract shared by the publisher and the desktop updater.
 /** @typedef {{ platform: 'windows' | 'macos', arch: 'x64' | 'arm64', id: string, prefix: string, primary: 'installer' | 'dmg' }} DesktopTarget */
 /** @typedef {{ url: string, fallbackUrl: string, sha256: string, size: number }} UpdateArtifact */
@@ -6,25 +9,6 @@
 export const UPDATE_ORIGIN = 'https://lumatile.ishua.cloud'
 export const GITHUB_REPOSITORY = 'C1ouDreamW/qlu-toolbox'
 export const UPDATE_REPOSITORIES = [GITHUB_REPOSITORY, 'C1ouDreamW/lumatile']
-
-/** @param {unknown} version @returns {string} */
-export function assertStableVersion(version) {
-  if (typeof version !== 'string' || version.trim() !== version || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) ||
-      !version.split('.').every(part => Number.isSafeInteger(Number(part)))) {
-    throw new Error(`Invalid stable version: ${version}; expected major.minor.patch`)
-  }
-  return version
-}
-
-/** @param {string} a @param {string} b */
-export function compareVersions(a, b) {
-  const left = assertStableVersion(a).split('.').map(Number)
-  const right = assertStableVersion(b).split('.').map(Number)
-  for (let index = 0; index < 3; index++) {
-    if (left[index] !== right[index]) return left[index] > right[index] ? 1 : -1
-  }
-  return 0
-}
 
 /** @param {string} platform @param {string} arch @returns {DesktopTarget} */
 export function desktopTarget(platform, arch) {
@@ -42,21 +26,24 @@ export function validateMigrationPolicy(value) {
   return { schemaVersion: 1, bridgeVersion: policy.bridgeVersion === null ? null : assertStableVersion(policy.bridgeVersion) }
 }
 
-/** @param {unknown} tag @param {DesktopTarget} target @param {string | null} [bridgeVersion] @returns {string | null} */
-export function desktopTagVersion(tag, target, bridgeVersion = null) {
-  if (typeof tag !== 'string') return null
-  if (bridgeVersion !== null && tag === `v${assertStableVersion(bridgeVersion)}`) return bridgeVersion
-  if (!tag.startsWith(target.prefix)) return null
-  try { return assertStableVersion(tag.slice(target.prefix.length)) } catch { return null }
+/** @param {unknown} tag @param {DesktopTarget} target @param {string | null} [bridgeVersion] @param {string} [channel] @returns {string | null} */
+export function desktopTagVersion(tag, target, bridgeVersion = null, channel = 'stable') {
+  if (typeof tag !== 'string' || !['stable', 'alpha'].includes(channel)) return null
+  if (channel === 'stable' && bridgeVersion !== null && tag === `v${assertStableVersion(bridgeVersion)}`) return bridgeVersion
+  const prefix = channel === 'alpha' ? target.prefix.replace('-v', '-alpha-v') : target.prefix
+  if (!tag.startsWith(prefix)) return null
+  try { return assertChannelVersion(tag.slice(prefix.length), channel) } catch { return null }
 }
 
-/** @param {DesktopTarget} target @param {string} version @param {boolean} [bridge] */
-export function artifactFileNames(target, version, bridge = false) {
-  assertStableVersion(version)
+/** @param {DesktopTarget} target @param {string} version @param {boolean} [bridge] @param {string} [channel] */
+export function artifactFileNames(target, version, bridge = false, channel = 'stable') {
+  assertChannelVersion(version, channel)
+  if (!['stable', 'alpha'].includes(channel) || (bridge && channel !== 'stable')) throw new Error('Invalid release artifact channel')
+  const product = channel === 'alpha' ? 'LumaTile-Alpha' : 'LumaTile'
   return target.platform === 'windows'
-    ? { installer: bridge ? `LumaTile_v${version}_x64_Setup.exe` : `LumaTile-Windows-v${version}-x64-Setup.exe`,
-        portable: bridge ? `LumaTile_v${version}.zip` : `LumaTile-Windows-v${version}-x64.zip` }
-    : { dmg: bridge ? `LumaTile_v${version}_arm64.dmg` : `LumaTile-macOS-v${version}-arm64.dmg` }
+    ? { installer: bridge ? `LumaTile_v${version}_x64_Setup.exe` : `${product}-Windows-v${version}-x64-Setup.exe`,
+        portable: bridge ? `LumaTile_v${version}.zip` : `${product}-Windows-v${version}-x64.zip` }
+    : { dmg: bridge ? `LumaTile_v${version}_arm64.dmg` : `${product}-macOS-v${version}-arm64.dmg` }
 }
 
 /** @param {unknown} value */
@@ -72,18 +59,18 @@ export function isArtifactUrl(value, tag, file, githubOnly = false) {
   return UPDATE_REPOSITORIES.some(repository => value === `https://github.com/${repository}/releases/download/${tag}/${file}`)
 }
 
-/** @param {unknown} value @param {DesktopTarget} target @param {string | null} [bridgeVersion] @returns {DesktopManifest} */
-export function validateDesktopManifest(value, target, bridgeVersion = null) {
+/** @param {unknown} value @param {DesktopTarget} target @param {string | null} [bridgeVersion] @param {string} [channel] @returns {DesktopManifest} */
+export function validateDesktopManifest(value, target, bridgeVersion = null, channel = 'stable') {
   if (!value || typeof value !== 'object') throw new Error('更新清单无效')
   const item = /** @type {DesktopManifest} */ (value)
-  if (item.schemaVersion !== 2 || item.platform !== target.platform || item.arch !== target.arch || item.channel !== 'stable' ||
-      desktopTagVersion(item.tag, target, bridgeVersion) !== assertStableVersion(item.version) ||
+  if (item.schemaVersion !== 2 || item.platform !== target.platform || item.arch !== target.arch || item.channel !== channel ||
+      desktopTagVersion(item.tag, target, bridgeVersion, channel) !== assertChannelVersion(item.version, channel) ||
       typeof item.commit !== 'string' || !/^[a-f0-9]{40}$/.test(item.commit) ||
       typeof item.name !== 'string' || !item.name.trim() || typeof item.notes !== 'string' || !item.notes.trim() ||
       !isPublicationDate(item.publishedAt) || !item.artifacts || typeof item.artifacts !== 'object') {
     throw new Error('更新清单身份、版本或发布日期无效')
   }
-  const names = artifactFileNames(target, item.version, item.tag === `v${bridgeVersion}`)
+  const names = artifactFileNames(target, item.version, item.tag === `v${bridgeVersion}`, channel)
   if (!Object.hasOwn(item.artifacts, target.primary)) throw new Error('更新清单缺少本架构安装包')
   for (const [role, artifact] of Object.entries(item.artifacts)) {
     const file = /** @type {Record<string, string>} */ (names)[role]

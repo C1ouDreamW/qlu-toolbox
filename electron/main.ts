@@ -188,7 +188,7 @@ function registerIpc() {
     const policyFile = path.join(app.getAppPath(), 'config', 'release-migration.json')
     const policy = validateMigrationPolicy(JSON.parse(await readFile(policyFile, 'utf8')))
     return checkDesktopUpdate(information.version, {
-      platform: process.platform, arch: process.arch, bridgeVersion: policy.bridgeVersion,
+      platform: process.platform, arch: process.arch, channel: information.channel, bridgeVersion: policy.bridgeVersion,
     })
   })
   ipcMain.handle('system:send-stats-beacon', () => sendStatsBeacon())

@@ -212,3 +212,46 @@ test('rate limiting while reading a candidate manifest aborts rather than hiding
   await assert.rejects(checkGithubUpdate('2.0.4', windows, null, net.fetcher), /不可用/)
   assert.ok(!net.calls.some(url => url.includes(`${lower.tag}/update-`)))
 })
+
+function alphaManifest(version = '2.1.0-alpha.2', target = windows) {
+  const tag = `${target.prefix.replace('-v', '-alpha-v')}${version}`
+  const file = artifactFileNames(target, version, false, 'alpha')[target.primary]
+  return { ...manifest('2.1.0', target), channel: 'alpha', version, tag,
+    artifacts: { [target.primary]: { url: `https://lumatile.ishua.cloud/releases/${tag}/${file}`, fallbackUrl: `${github}/${tag}/${file}`, sha256: 'b'.repeat(64), size: 123 } } }
+}
+function alphaRelease(item) { return { ...release(item), prerelease: true } }
+
+test('Alpha accepts only its own target, channel, prerelease flag and canonical artifact names', async () => {
+  const next = alphaManifest()
+  validateDesktopManifest(next, windows, null, 'alpha')
+  assert.throws(() => validateDesktopManifest(next, windows))
+  assert.throws(() => validateDesktopManifest(manifest(), windows, null, 'alpha'))
+  assert.throws(() => validateDesktopManifest(manifest('2.0.5', windows, true), windows, '2.0.5', 'alpha'))
+  const net = network([next], { records: [release(manifest('99.0.0')), release(next), alphaRelease(alphaManifest('99.0.0-alpha.1', macos)), alphaRelease(next)] })
+  const result = await checkDesktopUpdate('2.1.0-alpha.1', { platform: 'win32', arch: 'x64', channel: 'alpha', bridgeVersion: '2.0.5', fetcher: net.fetcher })
+  assert.equal(result.version, next.version)
+  assert.equal(result.url, next.artifacts.installer.fallbackUrl)
+  assert.equal(net.calls[0], 'https://lumatile.ishua.cloud/alpha/windows-x64.json')
+  assert.ok(!net.calls.some(url => url.includes('/stable/') || url.includes('update-macos')))
+})
+
+test('Alpha numeric sequence ordering and pagination ignore publication order and Stable releases', async () => {
+  const lower = alphaManifest('2.1.0-alpha.2')
+  const higher = alphaManifest('2.1.0-alpha.10')
+  higher.publishedAt = '2026-01-01T00:00:00Z'
+  const net = network([lower, higher], { pages: [Array.from({ length: 100 }, () => release(manifest('99.0.0'))), [alphaRelease(lower), alphaRelease(higher)]] })
+  assert.equal((await checkGithubUpdate('2.1.0-alpha.1', windows, null, net.fetcher, 'alpha')).version, higher.version)
+  assert.ok(net.calls.includes(`${api}/releases?per_page=100&page=2`))
+  assert.equal(await checkGithubUpdate('2.0.4', windows, null, network([higher], { records: [alphaRelease(higher)] }).fetcher), null)
+})
+
+test('Alpha primary cannot serve Stable and Debug never requests either channel', async () => {
+  const next = alphaManifest()
+  const net = network([next], { records: [alphaRelease(next)], overrides: new Map([['https://lumatile.ishua.cloud/alpha/windows-x64.json', manifest('99.0.0')]]) })
+  assert.equal((await checkDesktopUpdate('2.1.0-alpha.1', { platform: 'win32', arch: 'x64', channel: 'alpha', fetcher: net.fetcher })).url, next.artifacts.installer.fallbackUrl)
+  let called = false
+  const fetcher = async () => { called = true; throw new Error('unexpected') }
+  await assert.rejects(checkDesktopUpdate('2.1.0-debug.0', { platform: 'win32', arch: 'x64', channel: 'debug', fetcher }), /Debug/)
+  await assert.rejects(checkDesktopUpdate('2.1.0-alpha.1', { platform: 'win32', arch: 'x64', channel: 'stable', fetcher }))
+  assert.equal(called, false)
+})

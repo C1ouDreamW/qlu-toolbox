@@ -242,6 +242,9 @@ jobs:
           node scripts/prepare-release.mjs --platform android --verify
           npm run test:release
 
+      - name: Test mobile update and UI logic
+        run: npm run test:mobile
+
       - name: Build and sync Android web assets
         run: |
           npm run mobile:build

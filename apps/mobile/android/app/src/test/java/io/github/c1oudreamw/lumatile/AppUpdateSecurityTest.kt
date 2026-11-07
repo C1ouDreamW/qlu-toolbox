@@ -8,6 +8,17 @@ import org.junit.Test
 
 class AppUpdateSecurityTest {
     @Test
+    fun releaseVersionsCannotCrossChannelsOrUseDebugBuilds() {
+        assertTrue(AppUpdateSecurity.matchesReleaseVersion("2.1.0", "stable"))
+        assertTrue(AppUpdateSecurity.matchesReleaseVersion("2.1.0-alpha.10", "alpha"))
+        for (value in listOf("2.1.0", "v2.1.0-alpha.1", "2.1.0-alpha.01", "2.1.0-alpha.0", "2.1.0-debug.0", "2.1.0-alpha.1\n")) {
+            assertFalse(AppUpdateSecurity.matchesReleaseVersion(value, "alpha"))
+        }
+        assertFalse(AppUpdateSecurity.matchesReleaseVersion("2.1.0-alpha.1", "stable"))
+        assertFalse(AppUpdateSecurity.matchesReleaseVersion("2.1.0-debug.0", "debug"))
+    }
+
+    @Test
     @Suppress("DEPRECATION")
     fun requestsLegacySignaturesBeforeAndroidNine() {
         assertEquals(PackageManager.GET_SIGNATURES, AppUpdateSecurity.signingFlags(26))

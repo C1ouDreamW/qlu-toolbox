@@ -1,6 +1,7 @@
 package io.github.c1oudreamw.lumatile
 
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -217,6 +218,10 @@ class AppUpdatePlugin : Plugin() {
         if (candidate.packageName != context.packageName) {
             throw UpdateException("更新包的 applicationId 与当前应用不一致", "UPDATE_PACKAGE_MISMATCH")
         }
+        if (candidate.applicationInfo == null || candidate.applicationInfo!!.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 ||
+            !AppUpdateSecurity.matchesReleaseVersion(candidate.versionName, BuildConfig.RELEASE_CHANNEL)) {
+            throw UpdateException("更新包不是当前渠道的 Release 构建", "UPDATE_CHANNEL_MISMATCH")
+        }
         if (versionCode(candidate) != expectedVersionCode.toLong()) {
             throw UpdateException("更新包版本号与清单不一致", "UPDATE_VERSION_MISMATCH")
         }
@@ -300,6 +305,16 @@ class AppUpdatePlugin : Plugin() {
 private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }
 
 internal object AppUpdateSecurity {
+    fun matchesReleaseVersion(value: String?, channel: String): Boolean {
+        val base = "(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)"
+        val suffix = when (channel) {
+            "stable" -> ""
+            "alpha" -> "-alpha\\.[1-9]\\d*"
+            else -> return false
+        }
+        return value != null && Regex(base + suffix).matches(value)
+    }
+
     @Suppress("DEPRECATION")
     fun signingFlags(sdk: Int): Int = if (sdk >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
 

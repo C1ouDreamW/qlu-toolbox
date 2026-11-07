@@ -1,15 +1,15 @@
 import {
-  assertStableVersion, compareVersions, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY,
+  desktopTagVersion, desktopTarget, GITHUB_REPOSITORY,
   isArtifactUrl, UPDATE_ORIGIN, validateDesktopManifest,
   type DesktopTarget, type DesktopManifest,
 } from './update-contract.mjs'
-import { assertChannelVersion, validateBuildInformation, versionChannel } from './channel-contract.mjs'
+import { assertChannelVersion, compareChannelVersions, validateBuildInformation, versionChannel } from './channel-contract.mjs'
 
 type Fetcher = typeof fetch
 type UpdateInfo = { version: string; name: string; notes: string; url: string }
 type Asset = { name: string; browser_download_url: string; size: number; digest?: string; state?: string }
 type Release = { tag_name: string; draft: boolean; prerelease: boolean; assets: Asset[] }
-type Options = { platform: string; arch: string; bridgeVersion?: string | null; fetcher?: Fetcher }
+type Options = { platform: string; arch: string; bridgeVersion?: string | null; channel?: 'stable' | 'alpha' | 'debug'; fetcher?: Fetcher }
 
 const apiRoot = `https://api.github.com/repos/${GITHUB_REPOSITORY}`
 
@@ -34,15 +34,15 @@ function updateInfo(manifest: DesktopManifest, target: DesktopTarget, github = f
   return { version: manifest.version, name: manifest.name, notes: manifest.notes, url: github ? artifact.fallbackUrl : artifact.url }
 }
 
-export async function checkSelfHostedUpdate(current: string, target: DesktopTarget, bridgeVersion: string | null, fetcher: Fetcher = fetch) {
-  assertStableVersion(current)
-  const { value } = await jsonRequest(`${UPDATE_ORIGIN}/stable/${target.id}.json`, fetcher)
-  const manifest = validateDesktopManifest(value, target, bridgeVersion)
-  return compareVersions(manifest.version, current) > 0 ? updateInfo(manifest, target) : null
+export async function checkSelfHostedUpdate(current: string, target: DesktopTarget, bridgeVersion: string | null, fetcher: Fetcher = fetch, channel: 'stable' | 'alpha' = 'stable') {
+  assertChannelVersion(current, channel)
+  const { value } = await jsonRequest(`${UPDATE_ORIGIN}/${channel}/${target.id}.json`, fetcher)
+  const manifest = validateDesktopManifest(value, target, bridgeVersion, channel)
+  return compareChannelVersions(manifest.version, current, channel) > 0 ? updateInfo(manifest, target) : null
 }
 
-export async function checkGithubUpdate(current: string, target: DesktopTarget, bridgeVersion: string | null, fetcher: Fetcher = fetch) {
-  assertStableVersion(current)
+export async function checkGithubUpdate(current: string, target: DesktopTarget, bridgeVersion: string | null, fetcher: Fetcher = fetch, channel: 'stable' | 'alpha' = 'stable') {
+  assertChannelVersion(current, channel)
   const candidates: Array<{ release: Release; version: string }> = []
   // Do not infer a complete list from the first page or from publication time.
   for (let page = 1; ; page++) {
@@ -50,13 +50,13 @@ export async function checkGithubUpdate(current: string, target: DesktopTarget, 
     const { value, response } = await jsonRequest(`${apiRoot}/releases?per_page=100&page=${page}`, fetcher, true)
     if (!Array.isArray(value)) throw new GithubUnavailable('GitHub 发布列表无效')
     for (const item of value) {
-      if (!item || typeof item !== 'object' || item.draft !== false || item.prerelease !== false) continue
-      const version = desktopTagVersion(item.tag_name, target, bridgeVersion)
-      if (version && compareVersions(version, current) > 0) candidates.push({ release: item as Release, version })
+      if (!item || typeof item !== 'object' || item.draft !== false || item.prerelease !== (channel === 'alpha')) continue
+      const version = desktopTagVersion(item.tag_name, target, bridgeVersion, channel)
+      if (version && compareChannelVersions(version, current, channel) > 0) candidates.push({ release: item as Release, version })
     }
     if (!response.headers.get('link')?.includes('rel="next"') && value.length < 100) break
   }
-  candidates.sort((a, b) => compareVersions(b.version, a.version))
+  candidates.sort((a, b) => compareChannelVersions(b.version, a.version, channel))
   const errors: string[] = []
   for (const { release, version } of candidates) {
     try {
@@ -67,7 +67,7 @@ export async function checkGithubUpdate(current: string, target: DesktopTarget, 
         throw new Error('GitHub 发布缺少本架构清单')
       }
       const { value } = await jsonRequest(matching[0].browser_download_url, fetcher, true)
-      const manifest = validateDesktopManifest(value, target, bridgeVersion)
+      const manifest = validateDesktopManifest(value, target, bridgeVersion, channel)
       if (manifest.tag !== release.tag_name || manifest.version !== version) throw new Error('GitHub 清单与发布标签不一致')
       const commit = (await jsonRequest(`${apiRoot}/commits/${encodeURIComponent(release.tag_name)}`, fetcher, true)).value as { sha?: unknown } | null
       if (commit?.sha !== manifest.commit) throw new Error('GitHub 清单与标签 commit 不一致')
@@ -90,16 +90,18 @@ export async function checkGithubUpdate(current: string, target: DesktopTarget, 
 }
 
 export async function checkDesktopUpdate(current: string, options: Options) {
-  assertStableVersion(current)
+  const channel = options.channel ?? 'stable'
+  if (channel === 'debug') throw new Error('Debug 版本不提供在线更新')
+  assertChannelVersion(current, channel)
   const target = desktopTarget(options.platform, options.arch)
-  const bridgeVersion = options.bridgeVersion ?? null
+  const bridgeVersion = channel === 'stable' ? options.bridgeVersion ?? null : null
   const fetcher = options.fetcher ?? fetch
   try {
-    const primary = await checkSelfHostedUpdate(current, target, bridgeVersion, fetcher)
+    const primary = await checkSelfHostedUpdate(current, target, bridgeVersion, fetcher, channel)
     if (primary) return primary
   } catch { /* An invalid or unavailable primary must still reach GitHub. */ }
   // A stale but reachable mirror must not hide a published GitHub update.
-  return checkGithubUpdate(current, target, bridgeVersion, fetcher)
+  return checkGithubUpdate(current, target, bridgeVersion, fetcher, channel)
 }
 
 export function verifyBootstrapVersion(value: unknown, expected: string, information?: ReturnType<typeof validateBuildInformation>) {
