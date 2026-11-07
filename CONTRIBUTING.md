@@ -2,6 +2,8 @@
 
 感谢关注一格有光。提交问题或代码前，请先阅读 README 中的非官方声明、使用限制和隐私说明。
 
+项目尚未选定正式许可证，继续遵循 README 的非商业用途说明；本指南不新增使用授权。第三方依赖的许可独立保留，新增依赖时说明用途、实际进入哪些平台构件、许可和需要保留的声明。
+
 ## 开始之前
 
 - 小型修复和文档改进可以直接提交 Pull Request。
@@ -22,6 +24,7 @@
 请使用 [Bug 报告模板](https://github.com/C1ouDreamW/qlu-toolbox/issues/new/choose)，并尽量提供：
 
 - 一格有光版本；
+- 渠道（Stable / Alpha / Debug）、公开 Release 或构建 run 链接，以及可提供的源码 commit；
 - 操作系统、系统版本和 CPU 架构；
 - 问题发生前执行的步骤；
 - 预期结果和实际结果；
@@ -75,6 +78,8 @@ npm run build
 开发准备会把当前渠道版本注入 package / lock / Python 版本载体，并生成被忽略的 build-info.json。提交前检查 diff，勿将本地 Debug 注入当作版本发布提交；只还原本次生成的版本字段，保留真实依赖和源码修改。平台渠道权威配置、实际产物核验与迁移状态见 [`config/README.md`](config/README.md)。
 
 PR CI 和构建演练只使用 Debug / 临时密钥；同仓库与 fork PR 均不接收 Alpha 或正式长期签名 Secret。Alpha 是独立的长期测试应用，需要单独的版本、包身份、更新源及 Android 签名；把 Debug 包重新命名或把 Alpha 包覆盖到 Stable 都不构成发布。流程与停点见[签名规则](docs/release-security.md)。
+
+维护人的候选构建、真实设备检查、观察记录、Stable 晋级和故障恢复步骤见 [发布与测试指南](RELEASING.md)。三端构建演练归档依赖清单、第三方通知和构建来源；这些材料记录构建输入与待审查项，不自动批准许可证合规。
 
 修改 Python 依赖请使用 `uv add` 或 `uv remove`，修改前端依赖请使用 `npm install`，并一并提交更新后的锁文件。
 

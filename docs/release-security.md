@@ -10,7 +10,7 @@
 - `release-android.yml` 分为无 Secret 的 unsigned 构建、仅签名任务和独立发布任务。签名任务使用现有四项仓库 Secrets，不运行 npm / Gradle，不持有 Release 写权限；所有 Action 固定完整 SHA。
 - 发布入口要求平台标签 push，核对标签 / workflow SHA / checkout 完整 commit、主线祖先关系和原有生产切换开关。unsigned 构件绑定同一 run / attempt 及构建任务输出摘要；签名后再次核验最终字节和证书。
 - 旧组合发布的 Android job 仍主动失败，等待后续桌面桥接入口替换；不会恢复 PR 正式签名。
-- Windows / macOS 的独立发布基础保留；现有本地修复尚未推送，不代表远端工作流已经变更。
+- Windows / macOS 的独立构建与发布、主线 Alpha 候选和三端 Debug 演练代码已推送至草稿 PR；尚未合入 main，不代表 main 的历史工作流已修复。
 
 独立 Android 发布代码已经恢复为分离任务，但 `independentPublishingEnabled=false` 保持不变；Android 不依赖桌面桥接 B，Windows / macOS 仍保留桥接门槛，不会因本轮实现自动发版。Alpha 已使用独立凭据选择步骤与关闭的独立门禁；旧组合发布不恢复。无需配置 Environment 或找回原正式密码。
 
@@ -25,7 +25,7 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-Alpha 使用独立固定密钥，后续新增以下仓库 Secrets，不复用正式密钥：
+Alpha 使用独立固定密钥，维护人已报告配置以下仓库 Secrets，不复用正式密钥；实际有效性仍待首次主线候选核验：
 
 ```text
 ANDROID_ALPHA_KEYSTORE_BASE64
@@ -42,7 +42,7 @@ ANDROID_ALPHA_KEY_PASSWORD
 
 1. 日常开发、单元测试、Debug、桌面打包和 Alpha 代码开发不需要原正式 keystore 或明文密码，不要求把它们放到新 Mac。
 2. 现有正式 Secret 有效时，CI 可以继续使用，无需维护人重新输入密码。原 Windows 材料找回与独立加密备份作为维护事项并行跟进，不作为开发或现有 CI 签名的前置条件。
-3. 首次公开 Android Alpha 前，再单独完成 Alpha key 生成、备份、公开指纹登记和对应仓库 Secrets 配置；未准备好只影响 Alpha 签名发布。
+3. Alpha key 生成、备份确认、公开指纹登记和四项仓库 Secrets 配置状态已登记；恢复和实际签名有效性仍待候选验收。维护人已确认原 Windows 和 Android 手机可用于后续设备检查。
 4. 不向聊天、Issue 或日志提供私钥和密码；所需状态只记录是否就绪及公开证书指纹。仓库 Secret 不作为独立备份的替代。
 5. 实际遇到签名凭据缺失 / 无效、仓库操作权限或测试设备不足时，明确报告并暂停对应步骤，继续不依赖它的工作。
 
@@ -52,7 +52,7 @@ ANDROID_ALPHA_KEY_PASSWORD
 2. 校验发布工作流、可信签名脚本与源码来源，输出输入摘要和测试结果。签名 job 使用全新 runner，不执行 PR 的 npm、Gradle、测试或构件内脚本；不新增 Environment 人工审批步骤。
 3. 签名步骤按渠道读取仓库 Secrets，执行 zipalign / apksigner，并验证真实 APK 的应用 ID、版本、不可调试状态和预期证书。
 4. 对最终已签名文件重新计算 SHA-256，使用独立、仅该 job 有 Release 写权限的发布任务，核验完整构件后再公开。
-5. 清理临时密钥，确认失败路径、cache、日志和 artifact 不包含私钥。加入失败边界测试，替换当前“禁止旧签名引用”的临时回归检查。
+5. 签名脚本在成功和失败路径清理临时密钥；核验 cache、日志和 artifact 不包含私钥。已加入错误来源、错渠道、错证书、替换 APK / 清单 / 回执及泄漏环境变量边界的回归测试。
 6. 当前只接受平台标签 push，不提供任意分支手动签名入口。正式签名演练、标签、Release 和部署仍按具体发布阶段授权执行，不因本轮实现自动触发。
 
 ## 验证与记录要求
@@ -61,7 +61,7 @@ ANDROID_ALPHA_KEY_PASSWORD
 - 错来源构件、错证书 / ID / 渠道或实际缺失 / 无效的凭据阻塞对应签名发布；未使用 Environment、现有仓库 Secret 保持原样和本地密码暂未找回不构成失败条件。
 - 保存 workflow commit、来源核验结果、构件哈希和签名结果；不以日志掩码或演练标记替代输入 / 输出验证。
 - 既有演练的脱敏审计和已签名 artifact 处置另行跟进。现有证据未确认密钥外泄，不因本次流程改造直接轮换正式 key；任何处置先评估已有 APK 升级链的影响。
-- main / 历史 tag 可能仍包含旧工作流；本分支修复未推送前，不重跑原正式签名 PR 演练。此处不再要求合并前迁移 Secret 作用域。
+- main / 历史 tag 可能仍包含旧工作流；本分支已推送并不等于 main 已修复，不重跑原正式签名 PR 演练。此处不要求合并前迁移 Secret 作用域。
 
 ## 本地验证记录
 
