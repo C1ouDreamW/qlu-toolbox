@@ -7,21 +7,17 @@ import { homedir } from 'node:os'
 import { parseArgs } from 'node:util'
 import { assertWindowsProductVersion, assertWindowsX64, repositoryRoot, taggedRelease } from './release-artifacts.mjs'
 import { sha256 } from './release-artifacts.mjs'
-import { alphaCandidateIdentity } from './alpha-candidate.mjs'
-import { taggedDesktopBridge } from './desktop-bridge.mjs'
 import { rehearsalIdentity } from './rehearse-release.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 import { assertAndroidApkIdentity } from './android-apk-verification.mjs'
 import { validateBuildInformation } from '../electron/channel-contract.mjs'
 
-const { values, positionals } = parseArgs({ options: { rehearsal: { type: 'boolean' }, candidate: { type: 'boolean' }, bridge: { type: 'boolean' } }, allowPositionals: true })
+const { values, positionals } = parseArgs({ options: { rehearsal: { type: 'boolean' } }, allowPositionals: true })
 const [platform, ...args] = positionals
-if ([values.rehearsal, values.candidate, values.bridge].filter(Boolean).length > 1) throw new Error('Choose one verification purpose')
-if (values.bridge && !['windows', 'macos'].includes(platform)) throw new Error('Bridge verification only accepts desktop targets')
-const untagged = values.rehearsal || values.candidate
+const untagged = values.rehearsal
 const [tag, input, output] = untagged ? [null, ...args] : args
-if (!platform || !input || !output || (!untagged && !tag)) throw new Error('Usage: node scripts/verify-release-build.mjs [--rehearsal|--candidate|--bridge] <platform> [tag] <app-or-apk> <output.json>')
-const identity = values.rehearsal ? rehearsalIdentity(repositoryRoot, platform) : values.candidate ? alphaCandidateIdentity(repositoryRoot, platform, undefined, process.env.RELEASE_EXPECTED_COMMIT) : values.bridge ? taggedDesktopBridge(repositoryRoot, tag, undefined, process.env.RELEASE_EXPECTED_COMMIT)[platform] : taggedRelease(repositoryRoot, platform, tag)
+if (!platform || !input || !output || (!untagged && !tag)) throw new Error('Usage: node scripts/verify-release-build.mjs [--rehearsal] <platform> [tag] <app-or-apk> <output.json>')
+const identity = values.rehearsal ? rehearsalIdentity(repositoryRoot, platform) : taggedRelease(repositoryRoot, platform, tag)
 const location = resolve(input)
 const checks = {}
 if (platform === 'android') {
@@ -82,4 +78,4 @@ if (platform === 'android') {
   checks.nativeBuildVersion = information.nativeBuildVersion
 }
 await writeFile(resolve(output), `${JSON.stringify({ platform, channel: identity.channel, version: identity.version, commit: identity.commit, target: identity.target,
-  purpose: values.rehearsal ? 'rehearsal' : values.candidate ? 'candidate' : values.bridge ? 'bridge' : 'release', deployable: !untagged, verified: true, checks }, null, 2)}\n`)
+  purpose: values.rehearsal ? 'rehearsal' : 'release', deployable: !untagged, verified: true, checks }, null, 2)}\n`)

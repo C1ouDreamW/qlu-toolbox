@@ -62,7 +62,6 @@ jobs:
           npm run build
           npm run test:desktop
           npx electron-builder --mac dmg --arm64 --publish never
-          node scripts/generate-build-inventory.mjs macos build-metadata
       - name: Verify mounted DMG, signature, architecture and runtime versions
         run: |
           version=$(node -p "require('./lumatile/build-info.json').version")
@@ -76,7 +75,6 @@ jobs:
           bash scripts/detach-dmg.sh "$mount_dir"
           trap - EXIT
           mkdir artifacts
-          cp build-metadata/* artifacts/
           cp "release/${prefix}_v${version}_arm64.dmg" "artifacts/${prefix}-macOS-v${version}-arm64.dmg"
       - name: Build macOS-only update source bundle
         run: node scripts/build-release-bundle.mjs macos "$GITHUB_REF_NAME" artifacts verification.json update-source

@@ -1,9 +1,6 @@
 {
   "schemaVersion": 1,
   "bridgeVersion": null,
-  "desktopBridgePublishingEnabled": false,
-  "desktopCutoverEnabled": false,
-  "desktopMigrationComplete": false,
   "independentPublishingEnabled": false,
   "alphaPublishingEnabled": false,
   "androidAlphaSigningSha256": "2fa1b1662922a1bd7c14d39077b6f2f0883107cd42b0172637fa9f72500ddc04",

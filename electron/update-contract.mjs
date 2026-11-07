@@ -24,12 +24,6 @@ export function validateMigrationPolicy(value) {
   if (policy.schemaVersion !== 1 || !Object.hasOwn(policy, 'bridgeVersion')) throw new Error('Invalid release migration policy')
   if (Object.hasOwn(policy, 'independentPublishingEnabled') && typeof policy.independentPublishingEnabled !== 'boolean') throw new Error('Invalid independent publishing flag')
   if (Object.hasOwn(policy, 'alphaPublishingEnabled') && typeof policy.alphaPublishingEnabled !== 'boolean') throw new Error('Invalid Alpha publishing flag')
-  for (const key of ['desktopBridgePublishingEnabled', 'desktopCutoverEnabled', 'desktopMigrationComplete']) {
-    if (Object.hasOwn(policy, key) && typeof policy[key] !== 'boolean') throw new Error('Invalid desktop migration flag')
-    if (policy[key] === true && policy.bridgeVersion === null) throw new Error('Desktop migration requires an explicit bridge version')
-  }
-  if (policy.desktopMigrationComplete === true && policy.desktopCutoverEnabled !== true) throw new Error('Completed migration requires the controlled desktop cutover')
-  if (policy.desktopMigrationComplete === true && policy.desktopBridgePublishingEnabled === true) throw new Error('Completed migration cannot publish a new bridge')
   if (Object.hasOwn(policy, 'androidAlphaSigningSha256') && policy.androidAlphaSigningSha256 !== null &&
       (typeof policy.androidAlphaSigningSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(policy.androidAlphaSigningSha256))) throw new Error('Invalid Alpha signing digest')
   return { schemaVersion: 1, bridgeVersion: policy.bridgeVersion === null ? null : assertStableVersion(policy.bridgeVersion) }

@@ -8,6 +8,7 @@ import yaml from 'js-yaml'
 import { assertUnsignedReceipt, signAndroidRelease, toolEnvironment } from '../scripts/android-signing.mjs'
 import { assertReleaseRun, assertReleaseSource } from '../scripts/release-source.mjs'
 import { sha256 } from '../scripts/release-artifacts.mjs'
+import { readUnsignedBuildInput } from '../scripts/unsigned-build-input.mjs'
 
 const identity = { platform: 'android', target: 'android', channel: 'stable', version: '2.0.6', versionCode: 17,
   tag: 'android-v2.0.6', commit: 'a'.repeat(40), androidSigningSha256: 'b'.repeat(64) }
@@ -15,7 +16,7 @@ const context = { repository: 'C1ouDreamW/qlu-toolbox', event: 'push', ref: 'ref
   sha: identity.commit, runId: '42', runAttempt: '1' }
 const bytes = Buffer.from('unsigned APK fixture')
 function receipt() {
-  return { schemaVersion: 2, inventorySha256: 'd'.repeat(64), purpose: 'unsigned-android-release', deployable: false,
+  return { schemaVersion: 1, purpose: 'unsigned-android-release', deployable: false,
     platform: 'android', channel: 'stable', tag: identity.tag, commit: identity.commit, version: identity.version,
     versionCode: identity.versionCode, applicationId: 'io.github.c1oudreamw.lumatile', signingSha256: identity.androidSigningSha256,
     repository: context.repository, runId: context.runId, runAttempt: context.runAttempt,
@@ -58,6 +59,17 @@ test('metadata tools do not inherit signing secrets or GitHub write credentials'
     ANDROID_KEYSTORE_BASE64: 'private', ANDROID_KEYSTORE_PASSWORD: 'password', ANDROID_KEY_ALIAS: 'private-alias',
     ANDROID_KEY_PASSWORD: 'password', GITHUB_TOKEN: 'token', ACTIONS_RUNTIME_TOKEN: 'token' })
   assert.deepEqual(filtered, { PATH: '/tools', JAVA_HOME: '/jdk' })
+})
+
+test('signature-only job independently checks the build receipt digest before trusting downloaded metadata', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'lumatile-receipt-digest-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const apk = join(directory, 'app-release-unsigned.apk'), receiptPath = join(directory, 'receipt.json'), content = JSON.stringify(receipt())
+  await writeFile(apk, bytes); await writeFile(receiptPath, content)
+  const input = { identity, context, apk, receiptPath, expectedSha256: sha256(bytes), expectedReceiptSha256: sha256(content) }
+  assert.equal((await readUnsignedBuildInput(input)).receipt.commit, identity.commit)
+  await writeFile(receiptPath, JSON.stringify({ ...receipt(), runId: '99' }))
+  await assert.rejects(readUnsignedBuildInput(input), /validated build job output/)
 })
 
 test('Android release YAML separates no-secret build, signature-only credentials and publication write access', async () => {

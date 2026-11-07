@@ -1,20 +1,16 @@
 import { githubReleaseClient, publishVerifiedDraft } from './github-release-draft.mjs'
-import { isDeepStrictEqual } from 'node:util'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { desktopTagVersion, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../electron/update-contract.mjs'
+import { assertStableVersion, desktopTagVersion, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../electron/update-contract.mjs'
 import { assertChannelVersion, compareChannelVersions } from '../electron/channel-contract.mjs'
 import { androidArtifactName, androidReleaseTag } from '../electron/android-update-contract.mjs'
-import { validatePublishedAlpha } from './promotion-publication.mjs'
 import { parseReleaseTag } from './release-config.mjs'
-import { readBuildInventory } from './inventory-artifacts.mjs'
 import { assertPromotion, manifestTarget, repositoryRoot, sha256, taggedRelease, targetFor, validatePlatformManifest, verifyReleaseFiles } from './release-artifacts.mjs'
 
 // All mutations are confined to this platform's draft until every asset is verified.
 export async function publishPlatformRelease({ identity, directory, token, fetcher = fetch }) {
-  if (identity.purpose === 'bridge') throw new Error('Desktop bridge requires a dedicated publisher verifying both desktop targets')
-  if (identity.purpose === 'rehearsal' || identity.deployable === false) throw new Error('Non-deployable candidate or rehearsal artifacts cannot be published')
+  if (identity.purpose === 'rehearsal' || identity.deployable === false) throw new Error('Debug artifacts cannot be published')
   const channel = identity.channel ?? 'stable'
   if (!['stable', 'alpha'].includes(channel)) throw new Error('Invalid publication channel')
   assertChannelVersion(identity.version, channel)
@@ -26,12 +22,8 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
   const record = JSON.parse(await readFile(join(directory, 'release-record.json'), 'utf8'))
   if (record.verification?.purpose === 'rehearsal' || record.verification?.deployable === false) throw new Error('Non-deployable verification cannot authorize publication')
   for (const key of ['platform', 'version', 'tag', 'commit', 'target']) if (record[key] !== identity[key]) throw new Error(`Release record mismatch: ${key}`)
-  if (!isDeepStrictEqual(record.promotion ?? null, identity.promotion ?? null)) throw new Error('Release promotion evidence does not match the immutable source')
   if (record.channel !== channel || (record.verification?.channel ?? 'stable') !== channel) throw new Error('Release record channel mismatch')
   if (record.verification?.verified !== true) throw new Error('Unverified release build')
-  if (!record.inventory?.provenanceSha256) throw new Error('Release lacks its bound build inventory')
-  const inventory = await readBuildInventory(directory, identity.information, record.inventory.provenanceSha256)
-  if (!isDeepStrictEqual(record.inventory.entries, inventory.entries) || (identity.platform === 'android' && record.verification.checks?.inventorySha256 !== inventory.provenanceSha256)) throw new Error('Release inventory differs from the verified build')
   const manifest = validatePlatformManifest(identity.platform, JSON.parse(await readFile(join(directory, `update-${manifestTarget(identity.platform)}.json`), 'utf8')), identity.bridgeVersion, channel)
   if ((identity.platform === 'android' ? manifest.versionName : manifest.version) !== identity.version) throw new Error('Release manifest version mismatch')
   if (identity.platform === 'android') {
@@ -43,11 +35,14 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
     if (bytes.length !== artifact.size || sha256(bytes) !== artifact.sha256) throw new Error('Manifest artifact hash or size mismatch')
   }
   const monotonic = async () => {
-    if (identity.promotion) await validatePublishedAlpha(identity.promotion, fetcher)
     const remote = await json(`${api}/commits/${encodeURIComponent(identity.tag)}`)
     if (remote?.sha !== identity.commit) throw new Error('Remote release tag commit differs from verified build')
-    const baseline = await publicJson(`${UPDATE_ORIGIN}/${channel}/${manifestTarget(identity.platform)}.json`, prerelease)
+    const baseline = await publicJson(`${UPDATE_ORIGIN}/${channel}/${manifestTarget(identity.platform)}.json`, prerelease || identity.platform !== 'android')
     if (baseline) assertPromotion(identity.platform, validatePlatformManifest(identity.platform, baseline, identity.bridgeVersion, channel), manifest)
+    else if (!prerelease && identity.platform !== 'android') {
+      const legacy = await publicJson(`${UPDATE_ORIGIN}/stable/desktop.json`, true)
+      if (legacy && (legacy.schemaVersion !== 1 || compareChannelVersions(identity.version, assertStableVersion(legacy.version), 'stable') <= 0)) throw new Error('Desktop version must exceed the legacy publication baseline')
+    }
     if (identity.platform === 'android') {
       for (const repository of ['C1ouDreamW/qlu-toolbox', 'C1ouDreamW/lumatile']) {
         const backup = await publicJson(`https://raw.githubusercontent.com/${repository}/main/updates/${prerelease ? 'android-alpha.json' : 'android.json'}`, true)
@@ -56,6 +51,12 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
     }
     for (const release of await paginate('/releases')) {
       if (release.draft !== false || release.prerelease !== prerelease || release.tag_name === identity.tag) continue
+      if (!prerelease && identity.platform !== 'android' && release.tag_name.startsWith('v')) {
+        let legacyVersion
+        try { legacyVersion = assertStableVersion(release.tag_name.slice(1)) } catch { continue }
+        if (compareChannelVersions(identity.version, legacyVersion, 'stable') <= 0) throw new Error('A newer or equal legacy desktop version is already public')
+        continue
+      }
       let version
       if (identity.platform === 'android') {
         try {

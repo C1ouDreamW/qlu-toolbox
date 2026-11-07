@@ -4,13 +4,11 @@ import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/pro
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { artifactFileNames, compareVersions, desktopTarget, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
-import { validateStablePromotion } from './release-promotion.mjs'
 import { extractReleaseNotes, parseReleaseTag, resolveRelease, validateReleaseConfig } from './release-config.mjs'
 import { generateDesktopManifest } from './generate-desktop-update-manifest.mjs'
 import { androidArtifactName, validateAndroidManifest } from '../electron/android-update-contract.mjs'
 export { validateAndroidManifest } from '../electron/android-update-contract.mjs'
 import { assertChannelVersion, compareChannelVersions, channelIdentity, buildInformation } from '../electron/channel-contract.mjs'
-import { readBuildInventory, copyBuildInventory } from './inventory-artifacts.mjs'
 
 export const repositoryRoot = fileURLToPath(new URL('../', import.meta.url))
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
@@ -39,8 +37,8 @@ export function taggedRelease(root, platform, tag, requireEnabled = true) {
   const policy = JSON.parse(git(['show', `${commit}:config/release-migration.json`]))
   const { bridgeVersion } = validateMigrationPolicy(policy)
   if (requireEnabled && channel === 'alpha' && policy.alphaPublishingEnabled !== true) throw new Error('Alpha publishing is disabled until its channel is configured')
-  if (requireEnabled && channel === 'stable' && (policy.independentPublishingEnabled !== true || (platform !== 'android' && bridgeVersion === null))) {
-    throw new Error(platform === 'android' ? 'Independent Android publishing is disabled' : 'Independent publishing is disabled until the desktop bridge upgrade chains are verified')
+  if (requireEnabled && channel === 'stable' && policy.independentPublishingEnabled !== true) {
+    throw new Error('Independent publishing is disabled')
   }
   const androidSigningSha256 = channel === 'alpha' ? policy.androidAlphaSigningSha256 : policy.androidSigningSha256
   if (platform === 'android' && requireEnabled && (!/^[a-f0-9]{64}$/.test(androidSigningSha256) || (channel === 'alpha' && androidSigningSha256 === policy.androidSigningSha256))) throw new Error('Missing or invalid independent Android signing certificate digest')
@@ -49,7 +47,6 @@ export function taggedRelease(root, platform, tag, requireEnabled = true) {
   const notes = extractReleaseNotes(git(['show', `${commit}:changelogs/${platform}.md`]), release.version)
   const identity = { ...release, commit, information: buildInformation(release, commit), bridgeVersion, androidSigningSha256,
     publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString(), notes }
-  if (channel === 'stable' && requireEnabled) identity.promotion = validateStablePromotion(root, identity)
   return identity
 }
 
@@ -92,8 +89,7 @@ function artifactIdentity(artifacts) {
 }
 
 export async function createReleaseBundle({ identity, artifacts, verification, output }) {
-  if (identity.purpose === 'bridge') throw new Error('Desktop bridge requires a dedicated bundle containing both desktop targets')
-  if (identity.purpose === 'rehearsal' || identity.deployable === false || verification.purpose === 'rehearsal' || verification.deployable === false) throw new Error('Non-deployable candidate or rehearsal artifacts cannot generate a release bundle')
+  if (identity.purpose === 'rehearsal' || identity.deployable === false || verification.purpose === 'rehearsal' || verification.deployable === false) throw new Error('Debug artifacts cannot generate a release bundle')
   const { platform, version, tag, commit, bridgeVersion } = identity
   const channel = identity.channel ?? 'stable'
   assertChannelVersion(version, channel)
@@ -116,8 +112,6 @@ export async function createReleaseBundle({ identity, artifacts, verification, o
       throw new Error('Signed APK differs from the verified release identity or final bytes')
     }
   }
-  const inventory = await readBuildInventory(artifacts, identity.information, platform === 'android' ? verification.checks.inventorySha256 : undefined)
-  if (platform === 'android' && !/^[a-f0-9]{64}$/.test(verification.checks.inventorySha256)) throw new Error('Signed APK verification lacks a bound inventory digest')
   if ((await readdir(output).catch(error => { if (error.code === 'ENOENT') return []; throw error })).length) throw new Error('Bundle output must be empty')
   await mkdir(releaseDir, { recursive: true })
   let manifest
@@ -130,11 +124,9 @@ export async function createReleaseBundle({ identity, artifacts, verification, o
     manifest = await generateDesktopManifest({ ...identity, channel, artifacts, notes: identity.notes })
   }
   for (const name of Object.values(names)) await copyFile(join(artifacts, name), join(releaseDir, name))
-  await copyBuildInventory(artifacts, releaseDir)
   const manifestName = `update-${manifestTarget(platform)}.json`
   await writeFile(join(releaseDir, manifestName), `${JSON.stringify(manifest, null, 2)}\n`)
-  const record = { schemaVersion: 1, platform, version, tag, commit, target: identity.target, channel, promotion: identity.promotion ?? null, verification,
-    inventory: { provenanceSha256: inventory.provenanceSha256, entries: inventory.entries } }
+  const record = { schemaVersion: 1, platform, version, tag, commit, target: identity.target, channel, verification }
   await writeFile(join(releaseDir, 'release-record.json'), `${JSON.stringify(record, null, 2)}\n`)
   await writeFile(join(releaseDir, 'release-notes.md'), `${identity.notes}\n`)
   const sums = []

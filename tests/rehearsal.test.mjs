@@ -4,11 +4,10 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { rehearsalIdentity, recordRehearsal } from '../scripts/rehearse-release.mjs'
+import { rehearsalIdentity } from '../scripts/rehearse-release.mjs'
 import { assertWindowsProductVersion, assertWindowsX64, createReleaseBundle } from '../scripts/release-artifacts.mjs'
 import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
 import { assertAndroidApkIdentity } from '../scripts/android-apk-verification.mjs'
-import { writeInventoryFixture, INVENTORY_FILES } from './inventory-fixture.mjs'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'lumatile-rehearsal-'))
@@ -36,27 +35,6 @@ test('rehearsals resolve immutable HEAD without a tag, release log or enabled ga
   assert.equal(rehearsalIdentity(root, 'windows').version, '2.0.6-debug.0')
   assert.equal(git(['tag', '--list']), '')
   assert.throws(() => rehearsalIdentity(root, 'linux'))
-})
-
-test('rehearsal artifacts are recorded with hashes and no stable or release pointers', async t => {
-  const { root } = await fixture(t)
-  for (const [platform, files] of [['windows', ['LumaTile-Rehearsal-Windows-x64-Setup.exe', 'LumaTile-Rehearsal-Windows-x64.zip']], ['macos', ['LumaTile-Rehearsal-macOS-arm64.dmg']], ['android', ['LumaTile-Rehearsal-Android.apk']]]) {
-    const identity = rehearsalIdentity(root, platform)
-    const verification = { ...identity, verified: true }
-    const artifacts = join(root, `${platform}-artifacts`)
-    const output = join(root, `${platform}-output`)
-    await mkdir(artifacts)
-    for (const file of files) await writeFile(join(artifacts, file), `${platform} bytes`)
-    await writeInventoryFixture(artifacts, identity)
-    const record = await recordRehearsal({ identity, verification, artifacts, output })
-    assert.equal(record.deployable, false)
-    assert.equal(record.artifacts.length, files.length)
-    assert.deepEqual((await readdir(output)).sort(), [...files, ...INVENTORY_FILES, 'rehearsal-record.json', 'SHA256SUMS.txt'].sort())
-    const sums = await readFile(join(output, 'SHA256SUMS.txt'), 'utf8')
-    assert.match(sums, /[a-f0-9]{64}  rehearsal-record.json/)
-    assert.ok(!sums.includes('release-record.json'))
-    await assert.rejects(recordRehearsal({ identity, verification: { ...verification, commit: 'f'.repeat(40) }, artifacts, output }), /identity mismatch/)
-  }
 })
 
 test('rehearsals cannot produce deployment bundles or invoke publication APIs', async t => {
@@ -92,18 +70,11 @@ test('Android rehearsal rejects production identity, non-Debug flags and any oth
 })
 
 test('PR validation and rehearsal workflows never request secrets or write permissions', async () => {
-  for (const file of ['ci.yml', 'release-rehearsal.yml']) {
+  for (const file of ['ci.yml']) {
     const workflow = await readFile(new URL(`../.github/workflows/${file}`, import.meta.url), 'utf8')
     assert.doesNotMatch(workflow, /\bsecrets\s*(?:\.|\[|:\s*inherit)/i, `${file} must not request secrets`)
     assert.doesNotMatch(workflow, /:\s*write(?:\s|$)|permissions:\s*write-all/, `${file} must remain read-only`)
     assert.doesNotMatch(workflow, /pull_request_target|workflow_run/, `${file} must not elevate PR trust`)
-  }
-})
-
-test('legacy combined releases and PR rehearsals do not regain Android signing secrets', async () => {
-  for (const file of ['release.yml', 'release-rehearsal.yml']) {
-    const workflow = await readFile(new URL(`../.github/workflows/${file}`, import.meta.url), 'utf8')
-    assert.doesNotMatch(workflow, /secrets\s*(?:\.\s*ANDROID_|\[\s*['"]ANDROID_)/i, `${file} must not restore legacy signing access`)
   }
 })
 

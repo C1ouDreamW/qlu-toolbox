@@ -27,18 +27,3 @@ export function assertReleaseSource(root, identity, context = releaseRunContext(
   }
   return identity
 }
-
-export function assertCandidateRun(identity, context) {
-  if (identity.purpose !== 'candidate' || identity.deployable !== false || identity.channel !== 'alpha' || identity.tag !== null ||
-      context.repository !== GITHUB_REPOSITORY || context.event !== 'workflow_dispatch' || context.ref !== 'refs/heads/main' ||
-      !/^[a-f0-9]{40}$/.test(context.sha) || context.sha !== identity.commit ||
-      !/^[1-9]\d*$/.test(context.runId) || !/^[1-9]\d*$/.test(context.runAttempt)) throw new Error('Alpha candidates require a manual dispatch on this repository main')
-}
-
-export function assertCandidateSource(root, identity, context = releaseRunContext(), expectedCommit = identity.commit) {
-  assertCandidateRun(identity, context)
-  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
-  if (expectedCommit !== identity.commit || git(['rev-parse', 'HEAD']) !== identity.commit ||
-      git(['rev-parse', '--verify', 'refs/remotes/origin/main']) !== identity.commit) throw new Error('Candidate source must match the validated dispatch and current origin/main exactly')
-  return identity
-}

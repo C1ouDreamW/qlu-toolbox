@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { androidArtifactName } from '../electron/android-update-contract.mjs'
 import { buildInformation, channelIdentity } from '../electron/channel-contract.mjs'
-import { writeInventoryFixture, INVENTORY_FILES } from './inventory-fixture.mjs'
 import { artifactFileNames, desktopTarget } from '../electron/update-contract.mjs'
 import { assertPromotion, createReleaseBundle, manifestTarget, sha256, taggedRelease, verifyReleaseFiles } from '../scripts/release-artifacts.mjs'
 import { prepareAndroidBackup } from '../scripts/prepare-android-backup.mjs'
@@ -29,13 +28,12 @@ async function buildFixture(t, platform = 'windows', version = '2.0.6', code = 1
   const artifacts = join(root, 'artifacts')
   identity.information = buildInformation(identity, identity.commit)
   await mkdir(artifacts)
-  const inventory = await writeInventoryFixture(artifacts, identity)
   const names = platform === 'android' ? { apk: androidArtifactName(version, channel) } : artifactFileNames(target, version, false, channel)
   for (const [role, name] of Object.entries(names)) await writeFile(join(artifacts, name), `${platform} ${version} ${role} fixture`)
   const verification = { platform, channel, version, commit: identity.commit, target: identity.target, verified: true, checks: { testFixture: true } }
   if (platform === 'android') {
     const bytes = await readFile(join(artifacts, names.apk))
-    verification.checks = { inventorySha256: inventory.provenanceSha256, applicationId: channelIdentity(channel, 'android').applicationId, debuggable: false, nativeVersionCode: code,
+    verification.checks = { applicationId: channelIdentity(channel, 'android').applicationId, debuggable: false, nativeVersionCode: code,
       signingSha256: identity.androidSigningSha256, signedSha256: sha256(bytes), signedSize: bytes.length }
   }
   const output = join(root, 'bundle')
@@ -61,7 +59,6 @@ test('each deployment bundle contains exactly its own stable pointer and verifie
     assert.deepEqual(await readdir(join(fixture.output, 'stable')), [`${manifestTarget(platform)}.json`])
     const files = await verifyReleaseFiles(fixture.releaseDir)
     assert.ok(files.includes('release-record.json'))
-    assert.ok(INVENTORY_FILES.every(file => files.includes(file)))
     assert.ok(files.includes(`update-${manifestTarget(platform)}.json`))
     assert.ok(!files.some(file => platform !== 'android' && file.endsWith('.apk')))
     if (platform === 'android') {
@@ -82,19 +79,6 @@ test('bundle generation refuses missing portable assets and mismatched build ide
   await rm(join(fixture.artifacts, 'LumaTile-Windows-v2.0.6-x64.zip'))
   await assert.rejects(createReleaseBundle(options), /ENOENT/)
   await assert.rejects(readdir(options.output), /ENOENT/)
-})
-
-test('bundle and publisher reject changed inventory even when the outer release checksums are recomputed', async t => {
-  const fixture = await buildFixture(t, 'android')
-  await writeFile(join(fixture.artifacts, 'THIRD-PARTY-NOTICES.txt'), 'replaced notices')
-  await assert.rejects(createReleaseBundle({ identity: fixture.identity, artifacts: fixture.artifacts, verification: fixture.verification, output: join(fixture.root, 'invalid-bundle') }), /content differs/)
-  await writeFile(join(fixture.releaseDir, 'THIRD-PARTY-NOTICES.txt'), 'replaced notices')
-  const sums = []
-  for (const name of (await readdir(fixture.releaseDir)).filter(name => name !== 'SHA256SUMS.txt').sort()) sums.push(`${sha256(await readFile(join(fixture.releaseDir, name)))}  ${name}`)
-  await writeFile(join(fixture.releaseDir, 'SHA256SUMS.txt'), sums.join('\n') + '\n')
-  let called = false
-  await assert.rejects(publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher: async () => { called = true } }), /content differs/)
-  assert.equal(called, false, 'Reject downloaded metadata before any publication requests')
 })
 
 test('independent promotion preserves other platforms and refuses late older deployments', async t => {
@@ -301,6 +285,17 @@ test('rollout policy comes from the tag commit; working-tree edits cannot enable
   assert.throws(() => taggedRelease(root, 'windows', 'win-v2.0.6'), /disabled/)
   assert.equal(taggedRelease(root, 'windows', 'win-v2.0.6', false).version, '2.0.6')
   assert.throws(() => taggedRelease(root, 'macos', 'win-v2.0.6', false), /release tag/)
+  policy.bridgeVersion = null
+  const versionsPath = join(root, 'config/release-versions.json')
+  const versions = JSON.parse(await readFile(versionsPath, 'utf8'))
+  versions.windows.version = '2.0.7'
+  await writeFile(versionsPath, JSON.stringify(versions))
+  await writeFile(join(root, 'config/release-migration.json'), JSON.stringify(policy))
+  await writeFile(join(root, 'changelogs/windows.md'), '## [2.0.7]\n\n- Windows fix\n')
+  git(['add', '.'])
+  git(['-c', 'user.name=Release Test', '-c', 'user.email=release@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'test: 简化发布门禁夹具'])
+  git(['tag', 'win-v2.0.7'])
+  assert.equal(taggedRelease(root, 'windows', 'win-v2.0.7').version, '2.0.7', 'A committed publishing switch needs no bridge or approval record')
 })
 
 test('publication rechecks monotonicity after uploading and leaves a superseded build in draft', async t => {
@@ -390,6 +385,21 @@ test('first Alpha publication permits absent Alpha baselines and ignores all Sta
   }
 })
 
+test('first independent desktop Stable publication can start without a bridge manifest while respecting legacy versions', async t => {
+  const fixture = await buildFixture(t, 'windows', '2.0.6')
+  const mock = githubMock(fixture, { prior: null, otherReleases: [{ tag_name: 'v2.0.4', draft: false, prerelease: false }] })
+  const fetcher = (url, options) => String(url).endsWith('/stable/desktop.json')
+    ? Promise.resolve(new Response(JSON.stringify({ schemaVersion: 1, version: '2.0.4' }))) : mock.fetcher(url, options)
+  assert.equal((await publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher })).status, 'published')
+})
+
+test('a stale legacy source cannot allow replacing a newer public combined desktop version', async t => {
+  const fixture = await buildFixture(t, 'macos', '2.0.6')
+  const mock = githubMock(fixture, { prior: null, otherReleases: [{ tag_name: 'v2.0.7', draft: false, prerelease: false }] })
+  await assert.rejects(publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher: mock.fetcher }), /newer or equal legacy/)
+  assert.ok(mock.calls.every(call => call.method === 'GET'))
+})
+
 test('newer Alpha versions and same-code mirror conflicts prevent publication before mutations', async t => {
   const fixture = await buildFixture(t, 'windows', '2.1.0-alpha.2', 1, 'alpha')
   const mock = githubMock(fixture, { prior: null, otherReleases: [{ tag_name: 'win-alpha-v2.1.0-alpha.10', draft: false, prerelease: true }] })
@@ -454,12 +464,4 @@ test('first Alpha can ignore a missing baseline but cannot treat invalid JSON as
     await assert.rejects(publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher: mock.fetcher }), /baseline JSON/)
     assert.ok(mock.calls.every(call => call.method === 'GET'))
   }
-})
-
-test('a release bundle cannot be published with promotion evidence from another reviewed source', async t => {
-  const fixture = await buildFixture(t)
-  const mock = githubMock(fixture)
-  await assert.rejects(publishPlatformRelease({ identity: { ...fixture.identity, promotion: { alpha: { commit: 'c'.repeat(40) } } },
-    directory: fixture.releaseDir, token: 'fixture-token', fetcher: mock.fetcher }), /promotion evidence/)
-  assert.equal(mock.calls.length, 0)
 })

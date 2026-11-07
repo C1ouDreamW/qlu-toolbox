@@ -121,7 +121,18 @@ jobs:
         run: npm run build:backend
 
       - name: Package Windows application directory
-        run: npx electron-builder --win dir --publish never
+        run: npx electron-builder --win dir nsis --x64 --publish never
+
+      - name: Verify Windows Debug package identity and native versions
+        run: node scripts/verify-release-build.mjs --rehearsal windows release/win-unpacked verification.json
+
+      - name: Upload Windows Debug installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumaTile-Debug-Windows-${{ github.sha }}
+          path: release/LumaTile-Debug_v*_x64_Setup.exe
+          if-no-files-found: error
+          retention-days: 7
 
   verify-macos:
     name: macOS arm64 verification
@@ -193,19 +204,12 @@ jobs:
       - name: Verify and mount DMG
         shell: bash
         run: |
-          worker=$(find release -path '*/LumaTile Debug.app/Contents/Resources/backend/LumaTileWorker' -type f -print -quit)
           dmg=$(find release -maxdepth 1 -name 'LumaTile-Debug_v*_arm64.dmg' -type f -print -quit)
-          test -n "$worker"
-          test -x "$worker"
           test -n "$dmg"
           mount_dir=$(mktemp -d)
           trap 'bash scripts/detach-dmg.sh "$mount_dir" >/dev/null 2>&1 || true' EXIT
           hdiutil attach "$dmg" -nobrowse -mountpoint "$mount_dir"
-          test -d "$mount_dir/LumaTile Debug.app"
-          codesign --verify --deep --strict --verbose=2 "$mount_dir/LumaTile Debug.app"
-          response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | "$mount_dir/LumaTile Debug.app/Contents/Resources/backend/LumaTileWorker" --bridge)
-          expected=$(node -p "require('./package.json').version")
-          node -e 'const message=JSON.parse(process.argv[1]); if(message.id!=="smoke" || message.result?.version!==process.argv[2] || message.result.browserComponent.error) process.exit(1)' "$response" "$expected"
+          node scripts/verify-release-build.mjs --rehearsal macos "$mount_dir/LumaTile Debug.app" verification.json
           bash scripts/detach-dmg.sh "$mount_dir"
           trap - EXIT
 
@@ -272,12 +276,25 @@ jobs:
           npm run mobile:build
           npm run mobile:sync
 
+      - name: Generate a disposable CI Debug key
+        run: |
+          debug_key="$RUNNER_TEMP/lumatile-debug.keystore"
+          keytool -genkeypair -keystore "$debug_key" -alias androiddebugkey -storepass android -keypass android -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 30
+          echo "LUMATILE_DEBUG_KEYSTORE_FILE=$debug_key" >> "$GITHUB_ENV"
+
       - name: Run Android tests and build debug APK
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
 
-      - name: Verify debug application ID
-        shell: bash
-        run: grep -F "io.github.c1oudreamw.lumatile.debug" apps/mobile/android/app/build/outputs/logs/manifest-merger-debug-report.txt
+      - name: Verify Android Debug identity and disposable certificate
+        run: node scripts/verify-release-build.mjs --rehearsal android apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk verification.json
+
+      - name: Upload Android Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumaTile-Debug-Android-${{ github.sha }}
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
