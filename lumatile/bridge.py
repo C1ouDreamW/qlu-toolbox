@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from lumatile import __version__
+from lumatile.build_info import load_build_information
 from lumatile.core.browser_component import (
     browser_component_status,
     browser_install_command,
@@ -115,6 +116,8 @@ class Bridge:
     def bootstrap(self, _params: dict[str, Any]) -> dict[str, Any]:
         return {
             "version": __version__,
+            "channel": load_build_information()["channel"],
+            "build": load_build_information(),
             "settings": asdict(self.settings),
             "tasks": [asdict(item) for item in self.tasks.list_recent()],
             "schedules": self.schedules.list_schedules(),

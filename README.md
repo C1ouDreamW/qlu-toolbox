@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/C1ouDreamW/qlu-toolbox/releases/latest"><img src="https://img.shields.io/badge/Release-v2.0.4-0370F0" alt="当前版本 v2.0.4"></a>
+  <a href="#支持平台"><img src="https://img.shields.io/badge/LumaTile-平台下载-0370F0" alt="按平台下载 LumaTile"></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D6?logo=windows11&logoColor=white" alt="Windows x64">
   <img src="https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white" alt="macOS Apple Silicon">
   <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0 及以上">
 </p>
 
 <p align="center">
-  <a href="https://github.com/C1ouDreamW/qlu-toolbox/releases/latest"><strong>下载最新版</strong></a> ·
+  <a href="#支持平台"><strong>按平台下载</strong></a> ·
   <a href="#功能演示">功能演示</a> ·
   <a href="#支持平台">平台支持</a> ·
   <a href="#桌面版">桌面版</a> ·
@@ -86,13 +86,27 @@
 
 ## 支持平台
 
-| 平台 | 当前版本 | 发布形式 | 说明 |
+| 平台 | 当前版本 | 下载 | 说明 |
 |---|---:|---|---|
-| Windows x64 | 2.0.4 | NSIS 安装包、免安装 ZIP | 支持 Edge、Chrome 和按需下载的 Chromium |
-| macOS Apple Silicon | 2.0.4 | DMG | 使用 ad-hoc 签名，未公证，首次打开需在系统设置中确认 |
-| Android 7.0 及以上 | 2.0.4（versionCode 15） | APK | 使用系统 WebView（Chromium 80 及以上），支持系统文件保存和应用内更新检查 |
+| Windows x64 | 2.0.4 | [NSIS 安装包](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_x64_Setup.exe)、[免安装 ZIP](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4.zip) | 支持 Edge、Chrome 和按需下载的 Chromium |
+| macOS Apple Silicon | 2.0.4 | [DMG](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_arm64.dmg) | 使用 ad-hoc 签名，未公证，首次打开需在系统设置中确认 |
+| Android 7.0 及以上 | 2.0.4（versionCode 15） | [APK](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile-Android-v2.0.4.apk) | 使用系统 WebView（Chromium 80 及以上），支持系统文件保存和应用内更新检查 |
 
 安装包同时发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 与自建更新源 `lumatile.ishua.cloud`（互为备用渠道）。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+
+下载表只列已公开版本。独立发布迁移尚未切换生产，当前三端仍为 2.0.4；后续各平台分别维护下载链接与版本，不以仓库的单个 latest Release 代表所有平台。迁移进度及平台更新日志见[平台版本说明](config/README.md)。
+
+### 选择渠道
+
+| 渠道 | 用途 | 下载与升级 |
+|---|---|---|
+| Stable | 日常使用 | 使用上表本平台的已公开安装包；后续仅接收本平台 Stable 更新 |
+| Alpha | 提前体验并反馈问题 | 当前尚未公开，暂不提供下载链接；首发后将在此按平台单列，之后只接收 Alpha 更新 |
+| Debug | 本地开发和 PR 验证 | 按[开发指南](CONTRIBUTING.md)构建，或由维护人指定 Debug 演练 artifact；不检查在线更新 |
+
+Alpha / Debug 使用独立应用身份和私有数据，可以与 Stable 共存。加入测试无需卸载 Stable；各渠道不自动读取对方的课表、设置或登录状态。需要转移课表时，由用户主动导出备份再导入，首次测试建议使用内置虚拟展示课表。Android Alpha 使用固定独立测试证书，Debug 的机器临时证书不能保证跨机器覆盖安装。
+
+Alpha 按平台独立发布 GitHub prerelease，Stable 按平台独立发布正式版本；Debug 构件由普通 CI 提供。构建和发版命令见 [发布指南](RELEASING.md)。当前不发布新版本。
 
 ## 桌面版
 
@@ -121,8 +135,8 @@
 
 前往 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载对应平台的文件：
 
-- Windows 推荐使用 `LumaTile_v*_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `LumaTile.exe`，不要只复制可执行文件。
-- Apple Silicon Mac 下载 `LumaTile_v*_arm64.dmg`，打开后将 `LumaTile.app` 拖入“应用程序”。当前不提供 Intel Mac 版本。
+- Windows 推荐使用 x64 Setup 安装包。独立发布后的文件名为 `LumaTile-Windows-v*-x64-Setup.exe`，现有 2.0.4 使用 `LumaTile_v2.0.4_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `LumaTile.exe`，不要只复制可执行文件。
+- Apple Silicon Mac 下载 arm64 DMG，打开后将 `LumaTile.app` 拖入“应用程序”。独立发布后的文件名为 `LumaTile-macOS-v*-arm64.dmg`，现有 2.0.4 使用 `LumaTile_v2.0.4_arm64.dmg`。当前不提供 Intel Mac 版本。
 
 macOS 构建使用 ad-hoc 签名校验完整应用及其内嵌组件，尚未使用 Apple 开发者证书签名或公证。首次启动若被阻止：
 
@@ -244,9 +258,14 @@ LumaTile 保持迁移版的 applicationId 和正式签名，并持续递增 vers
 ```powershell
 uv sync --locked
 npm ci
+npm run doctor -- --platform all
 ```
 
 ### 桌面端
+
+日常开发默认生成独立的 **LumaTile Debug**，不需要正式 / Alpha key，不读取 Stable 私有数据，也不请求在线更新。完整新机器检查和贡献流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+
+客户端版本统一维护在 [`config/release-versions.json`](config/release-versions.json)，开发和打包入口自动准备对应平台版本，可能产生可见的版本载体改动。只读检查、平台日志及独立发布迁移进度见[平台版本说明](config/README.md)。桌面开发仅支持原生 Windows x64、macOS arm64，Rosetta 下请切换到 arm64 Node/Python。
 
 首次启动开发环境前先编译 Electron 主进程：
 
@@ -268,7 +287,7 @@ npm run test:desktop
 npm run build
 ```
 
-构建发布产物：
+构建本地 Debug 产物（Alpha / Stable 由维护者的渠道发布入口处理）：
 
 ```powershell
 # Windows NSIS 安装包
@@ -281,13 +300,13 @@ npm run dist:zip
 在 Apple Silicon Mac 上构建 DMG（无需开发者证书，使用 ad-hoc 签名）：
 
 ```bash
-npm run dist:mac -- --arm64
+npm run dist:mac
 ```
 
 可验证应用签名与内嵌资源是否完整：
 
 ```bash
-codesign --verify --deep --strict --verbose=2 release/mac-arm64/LumaTile.app
+codesign --verify --deep --strict --verbose=2 "release/mac-arm64/LumaTile Debug.app"
 ```
 
 桌面产物输出到 `release/`；Python Worker 构建中间产物输出到 `backend-dist/` 和 `backend-build/`。

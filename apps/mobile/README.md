@@ -47,8 +47,10 @@ WebView renderer/完整进程回收测试、已保存 URI 失效处理和多设�
 
 ## 构建
 
+Android 的版本与 versionCode 统一维护在 [`config/release-versions.json`](../../config/release-versions.json)，不再手动修改移动 package 或 Gradle 的版本。`mobile:build` 自动注入 Web 版本，随后必须 `mobile:sync`；Gradle 会检查同步资源的版本及 code，拒绝打包旧 Web 资源。只读预检可用 `npm run release:prepare -- --platform android --check`，详细迁移进度见[平台版本说明](../../config/README.md)。
+
 ```powershell
-npm install
+npm ci
 npm run mobile:build
 npm run mobile:sync
 cd apps/mobile/android
@@ -69,18 +71,30 @@ Windows 上可以用 `scripts/build-and-install-android.ps1` 一次完成「构�
 powershell -ExecutionPolicy Bypass -File scripts\build-and-install-android.ps1
 ```
 
-脚本自动定位 adb 与目标设备（只有一台在线时直接选中，多台用 `-Serial` 指定），发现设备上已装正式版时自动改用下面的共存测试包，安装后回读包名与版本号核对，并且永远不会卸载正式版。常用参数：`-AppIdSuffix .test`、`-AppLabel "一格有光（联调）"`、`-NoCoexist`（强制原包名）、`-SkipTests`（跳过单测）、`-Launch`（装完启动应用）、`-DryRun`（只做前置检查并打印命令，不构建不安装）。
+脚本自动定位 adb 与目标设备（只有一台在线时直接选中，多台用 `-Serial` 指定），固定构建并安装独立 Debug 应用 `io.github.c1oudreamw.lumatile.debug`。安装前使用 Build Tools 36.0.0 的 aapt 核对实际 APK 包名，安装后回读版本；不会卸载正式版或清理其数据。常用参数为 `-SkipTests`、`-Launch`、`-DryRun`。
 
-临时测试包可与测试机上的正式版共存：给 debug 构建加包名后缀，得到独立应用 ID 的测试包，正式版的登录状态、课表与学分要求都不受影响。
+不再需要 `-PappIdSuffix=.test` 或 `-AppLabel`；`-NoCoexist` 已取消，防止 Debug 占用正式应用身份。旧 `.test` 临时包与新 `.debug` 数据不自动迁移。Debug 显示为 LumaTile Debug，默认不访问在线更新、公告或统计；不同机器的自动 Debug key 可能不同，不能保证跨机器覆盖安装。
 
 ```powershell
-./gradlew.bat testDebugUnitTest assembleDebug "-PappIdSuffix=.test"
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+# 默认 Debug：生成构建身份、Web 资源并同步，再构建原生包
+npm run mobile:build
+npm run mobile:sync
+cd apps/mobile/android
+./gradlew.bat lintDebug testDebugUnitTest assembleDebug
 ```
 
-`-P` 参数必须加引号：PowerShell 会把不加引号的 `-PappIdSuffix=.test` 拆成属性名与 `.test`，Gradle 随即报 `Task '.test' not found`。
+Alpha 使用独立 `.alpha` 应用 ID 和固定专用 key。后续构建候选时显式选择渠道，PowerShell 示例：
 
-测试包应用 ID 为 `io.github.c1oudreamw.lumatile.test`，显示名默认为「一格有光（测试）」，可用 `-PappLabel` 改写；它与正式版数据完全独立，包内「检查更新」会按设计拒绝非正式应用 ID。不传 `-PappIdSuffix` 时构建行为与之前一致（CI 也不传）。测试结束后 `adb uninstall io.github.c1oudreamw.lumatile.test` 清理，正式版不受影响。完整安装流程见 `.agents/skills/lumatile-test-apk/SKILL.md`。
+```powershell
+$env:LUMATILE_BUILD_CHANNEL = 'alpha'
+npm run mobile:build
+npm run mobile:sync
+# 不读取长期密钥的 Alpha 候选；安装前仍需独立签名
+bash apps/mobile/android/gradlew -p apps/mobile/android assembleRelease '-PunsignedRelease=true'
+Remove-Item Env:LUMATILE_BUILD_CHANNEL
+```
+
+Windows 原生命令也可将上述 Gradle 行换为 `./gradlew.bat` 并在 Android 目录执行。Stable 同理显式选择 `stable`；日常命令默认 Debug。构建信息写入忽略的 `build-info.json`，Vite 复制同一份内容到 APK，Gradle 对比渠道、ID、版本、code 和 commit；缺失或混用资源时失败。
 
 正式包使用永久应用 ID `io.github.c1oudreamw.lumatile`。从本迁移版开始，后续“一格有光 / LumaTile”版本必须保持相同 applicationId、正式签名证书和递增的 versionCode，才能覆盖安装并保留应用数据。
 
@@ -109,9 +123,9 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-没有正式签名配置时只能构建 Debug APK，`assembleRelease` 会主动失败，防止误发布无法延续升级链的未签名包。密钥文件和密码不得提交到仓库。
+没有签名配置时可构建 Debug，或显式选择渠道后构建不能直接安装的 unsigned Release；普通 `assembleRelease` 仍主动失败，防止误发布。Debug 元数据不能用于 Release，Stable / Alpha Web 资源也不能用于交付 Debug APK。密钥文件和密码不得提交到仓库。
 
-GitHub Actions 正式发布还需要配置以下仓库 Secrets：
+GitHub Actions 正式签名继续使用现有仓库 Secrets，保持以下四项的值和作用域，不要求迁移到 Environment。独立 Android 工作流已拆分无 Secret 构建、签名和发布任务，仍受原有正式发布开关限制；旧组合发布入口保持关闭。详见 [签名规则与发布说明](../../docs/release-security.md)：
 
 ```text
 ANDROID_KEYSTORE_BASE64
@@ -120,4 +134,6 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-工作流会强制使用 CI 中解码出的正式密钥库完成 Release 构建；构建成功后直接上传 APK，不再执行额外的证书文本解析校验。
+普通 PR 演练仅使用 runner 自动生成的 Debug key。正式流程分离无 Secret 构建、读取本渠道仓库 Secrets 的签名步骤和独立发布，并核验最终 APK 的应用 ID、版本、证书与哈希。Alpha 后续使用独立的 `ANDROID_ALPHA_*` 仓库 Secrets。无需为继续开发找回原正式密码或将正式密钥放到 Mac；现有 Secret 有效时 CI 可直接使用。本轮文档调整不触发签名或发布。
+
+CI 可显式传入 `-PunsignedRelease=true` 构建 unsigned Release APK，随后在独立任务用 apksigner 签名。该模式拒绝同时提供签名配置；不传此参数的本地 `assembleRelease` 仍要求有效签名。unsigned APK 不能直接安装或作为公开更新包。

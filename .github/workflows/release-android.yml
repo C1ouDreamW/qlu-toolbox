@@ -1,0 +1,187 @@
+name: Release Android
+
+on:
+  push:
+    tags: ['android-v*', 'android-alpha-v*']
+
+permissions:
+  contents: read
+
+env:
+  LUMATILE_BUILD_CHANNEL: stable
+
+concurrency:
+  group: release-android-${{ startsWith(github.ref_name, 'android-alpha-v') && 'alpha' || 'stable' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build unsigned Android APK without signing secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    outputs:
+      commit: ${{ steps.receipt.outputs.commit }}
+      version: ${{ steps.receipt.outputs.version }}
+      channel: ${{ steps.receipt.outputs.channel }}
+      unsigned_sha256: ${{ steps.receipt.outputs.unsigned_sha256 }}
+      receipt_sha256: ${{ steps.receipt.outputs.receipt_sha256 }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate tag, main ancestry and rollout gate
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node scripts/validate-independent-release.mjs android "$GITHUB_REF_NAME"
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+        with:
+          packages: platform-tools
+      - name: Install SDK and locked dependencies
+        run: |
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+          npm ci
+          npm run test:release
+          npm run test:mobile
+      - name: Prepare Web assets and build unsigned APK
+        run: |
+          node scripts/prepare-release.mjs --platform android
+          npm run mobile:build
+          npm run mobile:sync
+          bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleRelease -PunsignedRelease=true
+          mkdir unsigned
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk unsigned/app-release-unsigned.apk
+      - name: Verify unsigned native and Web identity and bind its digest
+        id: receipt
+        run: node scripts/prepare-android-signing.mjs record "$GITHUB_REF_NAME" unsigned/app-release-unsigned.apk unsigned/unsigned-receipt.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: unsigned
+          if-no-files-found: error
+          retention-days: 1
+
+  sign:
+    name: Sign the verified Android APK
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_EXPECTED_COMMIT: ${{ needs.build.outputs.commit }}
+      RELEASE_UNSIGNED_SHA256: ${{ needs.build.outputs.unsigned_sha256 }}
+      RELEASE_RECEIPT_SHA256: ${{ needs.build.outputs.receipt_sha256 }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Recheck source before injecting signing credentials
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node scripts/validate-independent-release.mjs android "$GITHUB_REF_NAME"
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+        with:
+          packages: platform-tools
+      - name: Install only native signing tools
+        run: sdkmanager 'build-tools;36.0.0'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: android-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: unsigned
+      - name: Check the exact build input without secrets
+        run: |
+          node scripts/prepare-android-signing.mjs verify "$GITHUB_REF_NAME" unsigned/app-release-unsigned.apk unsigned/unsigned-receipt.json
+          mkdir artifacts
+      - name: Sign Stable with the existing production repository Secrets
+        if: ${{ needs.build.outputs.channel == 'stable' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: node scripts/prepare-android-signing.mjs sign "$GITHUB_REF_NAME" unsigned/app-release-unsigned.apk unsigned/unsigned-receipt.json "artifacts/LumaTile-Android-v$RELEASE_VERSION.apk" verification.json
+      - name: Sign Alpha with its independent repository Secrets
+        if: ${{ needs.build.outputs.channel == 'alpha' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_ALPHA_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_ALPHA_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_ALPHA_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_ALPHA_KEY_PASSWORD }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: node scripts/prepare-android-signing.mjs sign "$GITHUB_REF_NAME" unsigned/app-release-unsigned.apk unsigned/unsigned-receipt.json "artifacts/LumaTile-Alpha-Android-v$RELEASE_VERSION.apk" verification.json
+      - name: Generate the deployment bundle from final signed bytes
+        run: node scripts/build-release-bundle.mjs android "$GITHUB_REF_NAME" artifacts verification.json update-source
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: update-source-android-${{ needs.build.outputs.channel }}-${{ needs.build.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: update-source
+          if-no-files-found: error
+
+  publish:
+    name: Publish the verified Android release
+    needs: [build, sign]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      RELEASE_EXPECTED_COMMIT: ${{ needs.build.outputs.commit }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Recheck immutable source before publication
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node scripts/validate-independent-release.mjs android "$GITHUB_REF_NAME"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: update-source-android-${{ needs.build.outputs.channel }}-${{ needs.build.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: update-source
+      - name: Publish complete assets through a verified draft
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/publish-platform-release.mjs android "$GITHUB_REF_NAME" "update-source/releases/$GITHUB_REF_NAME"
+      - name: Prepare the backup-manifest branch without changing main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_CHANNEL: ${{ needs.build.outputs.channel }}
+        run: |
+          source_manifest="$GITHUB_WORKSPACE/update-source/releases/$GITHUB_REF_NAME/update-android.json"
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          checkout_dir="$RUNNER_TEMP/android-manifest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git worktree add --detach "$checkout_dir" origin/main
+          backup_file=$(node scripts/prepare-android-backup.mjs "$checkout_dir" "$source_manifest" "$RELEASE_CHANNEL")
+          cd "$checkout_dir"
+          branch="automation/android-update-$GITHUB_REF_NAME-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git switch -c "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$backup_file"
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore(android): 更新 $GITHUB_REF_NAME 的公开更新清单"
+          git -c credential.helper='!f() { printf "%s\n" "username=x-access-token" "password=$GITHUB_TOKEN"; }; f' push --set-upstream origin "$branch"
+          echo "[创建 Android 备用清单 PR]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$branch?quick_pull=1)；通过必需检查后合并，主源仍需单独部署。" >> "$GITHUB_STEP_SUMMARY"

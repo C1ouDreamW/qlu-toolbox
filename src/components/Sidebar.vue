@@ -3,7 +3,7 @@ import { CalendarDays, Home, LayoutGrid, ListChecks, Settings, Info, ChevronRigh
 import { logoUrl } from '@/assets'
 import type { PageName } from '@/types'
 
-defineProps<{ current: PageName; version: string }>()
+defineProps<{ current: PageName; version: string; channel?: 'debug' | 'alpha' | 'stable' }>()
 const emit = defineEmits<{ navigate: [page: PageName]; feedback: [] }>()
 const items = [
   { id: 'schedule' as const, label: '课表', icon: CalendarDays },
@@ -19,7 +19,7 @@ const items = [
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark"><img :src="logoUrl" alt="一格有光 Logo" /></div>
-      <div><strong>一格有光</strong><span>LumaTile · 校园效率工作台</span></div>
+      <div><strong>一格有光<span v-if="channel && channel !== 'stable'"> {{ channel === 'alpha' ? 'Alpha' : 'Debug' }}</span></strong><span>LumaTile · 校园效率工作台</span></div>
     </div>
     <nav class="side-nav" aria-label="主导航">
       <button v-for="item in items" :key="item.id" :class="{ active: current === item.id }" @click="emit('navigate', item.id)">

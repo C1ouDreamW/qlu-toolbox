@@ -1,0 +1,122 @@
+name: Release Windows
+
+on:
+  push:
+    tags: ['win-v*', 'win-alpha-v*']
+
+permissions:
+  contents: read
+
+env:
+  LUMATILE_BUILD_CHANNEL: stable
+
+concurrency:
+  group: release-windows-${{ startsWith(github.ref_name, 'win-alpha-v') && 'alpha' || 'stable' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and verify Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      commit: ${{ steps.version.outputs.commit }}
+      version: ${{ steps.version.outputs.version }}
+      channel: ${{ steps.version.outputs.channel }}
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate immutable release identity and rollout gate
+        id: version
+        shell: bash
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node scripts/validate-independent-release.mjs windows "$GITHUB_REF_NAME"
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: '3.12'
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          npm ci
+          uv sync --locked
+          uv lock --check
+      - name: Prepare and verify Windows version
+        shell: bash
+        run: |
+          node scripts/prepare-release.mjs --platform windows
+          node scripts/prepare-release.mjs --platform windows --verify
+      - name: Test and build Windows application
+        shell: bash
+        run: |
+          uv run --locked python -B -m unittest discover -s tests -v
+          npm run test:release
+          npm run build:backend
+          npm run build
+          npm run test:desktop
+          npx electron-builder --win dir nsis --x64 --publish never
+      - name: Verify packaged executable, Electron and Python versions
+        run: node scripts/verify-release-build.mjs windows $env:GITHUB_REF_NAME release/win-unpacked verification.json
+      - name: Prepare installer and portable ZIP
+        shell: pwsh
+        run: |
+          $info = Get-Content lumatile/build-info.json -Raw | ConvertFrom-Json
+          $version = $info.version
+          $prefix = if ($info.channel -eq 'alpha') { 'LumaTile-Alpha' } else { 'LumaTile' }
+          $productName = $info.productName
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item "release/${prefix}_v${version}_x64_Setup.exe" "artifacts/${prefix}-Windows-v${version}-x64-Setup.exe"
+          $ws = New-Object -ComObject WScript.Shell
+          $lnk = $ws.CreateShortcut("$PWD\release\win-unpacked\${productName}.lnk")
+          $lnk.TargetPath = ".\${productName}.exe"
+          $lnk.Save()
+          Rename-Item release/win-unpacked $prefix
+          Compress-Archive -Path "release/$prefix" -DestinationPath "artifacts/${prefix}-Windows-v${version}-x64.zip"
+      - name: Build Windows-only update source bundle
+        run: node scripts/build-release-bundle.mjs windows $env:GITHUB_REF_NAME artifacts verification.json update-source
+      - name: Upload verified deployment bundle before publication
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: update-source-windows-${{ steps.version.outputs.channel }}-${{ steps.version.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: update-source
+          if-no-files-found: error
+
+  publish:
+    name: Publish the verified windows release
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      RELEASE_EXPECTED_COMMIT: ${{ needs.build.outputs.commit }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Recheck immutable source before publication
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node scripts/validate-independent-release.mjs windows "$GITHUB_REF_NAME"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: update-source-windows-${{ needs.build.outputs.channel }}-${{ needs.build.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: update-source
+      - name: Publish complete assets through a verified draft
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/publish-platform-release.mjs windows "$GITHUB_REF_NAME" "update-source/releases/$GITHUB_REF_NAME"

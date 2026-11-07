@@ -31,6 +31,7 @@ class AppPathsTests(unittest.TestCase):
                 patch("lumatile.core.paths.sys.platform", "win32"),
                 patch("lumatile.core.paths.Path.home", return_value=root / "home"),
                 patch.dict(os.environ, environment, clear=True),
+                patch("lumatile.core.paths.load_build_information", return_value={"dataNamespace": "QLUToolbox"}),
             ):
                 paths = AppPaths.discover()
             self.assertEqual(paths.config_dir, root / "roaming" / "QLUToolbox")
@@ -44,6 +45,7 @@ class AppPathsTests(unittest.TestCase):
                 patch("lumatile.core.paths.sys.platform", "darwin"),
                 patch("lumatile.core.paths.Path.home", return_value=home),
                 patch.dict(os.environ, {}, clear=True),
+                patch("lumatile.core.paths.load_build_information", return_value={"dataNamespace": "QLUToolbox"}),
             ):
                 paths = AppPaths.discover()
             expected = home / "Library" / "Application Support" / "QLUToolbox"

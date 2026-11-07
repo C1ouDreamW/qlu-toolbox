@@ -56,6 +56,7 @@ export interface BrowserComponentStatus {
 
 export interface BootstrapData {
   version: string
+  channel?: 'debug' | 'alpha' | 'stable'
   settings: Settings
   tasks: TaskRecord[]
   schedules: StoredSchedule[]

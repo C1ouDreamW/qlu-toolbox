@@ -12,6 +12,7 @@ import { fetchAnnouncement, findAvailableUpdate } from './update/updateService'
 import type { Announcement, AvailableUpdate, UpdateDownloadProgress } from './update/types'
 import brandIconUrl from '../../../assets/lumatile.png'
 import mobilePackage from '../package.json'
+import { buildInformation } from './build-info'
 import SchedulePage from './SchedulePage.vue'
 import CreditReportPage from './CreditReportPage.vue'
 import FeedbackSheet from './FeedbackSheet.vue'
@@ -60,8 +61,8 @@ const updateInstalling = ref(false)
 const updateMessage = ref('')
 const updateProgress = ref<UpdateDownloadProgress | null>(null)
 const announcement = ref<Announcement | null>(null)
-const autoUpdateCheck = ref(localStorage.getItem('autoUpdateCheck') !== 'false')
-const anonymousStats = ref(localStorage.getItem('anonymousStats') !== 'false')
+const autoUpdateCheck = ref(buildInformation.updatesEnabled && localStorage.getItem('autoUpdateCheck') !== 'false')
+const anonymousStats = ref(buildInformation.telemetryEnabled && localStorage.getItem('anonymousStats') !== 'false')
 const busy = computed(() => task.value?.outcome === 'running')
 const message = computed(() => task.value?.message || '选择范围后即可开始查询')
 const gpaSummary = computed(() => calculateGpa(gpaWorkbook.value?.courses ?? []))
@@ -163,18 +164,24 @@ function dismissAnnouncement() {
 }
 
 function toggleAutoUpdateCheck() {
+  if (!buildInformation.updatesEnabled) return
   autoUpdateCheck.value = !autoUpdateCheck.value
   localStorage.setItem('autoUpdateCheck', String(autoUpdateCheck.value))
   if (autoUpdateCheck.value) void checkForUpdate(false)
 }
 
 function toggleAnonymousStats() {
+  if (!buildInformation.telemetryEnabled) return
   anonymousStats.value = !anonymousStats.value
   localStorage.setItem('anonymousStats', String(anonymousStats.value))
   if (anonymousStats.value && nativeAndroid) void sendStatsBeacon(mobilePackage.version)
 }
 
 async function checkForUpdate(manual = true) {
+  if (!buildInformation.updatesEnabled) {
+    if (manual) updateMessage.value = 'Debug 版本不提供在线更新，请使用开发构建'
+    return
+  }
   if (!appUpdate.isNativeAndroid() || updateChecking.value) return
   updateChecking.value = true
   updateMessage.value = ''
@@ -327,7 +334,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="app-shell">
-    <header v-if="page !== 'schedule'" class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>一格有光</strong></div></header>
+    <header v-if="page !== 'schedule'" class="topbar"><div class="brand"><span><img :src="brandIconUrl" alt="" /></span><strong>一格有光{{ buildInformation.channel === 'stable' ? '' : ` ${buildInformation.channel === 'alpha' ? 'Alpha' : 'Debug'}` }}</strong></div></header>
 
     <SchedulePage v-if="page === 'schedule'" ref="schedulePage" :native-android="nativeAndroid" />
     <CreditReportPage v-else-if="page === 'credit'" :native-android="nativeAndroid" :grade-busy="busy" @back="selectPage('home')" />
@@ -409,9 +416,9 @@ onBeforeUnmount(() => {
       <div class="page-title"><p class="eyebrow">PRIVACY & DATA</p><h1>设置</h1><p>管理学校登录状态和本地数据。</p></div>
       <button class="setting-card start-page-setting" type="button" aria-haspopup="dialog" :aria-expanded="startPageDialogOpen" @click="startPageDialogOpen = true"><CalendarDays /><span><strong>应用启动页</strong><small>可单独选择课表、工具箱或上次页面</small></span><span class="start-page-current">{{ selectedStartPage.label }}<ChevronRight /></span></button>
       <button class="setting-card" :disabled="loginClearing" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>{{ loginClearing ? '正在清除 Cookie、缓存与站点数据…' : '清除 Cookie、缓存与站点数据' }}</small></span></button>
-      <button class="setting-card" :disabled="updateChecking" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
-      <button class="setting-card switch-card" type="button" role="switch" :aria-checked="autoUpdateCheck" @click="toggleAutoUpdateCheck"><RefreshCw /><span><strong>自动检查更新</strong><small>启动时访问公开更新源，获取新版本提醒</small></span><span class="switch-track" :class="{ on: autoUpdateCheck }"><i class="switch-thumb"></i></span></button>
-      <button class="setting-card switch-card" type="button" role="switch" :aria-checked="anonymousStats" @click="toggleAnonymousStats"><ShieldCheck /><span><strong>匿名使用统计</strong><small>发送随机安装编号、软件版本和系统类型；不含任何个人信息</small></span><span class="switch-track" :class="{ on: anonymousStats }"><i class="switch-thumb"></i></span></button>
+      <button class="setting-card" :disabled="updateChecking || !buildInformation.updatesEnabled" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
+      <button class="setting-card switch-card" type="button" role="switch"  :disabled="!buildInformation.updatesEnabled" :aria-checked="autoUpdateCheck" @click="toggleAutoUpdateCheck"><RefreshCw /><span><strong>自动检查更新</strong><small>启动时访问公开更新源，获取新版本提醒</small></span><span class="switch-track" :class="{ on: autoUpdateCheck }"><i class="switch-thumb"></i></span></button>
+      <button class="setting-card switch-card" type="button" role="switch"  :disabled="!buildInformation.telemetryEnabled" :aria-checked="anonymousStats" @click="toggleAnonymousStats"><ShieldCheck /><span><strong>匿名使用统计</strong><small>发送随机安装编号、软件版本和系统类型；不含任何个人信息</small></span><span class="switch-track" :class="{ on: anonymousStats }"><i class="switch-thumb"></i></span></button>
       <button class="setting-card feedback-entry" @click="feedbackOpen = true"><MessageSquareText /><span><strong>反馈与建议</strong><small>遇到问题或有个想法？一句话告诉我们</small></span><ChevronRight /></button>
       <button class="setting-card about-entry" @click="selectPage('about')"><Info /><span><strong>关于与声明</strong><small>查看非官方声明、职责声明和免责声明</small></span><ChevronRight /></button>
       <div class="settings-footnote"><ShieldAlert />非学校官方 · 仅供学习交流</div>
@@ -422,7 +429,7 @@ onBeforeUnmount(() => {
       <div class="page-title"><p class="eyebrow">ABOUT & LEGAL</p><h1>关于一格有光</h1><p>由学生开发者维护的本地校园效率工具。</p></div>
       <div class="card about-identity">
         <span class="about-logo"><img :src="brandIconUrl" alt="一格有光 Logo" /></span>
-        <span><strong>一格有光 · LumaTile</strong><small>Android v{{ mobilePackage.version }}</small><small>Vue 3 + TypeScript + Capacitor + Kotlin</small></span>
+        <span><strong>一格有光 · {{ buildInformation.productName }}</strong><small>Android v{{ mobilePackage.version }} · {{ buildInformation.channel }}</small><small v-if="buildInformation.commit">{{ buildInformation.commit.slice(0, 7) }}</small><small>Vue 3 + TypeScript + Capacitor + Kotlin</small></span>
       </div>
       <div class="unofficial-banner prominent"><ShieldAlert /><span><strong>本应用并非齐鲁工业大学官方应用</strong><small>与齐鲁工业大学及其教务系统服务商不存在隶属、授权、合作或担保关系，也不代表学校官方立场。</small></span></div>
       <div class="about-values">

@@ -3,14 +3,9 @@
 # 用法(仓库根目录的 PowerShell 中):
 #   powershell -ExecutionPolicy Bypass -File scripts\build-mobile.ps1
 #
-# 可选参数(不传时行为与改动前完全一致):
-#   -AppIdSuffix .test              只影响 debug 构建,产出可与正式版共存的测试包
-#   -AppLabel "一格有光（联调）"     自定义测试包显示名,仅在同时给出 -AppIdSuffix 时生效
-#   -SkipTests                      跳过 testDebugUnitTest,只出 Debug 包(本地快速迭代用)
-#
-# 说明:JAVA_HOME 只在本次脚本会话内生效,不修改系统环境变量。
-# 项目要求 JDK 21(见 apps/mobile/README.md);Gradle 8.14 最高支持 Java 24,
-# 用 JDK 25 会报 "Unsupported class file major version 69"。
+# 默认固定构建独立 Debug 包 io.github.c1oudreamw.lumatile.debug，不读取正式签名。
+# 可选 -SkipTests 跳过单测；旧 -AppIdSuffix / -AppLabel 仅保留用于明确提示迁移。
+# JAVA_HOME 与 LUMATILE_BUILD_CHANNEL 只在本次脚本中使用。
 
 param(
     [string]$AppIdSuffix = "",
@@ -19,6 +14,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if ($AppIdSuffix -and $AppIdSuffix -notin @('.debug', 'debug')) {
+    throw 'Debug 包固定使用 .debug，不再支持其他 AppIdSuffix。请移除旧参数。'
+}
+if ($AppLabel) { throw 'Debug 包固定显示为 LumaTile Debug，请移除旧 AppLabel 参数。' }
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 function Get-JavaMajorVersion([string]$JdkHome) {
@@ -68,22 +67,16 @@ function Invoke-Step([string]$Name, [scriptblock]$Block) {
     }
 }
 
+$previousChannel = $env:LUMATILE_BUILD_CHANNEL
+$env:LUMATILE_BUILD_CHANNEL = "debug"
 Push-Location $RepoRoot
 try {
     Invoke-Step "npm run mobile:build(Web 构建)" { npm run mobile:build }
     Invoke-Step "npm run mobile:sync(Capacitor 同步)" { npm run mobile:sync }
 
-    if ($AppLabel -and -not $AppIdSuffix) {
-        Write-Host "[提示] -AppLabel 只在同时传入 -AppIdSuffix 时生效,本次已忽略。" -ForegroundColor Yellow
-    }
-
-    # -P 参数用变量整段传入:PowerShell 会把字面量 -PappIdSuffix=.test 拆成属性名与值,
-    # Gradle 只收到空属性并报 Task '.test' not found(见 apps/mobile/README.md)。
     $gradleTasks = @()
     if (-not $SkipTests) { $gradleTasks += "testDebugUnitTest" }
     $gradleTasks += "assembleDebug"
-    if ($AppIdSuffix) { $gradleTasks += "-PappIdSuffix=$AppIdSuffix" }
-    if ($AppIdSuffix -and $AppLabel) { $gradleTasks += "-PappLabel=$AppLabel" }
 
     Set-Location (Join-Path $RepoRoot "apps\mobile\android")
     Invoke-Step ("gradlew " + ($gradleTasks -join " ")) {
@@ -91,6 +84,7 @@ try {
     }
 } finally {
     Pop-Location
+    $env:LUMATILE_BUILD_CHANNEL = $previousChannel
 }
 
 Write-Host ""

@@ -79,6 +79,10 @@ class BridgeIntegrationTests(unittest.TestCase):
             process.stdin.flush()
             bootstrap = json.loads(process.stdout.readline())
             self.assertEqual(bootstrap["channel"], "response")
+            desktop_package = json.loads(
+                (Path(__file__).resolve().parents[1] / "package.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(bootstrap["result"]["version"], desktop_package["version"])
             self.assertTrue(Path(bootstrap["result"]["paths"]["data"]).is_relative_to(root))
             self.assertEqual(bootstrap["result"]["tool"]["id"], "schedule")
             self.assertEqual(

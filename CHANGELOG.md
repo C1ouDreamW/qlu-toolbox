@@ -1,5 +1,7 @@
 # 更新日志
 
+独立发布迁移后的平台说明分别维护在 [Windows](changelogs/windows.md)、[macOS](changelogs/macos.md)、[Android](changelogs/android.md) 日志中。当前仍使用旧发布入口；迁移进度见[平台版本说明](config/README.md)。下方保留原始发布历史。
+
 本项目版本遵循语义化版本号。Alpha 版本仍可能调整界面、配置格式和内部实现。
 
 ## [2.0.4] - 2026-09-21
