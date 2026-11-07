@@ -4,10 +4,6 @@ if [ "$#" -ne 1 ] || [ -z "$1" ]; then
   echo 'Usage: bash scripts/detach-dmg.sh <mount-directory>' >&2
   exit 2
 fi
-# Spotlight / diskimages-helper may briefly retain a verified read-only CI mount.
-# Retry normal unmounts; keep a persistent busy-volume error visible to CI.
-for attempt in 1 2 3 4 5; do
-  if hdiutil detach "$1"; then exit 0; fi
-  sleep "$attempt"
-done
-exit 1
+# Keep the backing device identity even if a busy detach removes its mount path.
+# The helper verifies the device inventory and never forces an unmount.
+exec node "$(dirname "$0")/detach-dmg.mjs" "$1"
