@@ -159,92 +159,18 @@ jobs:
           path: release/LumaTile_v*_arm64.dmg
           if-no-files-found: error
 
+  # Fail closed until unsigned build / protected signing / publication are separated.
+  # Blocking this dependency also prevents the legacy combined release from publishing.
   build-android:
-    name: Build signed Android migration APK
+    name: Android signing migration required
     needs: [validate-legacy-release]
     runs-on: ubuntu-latest
-    timeout-minutes: 35
-    env:
-      ANDROID_KEYSTORE_FILE: release-signing.jks
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
+    timeout-minutes: 5
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Set up Android SDK 36
-        uses: android-actions/setup-android@v3
-        with:
-          # 该 action 默认安装 "tools platform-tools"，但旧版 "tools" 包已被 Google
-          # 从 SDK 仓库移除（sdkmanager 报 Failed to find package 'tools'）。
-          # cmdline-tools 由 action 自身下载，platforms/build-tools 由下一步安装。
-          packages: "platform-tools"
-
-      - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Validate Android signing secrets
-        shell: bash
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      - name: Block legacy production signing
         run: |
-          test -n "$ANDROID_KEYSTORE_BASE64"
-          test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_ALIAS"
-          test -n "$ANDROID_KEY_PASSWORD"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > apps/mobile/android/release-signing.jks
-
-      - name: Install npm dependencies
-        run: npm ci
-
-      - name: Verify Android config matches legacy tag
-        shell: bash
-        run: |
-          expected="${GITHUB_REF_NAME#v}"
-          actual=$(node -p "require('./config/release-versions.json').android.version")
-          test "$actual" = "$expected"
-          node scripts/prepare-release.mjs --platform android
-          node scripts/prepare-release.mjs --platform android --verify
-
-      - name: Build and sync Android web assets
-        run: |
-          npm run mobile:build
-          npm run mobile:sync
-
-      - name: Run Android tests and signed release build
-        working-directory: apps/mobile/android
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleRelease
-
-      - name: Prepare Android artifact
-        shell: bash
-        run: |
-          mkdir -p release-android
-          version="${GITHUB_REF_NAME#v}"
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "release-android/LumaTile-Android-v${version}.apk"
-
-      - name: Upload Android artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-release
-          path: release-android/LumaTile-Android-v*.apk
-          if-no-files-found: error
+          echo '::error::Legacy Android signing is disabled. Complete docs/release-security.md before restoring a protected signing workflow.'
+          exit 1
 
   release:
     name: Publish GitHub Release

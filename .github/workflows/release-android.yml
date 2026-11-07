@@ -12,99 +12,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build and publish signed Android APK
+  signing-migration-required:
+    name: Protected Android signing migration required
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    permissions:
-      contents: write
-    env:
-      ANDROID_KEYSTORE_FILE: release-signing.jks
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - name: Validate immutable release identity and rollout gate
-        id: version
+      - name: Block production signing until the protected pipeline is ready
         run: |
-          node scripts/validate-independent-release.mjs android "$GITHUB_REF_NAME"
-          echo "version=$(node -p "require('./config/release-versions.json').android.version")" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: gradle
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-      - name: Install Android SDK 36
-        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
-      - name: Validate Android-only signing configuration
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          test -n "$ANDROID_KEYSTORE_BASE64"
-          test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_ALIAS"
-          test -n "$ANDROID_KEY_PASSWORD"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > apps/mobile/android/release-signing.jks
-      - name: Install locked dependencies and build Web resources
-        run: |
-          npm ci
-          npm run test:release
-          node scripts/prepare-release.mjs --platform android
-          npm run mobile:build
-          npm run mobile:sync
-          node scripts/prepare-release.mjs --platform android --verify
-      - name: Test and build signed APK
-        working-directory: apps/mobile/android
-        run: bash gradlew --no-daemon lintDebug testDebugUnitTest assembleRelease
-      - name: Verify native and Web versions and production certificate
-        run: node scripts/verify-release-build.mjs android "$GITHUB_REF_NAME" apps/mobile/android/app/build/outputs/apk/release/app-release.apk verification.json
-      - name: Build Android-only update source bundle
-        run: |
-          version=$(node -p "require('./config/release-versions.json').android.version")
-          mkdir artifacts
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "artifacts/LumaTile-Android-v${version}.apk"
-          node scripts/build-release-bundle.mjs android "$GITHUB_REF_NAME" artifacts verification.json update-source
-      - name: Upload verified deployment bundle before publication
-        uses: actions/upload-artifact@v4
-        with:
-          name: update-source-android-${{ steps.version.outputs.version }}
-          path: update-source
-          if-no-files-found: error
-      - name: Publish complete release through a verified draft
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/publish-platform-release.mjs android "$GITHUB_REF_NAME" "update-source/releases/$GITHUB_REF_NAME"
-      - name: Prepare protected-main update manifest branch
-        run: |
-          source_manifest="$GITHUB_WORKSPACE/update-source/releases/$GITHUB_REF_NAME/update-android.json"
-          git fetch origin main
-          checkout_dir="$RUNNER_TEMP/android-manifest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          git worktree add --detach "$checkout_dir" origin/main
-          node --input-type=module - "$checkout_dir/updates/android.json" "$source_manifest" <<'JS'
-          import { readFile } from 'node:fs/promises'
-          import { assertPromotion, validateAndroidManifest } from './scripts/release-artifacts.mjs'
-          const [previous, next] = await Promise.all(process.argv.slice(2).map(async file => validateAndroidManifest(JSON.parse(await readFile(file, 'utf8')))))
-          assertPromotion('android', previous, next)
-          JS
-          cd "$checkout_dir"
-          branch="automation/android-update-$GITHUB_REF_NAME-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          git switch -c "$branch"
-          mkdir -p updates
-          cp "$source_manifest" updates/android.json
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add updates/android.json
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "chore(android): 更新 $GITHUB_REF_NAME 的公开更新清单"
-          git push --set-upstream origin "$branch"
-          echo "[创建 Android 备用清单 PR]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$branch?quick_pull=1)；通过必需检查后合并，主源仍需单独部署。" >> "$GITHUB_STEP_SUMMARY"
+          echo '::error::Android release signing is disabled during migration. Complete docs/release-security.md; PR builds must use Debug only.'
+          exit 1
