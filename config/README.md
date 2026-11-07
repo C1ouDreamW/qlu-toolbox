@@ -8,6 +8,10 @@ Android 两个独立应用 ID 各自维护单调递增的 `versionCode`（正整
 
 ## 当前进度
 
+桥接身份和前置核验已新增独立入口 `scripts/validate-desktop-bridge.mjs v<B>`：只接受不可变标签 commit 中明确登记的 B，要求 Windows / macOS Stable 同版本、显式原生构建号、主线来源、两端独立的 Alpha 晋级审查及公开 Alpha 资产，不要求 Android 同步版本。该入口只读，不创建标签、构件或 Release；完整双端桥接构建 / 归档 / 发布与推广仍待接入，不能拿单平台发布器发布半个桥接版本。
+
+迁移配置新增三个默认关闭的状态：`desktopBridgePublishingEnabled` 允许发布指定桥接 B；`desktopCutoverEnabled` 表示允许受控首次桌面切换；`desktopMigrationComplete` 记录两端链路已验收完成。B 为空时不能启用任何状态，完成状态必须伴随受控切换、并关闭桥接发布。当前 B 仍为 null，三个状态均为 false；不把声明字段存在视为真实验收完成。受控切换的证据绑定和发布门禁仍需后续实现。
+
 - 阶段 A：版本配置、平台与目标解析、只读检查、版本注入、平台日志、本地入口和 CI 已接入。
 - 阶段 B：平台桌面更新器、新清单、GitHub 分页兜底和旧格式生成器已实现，并通过模拟升级与故障测试。
 - 阶段 C：三条独立工作流、制品身份与正式签名校验、单平台构件、draft 发布与重试保护、原子部署工具已实现；已创建 [PR #17](https://github.com/C1ouDreamW/qlu-toolbox/pull/17) 并启动 CI 与构建演练，结果以该 PR 的 Checks 为准。

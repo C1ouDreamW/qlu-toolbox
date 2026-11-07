@@ -12,6 +12,7 @@ import { assertPromotion, manifestTarget, repositoryRoot, sha256, taggedRelease,
 
 // All mutations are confined to this platform's draft until every asset is verified.
 export async function publishPlatformRelease({ identity, directory, token, fetcher = fetch }) {
+  if (identity.purpose === 'bridge') throw new Error('Desktop bridge requires a dedicated publisher verifying both desktop targets')
   if (identity.purpose === 'rehearsal' || identity.deployable === false) throw new Error('Non-deployable candidate or rehearsal artifacts cannot be published')
   const channel = identity.channel ?? 'stable'
   if (!['stable', 'alpha'].includes(channel)) throw new Error('Invalid publication channel')

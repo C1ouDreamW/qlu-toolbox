@@ -1,0 +1,90 @@
+import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, dirname } from 'node:path'
+import test from 'node:test'
+import { desktopBridgeSource, taggedDesktopBridge } from '../scripts/desktop-bridge.mjs'
+import { validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { createReleaseBundle } from '../scripts/release-artifacts.mjs'
+import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
+
+async function fixture(t) {
+  const root = await mkdtemp(join(tmpdir(), 'lumatile-bridge-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  let date = '2026-11-01T00:00:00Z'
+  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } }).trim()
+  const write = async (file, value) => { await mkdir(dirname(join(root, file)), { recursive: true }); await writeFile(join(root, file), typeof value === 'string' ? value : JSON.stringify(value)) }
+  const policy = { schemaVersion: 1, bridgeVersion: '2.1.0', independentPublishingEnabled: false, desktopBridgePublishingEnabled: true, desktopCutoverEnabled: false, desktopMigrationComplete: false }
+  const versions = { schemaVersion: 2 }
+  for (const platform of ['windows', 'macos', 'android']) versions[platform] = { stable: { version: platform === 'android' ? '2.0.4' : '2.1.0', ...(platform === 'android' ? { versionCode: 15 } : { buildNumber: 4 }) }, alpha: { version: '2.1.0-alpha.1', ...(platform === 'android' ? { versionCode: 1 } : { buildNumber: 1 }) } }
+  await write('config/release-migration.json', policy); await write('config/release-versions.json', versions)
+  for (const platform of ['windows', 'macos']) await write(`changelogs/${platform}.md`, '## [2.1.0]\n\n- Desktop bridge\n')
+  git(['init', '-qb', 'main'])
+  const commit = when => { if (when) date = when; git(['add', '.']); git(['-c', 'user.name=Bridge Test', '-c', 'user.email=bridge@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'test: 桌面桥接夹具']); const sha = git(['rev-parse', 'HEAD']); git(['update-ref', 'refs/remotes/origin/main', sha]); return sha }
+  const sha = commit(); git(['tag', 'v2.1.0'])
+  const context = { repository: 'C1ouDreamW/qlu-toolbox', event: 'push', ref: 'refs/tags/v2.1.0', sha, runId: '42', runAttempt: '1' }
+  return { root, git, write, policy, versions, context, commit }
+}
+
+test('desktop bridge has exactly two immutable Stable targets without coupling Android versions', async t => {
+  const f = await fixture(t), identities = desktopBridgeSource(f.root, 'v2.1.0')
+  assert.deepEqual(Object.keys(identities), ['windows', 'macos'])
+  for (const identity of Object.values(identities)) {
+    assert.equal(identity.tag, 'v2.1.0'); assert.equal(identity.channel, 'stable')
+    assert.equal(identity.information.dataNamespace, 'QLUToolbox'); assert.equal(identity.purpose, 'bridge')
+    assert.equal(identity.commit, f.context.sha)
+  }
+  f.policy.desktopBridgePublishingEnabled = false; await f.write('config/release-migration.json', f.policy)
+  assert.equal(desktopBridgeSource(f.root, 'v2.1.0').windows.version, '2.1.0', 'Uncommitted policy cannot change tagged identity')
+})
+
+test('bridge requires its reserved version, explicit gate, both desktop versions and verified source', async t => {
+  const f = await fixture(t)
+  for (const tag of ['v2.1.0-alpha.1', 'win-v2.1.0', 'v02.1.0']) assert.throws(() => desktopBridgeSource(f.root, tag))
+  await assert.rejects(Promise.resolve().then(() => taggedDesktopBridge(f.root, 'v2.1.0', { ...f.context, event: 'pull_request' })), /tag push/)
+  assert.throws(() => taggedDesktopBridge(f.root, 'v2.1.0', f.context), /Missing or invalid Stable promotion/)
+  f.policy.desktopBridgePublishingEnabled = false; await f.write('config/release-migration.json', f.policy)
+  f.commit(); f.git(['tag', '-f', 'v2.1.0'])
+  assert.throws(() => desktopBridgeSource(f.root, 'v2.1.0'), /disabled/)
+  f.policy.desktopBridgePublishingEnabled = true; f.versions.macos.stable.version = '2.0.9'
+  await f.write('config/release-migration.json', f.policy); await f.write('config/release-versions.json', f.versions)
+  f.commit(); f.git(['tag', '-f', 'v2.1.0'])
+  assert.throws(() => desktopBridgeSource(f.root, 'v2.1.0'), /Both desktop Stable versions/)
+})
+
+test('publishing a bridge requires both actual Alpha source reviews and rejects business changes', async t => {
+  const f = await fixture(t)
+  for (const [platform, prefix] of [['windows', 'win'], ['macos', 'mac']]) {
+    const tag = `${prefix}-alpha-v2.1.0-alpha.1`; f.git(['tag', tag])
+    await f.write(`config/promotions/${platform}-2.1.0.json`, { schemaVersion: 1, mode: 'alpha', platform, stableVersion: '2.1.0', alpha: { tag, commit: f.context.sha },
+      review: { approvedBy: 'test-maintainer', observationStartedAt: '2026-11-02T00:00:00Z', observationEndedAt: '2026-11-03T00:00:00Z', approvedAt: '2026-11-04T00:00:00Z', summary: 'Synthetic review', tests: [{ name: 'Synthetic bridge installation', result: 'passed', evidence: 'fixture only' }] } })
+  }
+  let sha = f.commit('2026-11-05T00:00:00Z'); f.git(['tag', '-f', 'v2.1.0'])
+  const identities = taggedDesktopBridge(f.root, 'v2.1.0', { ...f.context, sha })
+  assert.equal(identities.windows.promotion.alphaVersion, '2.1.0-alpha.1')
+  assert.equal(identities.macos.promotion.alphaVersion, '2.1.0-alpha.1')
+  await f.write('business.mjs', 'export const changed = true')
+  sha = f.commit('2026-11-06T00:00:00Z'); f.git(['tag', '-f', 'v2.1.0'])
+  assert.throws(() => taggedDesktopBridge(f.root, 'v2.1.0', { ...f.context, sha }), /require another Alpha/)
+})
+
+test('desktop migration distinguishes bridge publishing, controlled cutover and completion', () => {
+  const base = { schemaVersion: 1, bridgeVersion: null }
+  assert.doesNotThrow(() => validateMigrationPolicy(base), 'Historical clients remain readable')
+  for (const key of ['desktopBridgePublishingEnabled', 'desktopCutoverEnabled', 'desktopMigrationComplete']) {
+    assert.throws(() => validateMigrationPolicy({ ...base, [key]: 'true' }))
+    assert.throws(() => validateMigrationPolicy({ ...base, [key]: true }))
+  }
+  assert.throws(() => validateMigrationPolicy({ ...base, bridgeVersion: '2.1.0', desktopMigrationComplete: true }))
+  assert.doesNotThrow(() => validateMigrationPolicy({ ...base, bridgeVersion: '2.1.0', desktopCutoverEnabled: true, desktopMigrationComplete: false }))
+  assert.doesNotThrow(() => validateMigrationPolicy({ ...base, bridgeVersion: '2.1.0', desktopCutoverEnabled: true, desktopMigrationComplete: true, desktopBridgePublishingEnabled: false }))
+})
+
+test('single-platform bundle and publisher cannot accidentally publish half a desktop bridge', async t => {
+  const f = await fixture(t), identity = desktopBridgeSource(f.root, 'v2.1.0').windows
+  await assert.rejects(createReleaseBundle({ identity }), /both desktop targets/)
+  let called = false
+  await assert.rejects(publishPlatformRelease({ identity, fetcher: async () => { called = true } }), /both desktop targets/)
+  assert.equal(called, false)
+})

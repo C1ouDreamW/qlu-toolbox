@@ -92,6 +92,7 @@ function artifactIdentity(artifacts) {
 }
 
 export async function createReleaseBundle({ identity, artifacts, verification, output }) {
+  if (identity.purpose === 'bridge') throw new Error('Desktop bridge requires a dedicated bundle containing both desktop targets')
   if (identity.purpose === 'rehearsal' || identity.deployable === false || verification.purpose === 'rehearsal' || verification.deployable === false) throw new Error('Non-deployable candidate or rehearsal artifacts cannot generate a release bundle')
   const { platform, version, tag, commit, bridgeVersion } = identity
   const channel = identity.channel ?? 'stable'

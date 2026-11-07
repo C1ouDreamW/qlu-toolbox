@@ -56,7 +56,7 @@ function generatedPackage(before, after, information) {
 }
 
 function metadataOnly(path, before, after, identity, versions) {
-  if (path === `changelogs/${identity.platform}.md` || path === 'CHANGELOG.md') return true
+  if (path === `changelogs/${identity.platform}.md` || path === 'CHANGELOG.md' || (identity.purpose === 'bridge' && ['changelogs/windows.md', 'changelogs/macos.md'].includes(path))) return true
   if (path === 'lumatile/__init__.py' && identity.platform !== 'android') return replacePythonVersion(before, identity.version) === after
   const a = JSON.parse(before), b = JSON.parse(after)
   if (path === 'config/release-versions.json') {
@@ -75,7 +75,7 @@ function metadataOnly(path, before, after, identity, versions) {
   }
   if (path === 'config/release-migration.json') {
     validateMigrationPolicy(a); validateMigrationPolicy(b)
-    for (const key of ['independentPublishingEnabled', 'bridgeVersion']) { delete a[key]; delete b[key] }
+    for (const key of ['independentPublishingEnabled', 'bridgeVersion', ...(identity.purpose === 'bridge' ? ['desktopBridgePublishingEnabled'] : [])]) { delete a[key]; delete b[key] }
     return isDeepStrictEqual(a, b)
   }
   if (path === 'package.json' && identity.platform !== 'android') return generatedPackage(a, b, buildInformation(resolveRelease(versions, { platform: identity.platform, channel: 'stable' })))
@@ -129,12 +129,16 @@ export function validateStablePromotion(root, identity) {
   const changedPaths = git(['diff', '--name-only', '-z', '--no-renames', alpha.commit, commit]).split('\0').filter(Boolean).sort()
   const metadataPaths = new Set([path, 'config/release-versions.json', 'config/release-migration.json', 'package-lock.json', 'CHANGELOG.md', `changelogs/${identity.platform}.md`,
     ...(identity.platform === 'android' ? ['apps/mobile/package.json'] : ['package.json', 'lumatile/__init__.py'])])
+  const peerReview = identity.purpose === 'bridge' ? promotionEvidencePath(identity.platform === 'windows' ? 'macos' : 'windows', identity.version) : null
+  if (peerReview) { metadataPaths.add(peerReview); metadataPaths.add('changelogs/windows.md'); metadataPaths.add('changelogs/macos.md') }
   const untested = []
   for (const file of changedPaths) {
     const previousEntry = git(['ls-tree', alpha.commit, '--', file])
     const nextEntry = git(['ls-tree', commit, '--', file])
     if (!nextEntry.startsWith('100644 blob ') || (previousEntry && !previousEntry.startsWith('100644 blob '))) { untested.push(file); continue }
     if (file === path) continue
+    // The bridge validates both complete reviews separately; neither review is business code.
+    if (file === peerReview) continue
     if (!metadataPaths.has(file)) { untested.push(file); continue }
     try {
       const before = previousEntry ? git.file(alpha.commit, file) : ''
