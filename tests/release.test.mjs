@@ -81,7 +81,8 @@ test('check is read-only; verify rejects stale carriers without changing them', 
   const dir = await fixture(t)
   const before = await snapshot(dir)
   const result = await prepareRelease({ root: dir, platform: 'macos', tag: 'mac-v2.0.6', check: true })
-  assert.deepEqual(result.files, ['package.json', 'package-lock.json', 'lumatile/__init__.py'])
+  assert.deepEqual(result.files, ['package.json', 'package-lock.json', 'lumatile/__init__.py', 'lumatile/build-info.json'])
+  await assert.rejects(readFile(join(dir, 'lumatile/build-info.json')), /ENOENT/)
   assert.deepEqual(await snapshot(dir), before)
   await assert.rejects(prepareRelease({ root: dir, platform: 'macos', verify: true }), /stale/)
   assert.deepEqual(await snapshot(dir), before)
@@ -119,7 +120,7 @@ test('Android preparation changes only mobile version records and preserves desk
   const before = await snapshot(dir)
   const result = await prepareRelease({ root: dir, platform: 'android', tag: 'android-v2.0.7' })
   assert.equal(result.versionCode, 16)
-  assert.deepEqual(result.files, ['apps/mobile/package.json', 'package-lock.json'])
+  assert.deepEqual(result.files, ['apps/mobile/package.json', 'package-lock.json', 'apps/mobile/build-info.json'])
   assert.equal((await readJson(join(dir, 'apps/mobile/package.json'))).version, '2.0.7')
   const lock = await readJson(join(dir, 'package-lock.json'))
   assert.equal(lock.packages['apps/mobile'].version, '2.0.7')
@@ -152,6 +153,30 @@ test('missing Python version fails without partially updating package and lockfi
   const before = await snapshot(dir)
   await assert.rejects(prepareRelease({ root: dir, platform: 'windows' }), /__version__/)
   assert.deepEqual(await snapshot(dir), before)
+})
+
+test('preparation keeps Alpha and Debug installer identities, executables and worker metadata distinct', async t => {
+  const dir = await fixture(t)
+  const config = { schemaVersion: 2,
+    windows: { stable: { version: '2.0.5', buildNumber: 1 }, alpha: { version: '2.1.0-alpha.1', buildNumber: 1 } },
+    macos: { stable: { version: '2.0.6', buildNumber: 3 }, alpha: { version: '2.1.0-alpha.1', buildNumber: 2 } },
+    android: { stable: { version: '2.0.7', versionCode: 16 }, alpha: { version: '2.1.0-alpha.1', versionCode: 1 } } }
+  await writeJson(join(dir, 'config/release-versions.json'), config)
+  for (const channel of ['alpha', 'debug', 'stable']) {
+    await prepareRelease({ root: dir, platform: 'macos', channel })
+    const pkg = await readJson(join(dir, 'package.json'))
+    const info = await readJson(join(dir, 'lumatile/build-info.json'))
+    assert.equal(pkg.build.appId, info.applicationId)
+    assert.equal(pkg.build.productName, info.productName)
+    assert.equal(pkg.build.mac.executableName, info.productName, 'A shared executableName also forces a shared .app / installer directory')
+    assert.equal(pkg.build.win.executableName, info.productName)
+    assert.equal(pkg.build.mac.bundleVersion, info.nativeBuildVersion)
+    assert.equal(pkg.build.mac.extendInfo.CFBundleShortVersionString, info.baseVersion)
+    assert.equal(pkg.build.nsis.shortcutName, info.productName)
+    assert.equal(info.channel, channel)
+    assert.equal(info.dataNamespace, channel === 'stable' ? 'QLUToolbox' : `LumaTile-${channel === 'alpha' ? 'Alpha' : 'Debug'}`)
+    assert.deepEqual((await prepareRelease({ root: dir, platform: 'macos', channel, verify: true })).files, [])
+  }
 })
 
 test('CLI anchors to the repository, rejects typos and never mutates in check mode', async () => {

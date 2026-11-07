@@ -1,5 +1,6 @@
 import type { Announcement, AvailableUpdate, CurrentAppVersion, UpdateManifest } from './types'
 import { UPDATE_APPLICATION_ID } from './types'
+import { buildInformation } from '../build-info'
 
 export const UPDATE_MANIFEST_URLS = [
   'https://lumatile.ishua.cloud/stable/android.json',
@@ -13,6 +14,7 @@ const REQUEST_TIMEOUT_MS = 10_000
 
 /** 拉取服务器公告；无公告（404/过期/网络失败）一律返回 null，调用方无需报错。 */
 export async function fetchAnnouncement(): Promise<Announcement | null> {
+  if (buildInformation.channel === 'debug') return null
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {

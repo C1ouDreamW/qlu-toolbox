@@ -7,8 +7,37 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { buildInformation } from '../electron/channel-contract.mjs'
+import { configureDesktopIdentity, readDesktopBuildInformation } from '../dist-electron/build-info.js'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
+
+test('desktop startup validates native target and keeps Debug userData separate before acquiring the instance lock', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'lumatile-desktop-channel-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  await mkdir(path.join(directory, 'lumatile'))
+  const information = buildInformation({ platform: 'macos', target: 'macos-arm64', channel: 'debug', version: '2.1.0-debug.0', buildNumber: 1 })
+  const file = path.join(directory, 'lumatile/build-info.json')
+  await writeFile(file, JSON.stringify(information))
+  assert.equal(readDesktopBuildInformation(directory, false, 'darwin', 'arm64').channel, 'debug')
+  assert.throws(() => readDesktopBuildInformation(directory, false, 'darwin', 'x64'))
+  const calls = []
+  const app = { getPath: key => { assert.equal(key, 'appData'); return '/appdata' },
+    setName: name => calls.push(['name', name]), setPath: (...args) => calls.push(args) }
+  configureDesktopIdentity(app, information)
+  assert.deepEqual(calls, [['name', 'LumaTile Debug'], ['userData', path.join('/appdata', 'LumaTile-Debug')]])
+  const stable = buildInformation({ platform: 'macos', target: 'macos-arm64', channel: 'stable', version: '2.0.4', buildNumber: 3 })
+  await writeFile(file, JSON.stringify(stable))
+  assert.throws(() => readDesktopBuildInformation(directory, false, 'darwin', 'arm64'), /npm run dev/)
+  assert.equal(readDesktopBuildInformation(directory, true, 'darwin', 'arm64').channel, 'stable')
+  calls.length = 0
+  configureDesktopIdentity(app, stable)
+  assert.deepEqual(calls, [], 'Existing Stable Electron userData must retain its original resolution')
+  await writeFile(file, JSON.stringify({ ...information, dataNamespace: 'QLUToolbox' }))
+  assert.throws(() => readDesktopBuildInformation(directory, true, 'darwin', 'arm64'), /mismatch/)
+})
 
 function loadElectronModule(file, mocks, processStub) {
   const source = readFileSync(path.join(root, file), 'utf8')

@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util'
 import { resolveRelease, validateReleaseConfig } from './release-config.mjs'
 import { sha256, repositoryRoot } from './release-artifacts.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { buildInformation } from '../electron/channel-contract.mjs'
 
 // A rehearsal uses immutable HEAD metadata without creating a tag or enabling rollout.
 export function rehearsalIdentity(root, platform) {
@@ -15,9 +16,11 @@ export function rehearsalIdentity(root, platform) {
   const policy = JSON.parse(git(['show', `${commit}:config/release-migration.json`]))
   const { bridgeVersion } = validateMigrationPolicy(policy)
   if (platform === 'android' && !/^[a-f0-9]{64}$/.test(policy.androidSigningSha256)) throw new Error('The production certificate digest is required to reject production-signed rehearsals')
-  const { tag: _tag, ...release } = resolveRelease(config, { platform })
+  const { tag: _tag, ...release } = resolveRelease(config, { platform, channel: 'debug' })
+  const information = buildInformation(release, commit)
   return { ...release, commit, bridgeVersion, androidSigningSha256: policy.androidSigningSha256,
-    ...(platform === 'android' ? { applicationId: 'io.github.c1oudreamw.lumatile.test', nativeVersionName: `${release.version}-test`, signing: 'debug' } : {}),
+    information,
+    ...(platform === 'android' ? { applicationId: information.applicationId, nativeVersionName: release.version, signing: 'debug' } : {}),
     purpose: 'rehearsal', deployable: false }
 }
 

@@ -17,6 +17,9 @@ on:
 permissions:
   contents: read
 
+env:
+  LUMATILE_BUILD_CHANNEL: debug
+
 concurrency:
   group: rehearsal-${{ github.ref }}
   cancel-in-progress: true
@@ -57,15 +60,15 @@ jobs:
       - name: Collect rehearsal-only installer and ZIP
         shell: pwsh
         run: |
-          $version = node -p "require('./config/release-versions.json').windows.stable.version"
+          $version = node -p "require('./package.json').version"
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
-          Copy-Item "release/LumaTile_v${version}_x64_Setup.exe" artifacts/LumaTile-Rehearsal-Windows-x64-Setup.exe
+          Copy-Item "release/LumaTile-Debug_v${version}_x64_Setup.exe" artifacts/LumaTile-Rehearsal-Windows-x64-Setup.exe
           $ws = New-Object -ComObject WScript.Shell
           $lnk = $ws.CreateShortcut("$PWD\release\win-unpacked\LumaTile.lnk")
-          $lnk.TargetPath = '.\LumaTile.exe'
+          $lnk.TargetPath = '.\LumaTile Debug.exe'
           $lnk.Save()
-          Rename-Item release/win-unpacked LumaTile
-          Compress-Archive -Path release/LumaTile -DestinationPath artifacts/LumaTile-Rehearsal-Windows-x64.zip
+          Rename-Item release/win-unpacked LumaTile-Debug
+          Compress-Archive -Path release/LumaTile-Debug -DestinationPath artifacts/LumaTile-Rehearsal-Windows-x64.zip
       - name: Record non-deployable artifact identity and hashes
         run: node scripts/rehearse-release.mjs windows --record verification.json artifacts rehearsal-output
       - uses: actions/upload-artifact@v4
@@ -110,15 +113,15 @@ jobs:
           npx electron-builder --mac dmg --arm64 --publish never
       - name: Verify mounted DMG, signature and runtime versions
         run: |
-          version=$(node -p "require('./config/release-versions.json').macos.stable.version")
+          version=$(node -p "require('./package.json').version")
           mount_dir=$(mktemp -d)
           trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
-          hdiutil attach "release/LumaTile_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"
-          node scripts/verify-release-build.mjs --rehearsal macos "$mount_dir/LumaTile.app" verification.json
+          hdiutil attach "release/LumaTile-Debug_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"
+          node scripts/verify-release-build.mjs --rehearsal macos "$mount_dir/LumaTile Debug.app" verification.json
           hdiutil detach "$mount_dir"
           trap - EXIT
           mkdir artifacts
-          cp "release/LumaTile_v${version}_arm64.dmg" artifacts/LumaTile-Rehearsal-macOS-arm64.dmg
+          cp "release/LumaTile-Debug_v${version}_arm64.dmg" artifacts/LumaTile-Rehearsal-macOS-arm64.dmg
       - name: Record non-deployable artifact identity and hashes
         run: node scripts/rehearse-release.mjs macos --record verification.json artifacts rehearsal-output
       - uses: actions/upload-artifact@v4
@@ -159,7 +162,7 @@ jobs:
           node scripts/prepare-release.mjs --platform android --verify
       - name: Test and build an isolated Debug APK
         run: |
-          bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleDebug -PappIdSuffix=.test
+          bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleDebug
       - name: Verify Debug identity and runner certificate
         run: |
           node scripts/verify-release-build.mjs --rehearsal android apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk verification.json

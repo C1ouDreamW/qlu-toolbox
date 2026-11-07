@@ -214,6 +214,12 @@ class AnnouncementSchemaTests(unittest.TestCase):
 
 
 class SettingsAnonymousStatsTests(unittest.TestCase):
+    def setUp(self):
+        # These tests retain the Stable defaults; Debug/Alpha policy is tested separately.
+        policy = patch("lumatile.core.settings.load_build_information", return_value={"updatesEnabled": True, "telemetryEnabled": True})
+        policy.start()
+        self.addCleanup(policy.stop)
+
     def test_defaults_on_and_persists_off(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = SettingsStore(SimpleNamespace(config_dir=Path(tmp)))

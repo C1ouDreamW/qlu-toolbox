@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { artifactFileNames, compareVersions, desktopTarget, isArtifactUrl, isPublicationDate, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
 import { extractReleaseNotes, resolveRelease, validateReleaseConfig } from './release-config.mjs'
 import { generateDesktopManifest } from './generate-desktop-update-manifest.mjs'
+import { buildInformation } from '../electron/channel-contract.mjs'
 
 export const repositoryRoot = fileURLToPath(new URL('../', import.meta.url))
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
@@ -40,7 +41,7 @@ export function taggedRelease(root, platform, tag, requireEnabled = true) {
   const release = resolveRelease(config, { platform, tag })
   if (platform !== 'android' && bridgeVersion !== null && compareVersions(release.version, bridgeVersion) <= 0) throw new Error('Independent desktop version must exceed the bridge')
   const notes = extractReleaseNotes(git(['show', `${commit}:changelogs/${platform}.md`]), release.version)
-  return { ...release, commit, bridgeVersion, androidSigningSha256: policy.androidSigningSha256,
+  return { ...release, commit, information: buildInformation(release, commit), bridgeVersion, androidSigningSha256: policy.androidSigningSha256,
     publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString(), notes }
 }
 

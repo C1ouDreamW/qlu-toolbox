@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { assertChannelVersion, channelIdentity, compareChannelVersions } from '../electron/channel-contract.mjs'
+import { assertChannelVersion, buildInformation, channelIdentity, compareChannelVersions, validateBuildInformation } from '../electron/channel-contract.mjs'
 import { releaseVersion, resolveRelease, validateReleaseConfig } from '../scripts/release-config.mjs'
 
 function versions() {
@@ -72,4 +72,19 @@ test('historical schema 1 tags remain readable while Alpha requires schema 2', (
   assert.equal(releaseVersion(config, 'android').versionCode, 15)
   assert.equal(resolveRelease(config, { platform: 'windows', channel: 'debug' }).version, '2.0.4-debug.0')
   assert.throws(() => releaseVersion(config, 'android', 'alpha'), /no Alpha/)
+})
+
+test('generated build information binds channel, native versions, source and immutable data policy', () => {
+  const info = buildInformation(resolveRelease(versions(), { platform: 'macos', channel: 'alpha' }), 'a'.repeat(40))
+  assert.equal(info.version, '2.1.0-alpha.10')
+  assert.equal(info.baseVersion, '2.1.0')
+  assert.equal(info.nativeBuildVersion, '10')
+  assert.deepEqual(validateBuildInformation(info), info)
+  for (const change of [{ applicationId: 'student.qlu.toolbox' }, { dataNamespace: 'QLUToolbox' }, { channel: 'stable' },
+    { telemetryEnabled: true }, { nativeBuildVersion: '9' }, { commit: 'main' }, { target: 'windows-x64' }]) {
+    assert.throws(() => validateBuildInformation({ ...info, ...change }))
+  }
+  const windows = buildInformation(resolveRelease(versions(), { platform: 'windows', channel: 'debug' }))
+  assert.equal(windows.nativeBuildVersion, '2.1.0.2')
+  assert.equal(windows.updatesEnabled, false)
 })

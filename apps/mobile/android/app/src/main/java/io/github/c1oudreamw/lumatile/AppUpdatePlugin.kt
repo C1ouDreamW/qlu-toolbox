@@ -35,6 +35,7 @@ class AppUpdatePlugin : Plugin() {
             put("applicationId", context.packageName)
             put("versionCode", versionCode(info))
             put("versionName", info.versionName ?: "")
+            put("channel", BuildConfig.RELEASE_CHANNEL)
         })
     }
 
@@ -59,6 +60,10 @@ class AppUpdatePlugin : Plugin() {
 
     @PluginMethod
     fun downloadAndInstall(call: PluginCall) {
+        if (BuildConfig.DEBUG || BuildConfig.RELEASE_CHANNEL == "debug") {
+            call.reject("Debug 版本不提供在线更新", "DEBUG_UPDATES_DISABLED")
+            return
+        }
         if (downloadRunning) {
             call.reject("已有更新正在下载", "UPDATE_IN_PROGRESS")
             return

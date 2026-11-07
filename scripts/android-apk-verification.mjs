@@ -8,6 +8,9 @@ export function assertAndroidApkMetadata({ identity, badging, metadata }) {
   const debuggable = /^application-debuggable(?:\s|$)/m.test(badging)
   if (debuggable !== debug) throw new Error('APK debuggable flag does not match its purpose')
   if (metadata.platform !== 'android' || metadata.version !== identity.version || metadata.versionCode !== identity.versionCode) throw new Error('APK Web metadata mismatch')
+  if (identity.information) {
+    for (const key of ['channel', 'applicationId', 'commit']) if (metadata[key] !== identity.information[key]) throw new Error(`APK Web identity mismatch: ${key}`)
+  }
   return { nativeVersionCode: identity.versionCode, applicationId, debuggable }
 }
 

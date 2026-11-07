@@ -4,24 +4,9 @@
 # 用法(仓库根目录的 PowerShell 中):
 #   powershell -ExecutionPolicy Bypass -File scripts\build-and-install-android.ps1
 #
-# 流程:
-#   1. 找到 adb 与目标设备(只有一台在线时自动选中,多台设备用 -Serial 指定);
-#   2. 读设备上已装包名:若已有正式版 io.github.c1oudreamw.lumatile,
-#      自动改用共存测试包(包名后缀 .test),避开 INSTALL_FAILED_UPDATE_INCOMPATIBLE;
-#   3. 调 scripts\build-mobile.ps1 构建:npm run mobile:build -> mobile:sync -> Gradle 单测 + assembleDebug;
-#   4. adb install -r 安装,并回读设备上的包名/版本号做验证。
-#
-# 参数:
-#   -Serial <serial>        指定设备(adb devices 的序列号);只有一台可用设备时可省略
-#   -AppIdSuffix .test      自定义包名后缀(默认在检测到同包名应用时使用 .test)
-#   -AppLabel "一格有光（联调）"  共存测试包的显示名
-#   -NoCoexist              强制原包名 Debug 包(与已装正式版签名不一致时通常装不上)
-#   -SkipTests              跳过 testDebugUnitTest,只出包(本地快速迭代)
-#   -Launch                 安装成功后启动应用
-#   -DryRun                 只做前置检查并打印将要执行的命令,不构建、不安装
-#
-# 红线:本脚本永远不会卸载正式版 io.github.c1oudreamw.lumatile,也不清理设备数据。
-# 构建与签名背景见 apps/mobile/README.md,共存测试包完整流程见 .agents/skills/lumatile-test-apk/SKILL.md。
+# 默认固定构建并安装 io.github.c1oudreamw.lumatile.debug，与正式版 / Alpha 共存。
+# 参数: -Serial、-SkipTests、-Launch、-DryRun；旧包名 / 标签参数只保留迁移提示。
+# 安装前使用 SDK aapt 核对 APK 包名；不会卸载任何已有应用或清理用户数据。
 
 param(
     [string]$Serial = "",
@@ -34,6 +19,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if ($NoCoexist) { throw 'Debug 必须使用独立 .debug 包名，已取消 NoCoexist。' }
+if ($AppIdSuffix -and $AppIdSuffix -notin @('.debug', 'debug')) { throw 'Debug 包固定使用 .debug，请移除旧 AppIdSuffix 参数。' }
+if ($AppLabel) { throw 'Debug 包固定显示为 LumaTile Debug，请移除旧 AppLabel 参数。' }
 
 $RepoRoot     = Split-Path -Parent $PSScriptRoot
 $BuildScript  = Join-Path $PSScriptRoot "build-mobile.ps1"
@@ -214,34 +202,17 @@ if ($releaseInstalled) {
     Write-Host "设备上没有正式版 $ReleaseAppId"
 }
 
-$suffix = $AppIdSuffix.Trim()
-if ($suffix -and -not $suffix.StartsWith('.')) { $suffix = "." + $suffix }
-
-if (-not $suffix -and $releaseInstalled -and -not $NoCoexist) {
-    $suffix = ".test"
-    Write-Note "正式版已在本机,而同包名的 Debug 包只在签名一致时才能覆盖安装,否则报 INSTALL_FAILED_UPDATE_INCOMPATIBLE。"
-    Write-Note "已自动改用共存测试包(包名后缀 $suffix),正式版的登录状态、课表与学分要求都不受影响。"
-    Write-Note "确实要装原包名 Debug 包时加 -NoCoexist;不要为了装包去卸载正式版,那样会丢数据。"
-} elseif (-not $suffix -and $releaseInstalled -and $NoCoexist) {
-    Write-Note "已指定 -NoCoexist:将构建原包名 Debug 包,若与已装正式版签名不一致,安装会失败。"
-    Write-Note "脚本不会卸载正式版;失败后请改用共存测试包(去掉 -NoCoexist)。"
-} elseif ($suffix -and -not $releaseInstalled) {
-    Write-Note "设备上没有正式版,但已按参数使用包名后缀 $suffix。"
-}
-
-$targetAppId = $ReleaseAppId + $suffix
-$coexist = [bool]$suffix
+$targetAppId = $ReleaseAppId + ".debug"
+$coexist = $true
 Write-Host "本次安装目标包名:$targetAppId"
-if ($coexist -and $packages.ContainsKey($targetAppId)) {
+if ($packages.ContainsKey($targetAppId)) {
     $existingTest = Get-InstalledVersion $Adb $Serial $targetAppId
-    Write-Note "设备上已有同包名测试包($existingTest),将覆盖安装;若它是别的机器构建的(debug 密钥库不同),会报 INSTALL_FAILED_UPDATE_INCOMPATIBLE。"
+    Write-Note "设备上已有 Debug 包($existingTest)，将尝试保留数据覆盖安装；不同机器的 Debug key 可能不同。"
 }
 
 # ---------- 3. 构建 ----------
 
 $buildArgs = @()
-if ($suffix) { $buildArgs += @("-AppIdSuffix", $suffix) }
-if ($suffix -and $AppLabel) { $buildArgs += @("-AppLabel", $AppLabel) }
 if ($SkipTests) { $buildArgs += "-SkipTests" }
 
 $PowerShellExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -282,6 +253,23 @@ if ($apk.LastWriteTime -lt $buildStart) {
     Write-Note "Gradle 判定产物已是最新(assembleDebug UP-TO-DATE),本次没有重写 APK,时间戳:$($apk.LastWriteTime);需要强制重建时先删除 apps\mobile\android\app\build 再重跑。"
 }
 Write-Ok ("APK 已生成:{0}({1:N1} MiB,{2})" -f $apk.FullName, ($apk.Length / 1MB), $apk.LastWriteTime)
+
+# 安装前校验真实 APK 身份，不仅依赖预期包名或安装后的回读。
+$sdkCandidates = @($env:ANDROID_HOME, $env:ANDROID_SDK_ROOT)
+if ($env:LOCALAPPDATA) { $sdkCandidates += (Join-Path $env:LOCALAPPDATA "Android\Sdk") }
+$sdkCandidates += (Split-Path -Parent (Split-Path -Parent $Adb))
+$Aapt = $null
+foreach ($sdk in $sdkCandidates) {
+    if (-not $sdk) { continue }
+    $candidate = Join-Path $sdk "build-tools\36.0.0\aapt.exe"
+    if (Test-Path $candidate) { $Aapt = $candidate; break }
+}
+if (-not $Aapt) { Fail '未找到 Android Build Tools 36.0.0 的 aapt，无法核对包名，已停止安装。' }
+$badging = Invoke-Capture $Aapt @('dump', 'badging', $ApkPath)
+$expectedPackage = "package: name='$targetAppId' "
+if ($badging.Code -ne 0 -or -not $badging.Output.StartsWith($expectedPackage)) {
+    Fail "实际 APK 不是预期的 Debug 应用 $targetAppId，已停止安装。"
+}
 
 # ---------- 4. 安装 ----------
 
@@ -379,7 +367,7 @@ Write-Host ""
 Write-Host "[完成] $targetAppId $installedVersion 已安装到 $Serial($model)" -ForegroundColor Green
 Write-Host "       APK:$ApkPath"
 if ($coexist) {
-    Write-Host "       这是共存测试包:数据与正式版完全独立,教务登录/课表/学分要求需要在测试包里重新配置,包内「检查更新」会按设计拒绝非正式应用 ID。"
+    Write-Host "       这是共存测试包:数据与正式版完全独立,教务登录/课表/学分要求需要在测试包里重新配置,包内默认关闭在线更新和统计。"
     Write-Host "       清理:adb -s $Serial uninstall $targetAppId"
 }
 Write-Host "       尚未验证:真实教务登录、桌面小组件与升级链路需要在手机上人工确认。"

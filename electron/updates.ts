@@ -3,6 +3,7 @@ import {
   isArtifactUrl, UPDATE_ORIGIN, validateDesktopManifest,
   type DesktopTarget, type DesktopManifest,
 } from './update-contract.mjs'
+import { assertChannelVersion, validateBuildInformation, versionChannel } from './channel-contract.mjs'
 
 type Fetcher = typeof fetch
 type UpdateInfo = { version: string; name: string; notes: string; url: string }
@@ -101,10 +102,16 @@ export async function checkDesktopUpdate(current: string, options: Options) {
   return checkGithubUpdate(current, target, bridgeVersion, fetcher)
 }
 
-export function verifyBootstrapVersion(value: unknown, expected: string) {
-  assertStableVersion(expected)
+export function verifyBootstrapVersion(value: unknown, expected: string, information?: ReturnType<typeof validateBuildInformation>) {
+  assertChannelVersion(expected, versionChannel(expected))
   if (!value || typeof value !== 'object' || !('version' in value) || value.version !== expected) {
     throw new Error('桌面程序与本地服务版本不一致，请重新安装完整的本平台安装包')
+  }
+  if (information) {
+    const actual = validateBuildInformation((value as { build?: unknown }).build)
+    for (const key of ['platform', 'target', 'channel', 'version', 'applicationId', 'dataNamespace', 'commit'] as const) {
+      if (actual[key] !== information[key]) throw new Error('桌面程序与本地服务渠道不一致，请重新安装完整安装包')
+    }
   }
   return value
 }

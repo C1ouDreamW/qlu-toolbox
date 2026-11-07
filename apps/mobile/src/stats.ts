@@ -1,3 +1,5 @@
+import { buildInformation } from './build-info'
+
 const STATS_BEACON_URL = 'https://lumatile.ishua.cloud/beacon/android'
 const INSTALL_ID_KEY = 'installId'
 const REQUEST_TIMEOUT_MS = 10_000
@@ -18,6 +20,7 @@ export function getInstallId(): string {
 
 /** 启动心跳：只发送随机安装编号、软件版本和平台，失败静默。 */
 export async function sendStatsBeacon(version: string): Promise<void> {
+  if (!buildInformation.telemetryEnabled) return
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {

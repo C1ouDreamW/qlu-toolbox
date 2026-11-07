@@ -2,7 +2,7 @@
 
 `release-versions.json` 是客户端版本的唯一人工入口。schema 2 按平台分别登记 `stable` / `alpha`；Stable 严格使用 `major.minor.patch`，Alpha 使用 `major.minor.patch-alpha.N`（N 为正整数），Debug 从本平台 Alpha 基础版本派生 `major.minor.patch-debug.0`，不创建发布标签。
 
-Android 两个独立应用 ID 各自维护单调递增的 `versionCode`（正整数，最大 2100000000），已公开的码不能分配给不同安装包；桌面各渠道另有 `buildNumber`。现有 Stable 2.0.4 / Android code 15 保留，新增 Alpha 2.1.0-alpha.1 是待验证的开发配置，不代表已经公开发布。原生字段映射与运行时渠道隔离仍须继续接入，不能把配置解析通过当作 Alpha 可交付验收。
+Android 两个独立应用 ID 各自维护单调递增的 `versionCode`（正整数，最大 2100000000），已公开的码不能分配给不同安装包；桌面各渠道另有 `buildNumber`。现有 Stable 2.0.4 / Android code 15 保留，新增 Alpha 2.1.0-alpha.1 是待验证的开发配置，不代表已经公开发布。构建准备会生成完整身份并注入原生字段；Debug 运行时隔离已接入，Alpha 的公开更新与发布仍需继续完成。
 
 渠道契约集中在 `electron/channel-contract.mjs`，包含严格版本解析、Alpha 数字序号比较、独立应用 ID / 数据命名空间，以及 Debug 禁用更新和统计的规则。历史 schema 1 标签仍可由辅助脚本读取，新源码统一使用 schema 2。任何实际发布前重新核对线上版本、原生构建号和签名；不以本次配置迁移重发同版本产物。
 
@@ -28,30 +28,32 @@ Android 两个独立应用 ID 各自维护单调递增的 `versionCode`（正整
 
 ```bash
 # 只读：校验配置、目标并列出将修改的版本载体，不写文件
-npm run release:prepare -- --platform windows --check
+npm run release:prepare -- --platform windows --channel stable --check
 
 # 注入：windows / macos / android；--platform host 只接受原生桌面目标
-npm run release:prepare -- --platform macos
+npm run release:prepare -- --platform macos --channel stable
 
 # 只读：要求所有本端版本载体已经与配置一致，否则失败
-npm run release:prepare -- --platform macos --verify
+npm run release:prepare -- --platform macos --channel stable --verify
 
 # 新发布逻辑的预检（尚未接入自动发布）；同时要求本端非空版本日志
-npm run release:prepare -- --platform macos --target macos-arm64 --tag mac-v2.0.5 --check
+npm run release:prepare -- --platform macos --channel stable --target macos-arm64 --tag mac-v2.0.5 --check
 node scripts/extract-release-notes.mjs macos mac-v2.0.5 release-notes.md
 ```
 
 最后两条中的示例要求先设置 macOS 配置为 2.0.5，并在 `changelogs/macos.md` 添加对应版本说明。标签必须精确匹配本平台配置，拒绝旧标签、跨平台标签及不匹配渠道的版本。Alpha 准备需显式传入 `--channel alpha`，匹配 `mac-alpha-v2.1.0-alpha.1` 等标签；当前 Alpha 发布工作流和更新器仍待接入。Windows 目标为 `windows-x64`，Android 为 `android`。不支持的桌面主机（含 Rosetta 下的 darwin/x64）必须使用原生支持架构，不能推测架构。
 
-Windows/macOS 准备只写根 `package.json`、锁文件的根版本记录与 Python `__version__`；Android 只写移动 package 与锁文件工作区版本记录，Gradle 直接读配置。仓库中的这些载体是构建模板，可暂时与其他端版本不同。
+Windows/macOS 准备写根 package / 锁文件版本、Python `__version__`、构建器的渠道应用身份与原生版本映射，并生成 `lumatile/build-info.json`；Android 写移动 package / workspace 锁文件版本，生成 `apps/mobile/build-info.json`，Gradle 读取同一份身份。生成的两个 JSON 被 Git 忽略，PyInstaller / Electron 构建会将目标信息嵌入产物。仓库中的这些载体是构建模板，可暂时与其他端版本不同。
 
 推荐在临时 checkout 中构建。直接在工作区执行时，会保留其他字段与用户修改，并显示改动文件；脚本不会重置已有修改。准备完成后用 `git diff` 检查，不将临时版本注入作为新的人工版本入口。只读检查不会输出更新源清单或发布任何文件。
 
 ## 本地入口与版本一致性
 
-`npm run dev` 自动按原生桌面主机准备版本；`dist`、`dist:zip`、`dist:installer` 固定 Windows x64，`dist:mac` 固定 macOS arm64。Python worker 必须在相应原生主机上构建，脚本的版本注入功能本身可跨平台验证。
+日常 CLI、`npm run dev`、移动端开发 / Web 构建默认选择 Debug；发布工作流显式设置 `LUMATILE_BUILD_CHANNEL=stable`。`--verify` 在未指定渠道时核验最后一次生成的构建身份。需要其他渠道时使用 `--channel` 或该构建环境变量。
 
-`npm run mobile:dev`、`npm run mobile:build` 自动准备 Android；`npm run mobile:sync` 校验载体后同步。Vite 输出 `lumatile-version.json`，Gradle 在 preBuild 时检查已同步的 Web 版本与 code 是否与原生配置一致；版本变化后必须重新 build 和 sync，不能沿用旧 Web 资源。界面继续读取被注入的移动 package 版本，桌面界面继续读取 Python bootstrap。
+`npm run dev` 自动按原生桌面主机准备 Debug；`dist`、`dist:zip`、`dist:installer` 固定 Windows x64，`dist:mac` 固定 macOS arm64。Python worker 必须在相应原生主机上构建，脚本的版本注入功能本身可跨平台验证。
+
+`npm run mobile:dev`、`npm run mobile:build` 自动准备 Android；`npm run mobile:sync` 校验载体后同步。Vite 输出 `lumatile-version.json`，Gradle 在 preBuild 时检查同步资源的渠道、ID、版本、code 与 commit 是否一致；版本变化后必须重新 build 和 sync，不能沿用旧 Web 资源。界面继续读取被注入的移动 package 版本，桌面界面继续读取 Python bootstrap。
 
 CI 保留三端原有检查名称，在依赖安装后准备本端并校验，发布基础测试覆盖不同平台版本互不覆盖。当前校验不替代安装包真实元数据、签名及旧版升级链的后续验收。
 
@@ -108,7 +110,7 @@ node scripts/publish-platform-release.mjs windows win-vX.Y.Z update-source/relea
 
 2026-11-06 已推送实施分支并创建草稿 PR #17。首轮 Windows 验证通过；macOS job 因旧 runner 不可用而取消。GitHub 已在 2026-11-02 [退役 macOS 14 镜像](https://github.com/actions/runner-images#available-images)，相关入口已迁移到 `macos-15`，仍要求 `uname -m`、Electron 和 Python worker 为 arm64，未改变交付架构。CI 另增加独立的 Workflow verification，使用固定版本 actionlint 校验所有工作流。
 
-`release-rehearsal.yml` 在发布相关源码发生 PR 变更时运行，也提供 `workflow_dispatch` 入口（合入默认分支后可手动选择目标 ref）。三个 job 独立构建 Windows NSIS/ZIP、macOS ad-hoc DMG 与独立 `.test` Debug Android APK。2026-11-07 安全修复已移除所有 PR 演练的长期 Secret 引用，同仓库 / fork PR 均只用 Debug key，并核验实际包名、可调试标记和 runner Debug 证书。正式签名使用仓库 Secrets 的独立构建 / 签名 / 发布任务，详见 [签名规则](../docs/release-security.md)。
+`release-rehearsal.yml` 在发布相关源码发生 PR 变更时运行，也提供 `workflow_dispatch` 入口（合入默认分支后可手动选择目标 ref）。三个 job 独立构建 Windows NSIS/ZIP、macOS ad-hoc DMG 与独立 `.debug` Debug Android APK。2026-11-07 安全修复已移除所有 PR 演练的长期 Secret 引用，同仓库 / fork PR 均只用 Debug key，并核验实际包名、可调试标记和 runner Debug 证书。正式签名使用仓库 Secrets 的独立构建 / 签名 / 发布任务，详见 [签名规则](../docs/release-security.md)。
 
 演练直接读取 HEAD commit 中的版本和迁移配置，不创建 Git 标签，也不要求开启发布开关或填写正式版本日志。输出只有 `LumaTile-Rehearsal-*` 安装包、`rehearsal-record.json` 与 SHA256SUMS，作为保存 7 天的 Actions 构件；不生成 stable 清单、Release、部署分支或服务器操作。
 
@@ -118,7 +120,7 @@ node scripts/publish-platform-release.mjs windows win-vX.Y.Z update-source/relea
 
 ```bash
 node scripts/rehearse-release.mjs macos
-node scripts/verify-release-build.mjs --rehearsal macos /path/to/LumaTile.app verification.json
+node scripts/verify-release-build.mjs --rehearsal macos "/path/to/LumaTile Debug.app" verification.json
 node scripts/rehearse-release.mjs macos --record verification.json artifacts rehearsal-output
 ```
 
@@ -127,3 +129,13 @@ node scripts/rehearse-release.mjs macos --record verification.json artifacts reh
 本机已校验官方 actionlint 1.7.7 压缩包的 SHA-256 并完成全部工作流检查。首轮 DMG 演练暴露 electron-builder 默认跳过 PR 签名的问题；Mac CI 与演练 job 已为现有 `identity: "-"` 显式启用 PR ad-hoc 签名，不传入开发者证书或私钥。真实三端制品的最新结果见 PR Checks 和对应 rehearsal 构件。
 
 2026-11-07 渠道版本基础：发布测试 49 项、actionlint 通过，新增 Alpha 严格解析、序号比较、三渠道身份及 schema 1 历史兼容测试。现有四项正式仓库 Secrets 保持不变，不引入 Environment；本地正式密码找回不阻塞开发。
+
+## Debug 运行时隔离（2026-11-07）
+
+Debug / Alpha 使用独立的应用 ID、产品名、可执行名称、NSIS 快捷方式和默认目录、macOS `.app` 名称及 Electron 单实例数据空间。Stable 保留原应用身份与用户路径；Python 的配置、数据库、日志、浏览器 profile / 组件目录也按同一渠道分开。应用读取打包后的身份，不能靠运行环境变量把 Debug 改成 Stable。
+
+桌面 bootstrap 的完整用户版本与原生数字版本分别校验：macOS 短版本为基础三段，构建版本为渠道 buildNumber；Windows 数字 FileVersion 为三段基础版本加 buildNumber，ProductVersion 与完整用户版本或基础版本匹配。关于页显示完整渠道版本，Debug 默认关闭在线更新 / 公告与统计。
+
+Windows 开发脚本固定生成 / 安装 `.debug`，不再接受 `.test` 自定义后缀或占用正式 ID 的 NoCoexist。CI 保持原有必需检查名称，并新增 PowerShell 辅助脚本解析；PR 演练的桌面包也使用 Debug 身份，不能推广为正式产物。
+
+阶段 1 本地验证：发布 / 渠道测试 51 项、桌面测试 31 项、Python 124 项（11 项因环境跳过）通过，类型检查与 actionlint 通过。实际 Android Debug APK 通过 lint / 单测、包名 / 版本 / Web 元数据 / Debug 证书核验；macOS arm64 Debug `.app` 通过 ad-hoc 签名、原生版本、嵌入身份和打包 worker bootstrap 核验。DMG 构建器在本机下载工具包后无进一步输出，任务已取消，DMG 与 Windows 产物仍须由 CI 验证，不计为本地通过。

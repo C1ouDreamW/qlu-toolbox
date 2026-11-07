@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 from .paths import AppPaths, downloads_dir
+from lumatile.build_info import load_build_information
 
 
 @dataclass
@@ -15,8 +16,8 @@ class AppSettings:
     preferred_browser: str = "auto"
     keep_login_state: bool = True
     theme: str = "light"
-    check_updates: bool = True
-    anonymous_stats: bool = True
+    check_updates: bool = field(default_factory=lambda: load_build_information()["updatesEnabled"])
+    anonymous_stats: bool = field(default_factory=lambda: load_build_information()["telemetryEnabled"])
     start_page: str = "home"
 
     def normalized(self) -> "AppSettings":

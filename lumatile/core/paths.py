@@ -4,6 +4,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from lumatile.build_info import load_build_information
 
 
 @dataclass(frozen=True)
@@ -27,8 +28,9 @@ class AppPaths:
         else:
             config_root = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
             data_root = Path(os.environ.get("XDG_DATA_HOME", home / ".local" / "share"))
-        config_dir = config_root / "QLUToolbox"
-        data_dir = data_root / "QLUToolbox"
+        namespace = load_build_information()["dataNamespace"]
+        config_dir = config_root / namespace
+        data_dir = data_root / namespace
         return cls(
             config_dir=config_dir,
             data_dir=data_dir,

@@ -7,11 +7,15 @@ import { fileURLToPath } from 'node:url'
 import { PythonBridge } from './bridge.js'
 import { checkDesktopUpdate, verifyBootstrapVersion } from './updates.js'
 import { validateMigrationPolicy } from './update-contract.mjs'
+import { configureDesktopIdentity, readDesktopBuildInformation } from './build-info.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const information = readDesktopBuildInformation(app.getAppPath(), app.isPackaged, process.platform, process.arch)
+configureDesktopIdentity(app, information)
+if (process.platform === 'win32') app.setAppUserModelId(information.applicationId)
 const bridge = new PythonBridge()
 let mainWindow: BrowserWindow | null = null
-const ANNOUNCEMENT_URL = 'https://lumatile.ishua.cloud/stable/announcement.json'
+const ANNOUNCEMENT_URL = `https://lumatile.ishua.cloud/${information.channel}/announcement.json`
 const STATS_BEACON_URL = 'https://lumatile.ishua.cloud/beacon/desktop'
 const FEEDBACK_URL = 'https://lumatile.ishua.cloud/api/feedback'
 
@@ -29,9 +33,10 @@ async function loadInstallId(): Promise<string> {
 }
 
 async function sendStatsBeacon() {
+  if (!information.telemetryEnabled) return
   try {
     const url = new URL(STATS_BEACON_URL)
-    url.searchParams.set('v', app.getVersion())
+    url.searchParams.set('v', information.version)
     url.searchParams.set('os', process.platform)
     url.searchParams.set('arch', process.arch)
     url.searchParams.set('id', await loadInstallId())
@@ -43,6 +48,7 @@ async function sendStatsBeacon() {
 }
 
 async function fetchAnnouncement() {
+  if (information.channel === 'debug') return null
   try {
     const response = await fetch(ANNOUNCEMENT_URL, {
       headers: { Accept: 'application/json', 'User-Agent': 'LumaTile-Announcement' },
@@ -80,7 +86,7 @@ async function submitFeedback(payload: { type?: unknown; content?: unknown; cont
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': 'LumaTile-Feedback' },
     body: JSON.stringify({
-      type, content, contact, platform: 'desktop', appVersion: app.getVersion(),
+      type, content, contact, platform: 'desktop', appVersion: information.version, channel: information.channel,
       systemVersion: `${process.platform} ${release()} · ${process.arch}`,
     }),
     signal: AbortSignal.timeout(10_000),
@@ -101,6 +107,7 @@ function windowBackgroundColor() {
 function createWindow() {
   const isMac = process.platform === 'darwin'
   mainWindow = new BrowserWindow({
+    title: information.productName,
     width: 1220,
     height: 790,
     minWidth: 980,
@@ -133,7 +140,7 @@ function createWindow() {
 function registerIpc() {
   ipcMain.handle('bridge:invoke', async (_event, method: string, params = {}) => {
     const result = await bridge.invoke(method, params)
-    return method === 'bootstrap' ? verifyBootstrapVersion(result, app.getVersion()) : result
+    return method === 'bootstrap' ? verifyBootstrapVersion(result, information.version, information) : result
   })
   ipcMain.on('theme:sync', (_event, theme: string) => {
     if (theme === 'light' || theme === 'dark' || theme === 'system') nativeTheme.themeSource = theme
@@ -177,9 +184,10 @@ function registerIpc() {
     await shell.openExternal(url)
   })
   ipcMain.handle('system:check-update', async () => {
+    if (!information.updatesEnabled) throw new Error('Debug 版本不提供在线更新，请使用开发构建')
     const policyFile = path.join(app.getAppPath(), 'config', 'release-migration.json')
     const policy = validateMigrationPolicy(JSON.parse(await readFile(policyFile, 'utf8')))
-    return checkDesktopUpdate(app.getVersion(), {
+    return checkDesktopUpdate(information.version, {
       platform: process.platform, arch: process.arch, bridgeVersion: policy.bridgeVersion,
     })
   })

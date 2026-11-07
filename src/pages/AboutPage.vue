@@ -58,7 +58,7 @@ async function copyQQGroupNumber() {
     <section class="about-hero">
       <div class="about-logo"><img :src="logoUrl" alt="一格有光 Logo" /></div>
       <div>
-        <h2>一格有光 · LumaTile <span>v{{ data.version }}</span></h2>
+        <h2>一格有光 · LumaTile{{ data.channel === 'alpha' ? ' Alpha' : data.channel === 'debug' ? ' Debug' : '' }} <span>v{{ data.version }}</span></h2>
         <p>一个注重隐私、完全本地运行的校园效率工具。</p>
         <div class="about-links">
           <button @click="api.openExternal(data.metadata.repository)"><Github :size="18" /><span><strong>GitHub</strong><small>查看项目源码</small></span><ExternalLink :size="13" /></button>

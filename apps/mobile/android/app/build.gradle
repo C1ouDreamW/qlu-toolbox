@@ -4,48 +4,49 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
 
+def buildInformationFile = rootProject.file('../build-info.json')
+if (!buildInformationFile.exists()) {
+    throw new GradleException('Missing build information; run npm run mobile:build && npm run mobile:sync')
+}
+def androidBuild = new JsonSlurper().parse(buildInformationFile)
+def buildChannel = androidBuild.channel
+def expectedApplicationId = "io.github.c1oudreamw.lumatile" + (buildChannel == 'stable' ? '' : ".${buildChannel}")
+if (androidBuild.schemaVersion != 1 || androidBuild.platform != 'android' ||
+        !(buildChannel in ['debug', 'alpha', 'stable']) || androidBuild.applicationId != expectedApplicationId ||
+        !(androidBuild.baseVersion ==~ /(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)/) ||
+        !(androidBuild.versionCode instanceof Integer) || androidBuild.versionCode < 1 || androidBuild.versionCode > 2100000000) {
+    throw new GradleException('Invalid Android build information')
+}
+if (project.hasProperty('appIdSuffix') || project.hasProperty('appLabel')) {
+    throw new GradleException('Legacy test-package overrides are retired. Debug always uses .debug; run npm run mobile:build first.')
+}
 def releaseSigning = new Properties()
-def releaseSigningFile = rootProject.file('keystore.properties')
-if (releaseSigningFile.exists()) {
+def releaseSigningFile = rootProject.file(buildChannel == 'alpha' ? 'alpha-keystore.properties' : 'keystore.properties')
+if (buildChannel != 'debug' && releaseSigningFile.exists()) {
     releaseSigningFile.withInputStream { releaseSigning.load(it) }
 }
-def releaseStorePath = System.getenv('ANDROID_KEYSTORE_FILE') ?: releaseSigning.getProperty('storeFile')
-def releaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: releaseSigning.getProperty('storePassword')
-def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS') ?: releaseSigning.getProperty('keyAlias')
-def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: releaseSigning.getProperty('keyPassword')
+def signingPrefix = buildChannel == 'alpha' ? 'ANDROID_ALPHA_' : 'ANDROID_'
+def releaseStorePath = buildChannel == 'debug' ? null : System.getenv(signingPrefix + 'KEYSTORE_FILE') ?: releaseSigning.getProperty('storeFile')
+def releaseStorePassword = buildChannel == 'debug' ? null : System.getenv(signingPrefix + 'KEYSTORE_PASSWORD') ?: releaseSigning.getProperty('storePassword')
+def releaseKeyAlias = buildChannel == 'debug' ? null : System.getenv(signingPrefix + 'KEY_ALIAS') ?: releaseSigning.getProperty('keyAlias')
+def releaseKeyPassword = buildChannel == 'debug' ? null : System.getenv(signingPrefix + 'KEY_PASSWORD') ?: releaseSigning.getProperty('keyPassword')
 def hasReleaseSigning = [releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.isBlank() }
-// CI builds without credentials, then signs the exact APK in an isolated job.
-// Local assembleRelease still requires signing unless this option is explicit.
 def unsignedRelease = project.findProperty('unsignedRelease') == 'true'
-if (unsignedRelease && hasReleaseSigning) {
+if (unsignedRelease && ([releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].any { it != null && !it.isBlank() } || System.getenv(signingPrefix + 'KEYSTORE_BASE64'))) {
     throw new GradleException('Unsigned release builds must not receive signing credentials')
 }
-// 临时测试包开关：传 -PappIdSuffix=.test 时只影响 debug 构建，产出可与正式版共存的测试包。
-// 不传参数时行为与正式包完全一致（CI 与本地常规构建均不传）。
-def testAppIdSuffix = (project.findProperty('appIdSuffix') ?: '').toString().trim()
-if (testAppIdSuffix && !testAppIdSuffix.startsWith('.')) {
-    testAppIdSuffix = '.' + testAppIdSuffix
-}
-def testAppLabel = (project.findProperty('appLabel') ?: '一格有光（测试）').toString().trim()
 def webViewCompatibilityFile = rootProject.file('../webview-compatibility.json')
 def webViewCompatibility = new JsonSlurper().parse(webViewCompatibilityFile)
-def releaseVersions = new JsonSlurper().parse(rootProject.file('../../../config/release-versions.json'))
-def androidVersion = releaseVersions.android.stable
-if (releaseVersions.schemaVersion != 2 || !(androidVersion?.version instanceof String) ||
-        !(androidVersion.version ==~ /(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)/) ||
-        !(androidVersion.versionCode instanceof Integer) || androidVersion.versionCode <= 0 || androidVersion.versionCode > 2100000000) {
-    throw new GradleException('Invalid Android release version configuration')
-}
 def verifyWebVersion = tasks.register('verifyWebVersion') {
     def metadataFile = file('src/main/assets/public/lumatile-version.json')
-    inputs.file rootProject.file('../../../config/release-versions.json')
+    inputs.file buildInformationFile
     // Check on every build, including after cap sync replaces generated assets.
     doLast {
         if (!metadataFile.exists()) {
             throw new GradleException('Missing Android Web version metadata; run npm run mobile:build && npm run mobile:sync')
         }
         def metadata = new JsonSlurper().parse(metadataFile)
-        if (metadata.platform != 'android' || metadata.version != androidVersion.version || metadata.versionCode != androidVersion.versionCode) {
+        if (metadata.platform != 'android' || metadata.channel != buildChannel || metadata.applicationId != androidBuild.applicationId || metadata.version != androidBuild.version || metadata.versionCode != androidBuild.versionCode || metadata.commit != androidBuild.commit) {
             throw new GradleException('Android Web/native version mismatch; run npm run mobile:build && npm run mobile:sync')
         }
     }
@@ -77,8 +78,11 @@ android {
         applicationId "io.github.c1oudreamw.lumatile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode androidVersion.versionCode
-        versionName androidVersion.version
+        versionCode androidBuild.versionCode
+        versionName androidBuild.baseVersion
+        buildConfigField "String", "RELEASE_CHANNEL", '"' + buildChannel + '"'
+        resValue "string", "app_name", androidBuild.productName
+        resValue "string", "title_activity_main", androidBuild.productName
         buildConfigField "int", "MIN_WEBVIEW_MAJOR", webViewCompatibility.minimumMajor.toString()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -110,14 +114,18 @@ android {
     }
     buildTypes {
         debug {
-            if (testAppIdSuffix) {
-                applicationIdSuffix testAppIdSuffix
-                versionNameSuffix '-test'
-                resValue "string", "app_name", testAppLabel
-                resValue "string", "title_activity_main", testAppLabel
-            }
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug.0'
+            buildConfigField "String", "RELEASE_CHANNEL", '"debug"'
+            resValue "string", "app_name", 'LumaTile Debug'
+            resValue "string", "title_activity_main", 'LumaTile Debug'
         }
         release {
+            debuggable false
+            if (buildChannel == 'alpha') {
+                applicationIdSuffix '.alpha'
+                versionNameSuffix androidBuild.version.substring(androidBuild.baseVersion.length())
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             if (hasReleaseSigning) signingConfig signingConfigs.release
@@ -129,8 +137,19 @@ tasks.named('preBuild').configure { dependsOn buildWebViewAssets, verifyWebVersi
 
 tasks.matching { it.name == 'packageRelease' || it.name == 'assembleRelease' }.configureEach {
     doFirst {
+        if (buildChannel == 'debug') {
+            throw new GradleException('Debug build information cannot produce a Release APK; explicitly prepare --channel stable or alpha')
+        }
         if (!hasReleaseSigning && !unsignedRelease) {
             throw new GradleException('Release signing is required. Configure keystore.properties or ANDROID_KEYSTORE_* environment variables.')
+        }
+    }
+}
+
+tasks.matching { it.name == 'packageDebug' || it.name == 'assembleDebug' }.configureEach {
+    doFirst {
+        if (buildChannel != 'debug') {
+            throw new GradleException('Debug APK requires Debug Web assets; run npm run mobile:build && npm run mobile:sync with the Debug channel')
         }
     }
 }

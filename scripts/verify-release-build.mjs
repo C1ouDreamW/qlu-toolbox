@@ -10,6 +10,7 @@ import { sha256 } from './release-artifacts.mjs'
 import { rehearsalIdentity } from './rehearse-release.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 import { assertAndroidApkIdentity } from './android-apk-verification.mjs'
+import { validateBuildInformation } from '../electron/channel-contract.mjs'
 
 const { values, positionals } = parseArgs({ options: { rehearsal: { type: 'boolean' } }, allowPositionals: true })
 const [platform, ...args] = positionals
@@ -36,21 +37,30 @@ if (platform === 'android') {
   const archive = join(resources, 'app.asar')
   const pkg = JSON.parse(asar.extractFile(archive, 'package.json').toString())
   if (pkg.version !== identity.version) throw new Error('Packaged Electron version mismatch')
+  const information = validateBuildInformation(JSON.parse(asar.extractFile(archive, 'lumatile/build-info.json').toString()))
+  for (const key of ['platform', 'target', 'channel', 'version', 'applicationId', 'dataNamespace', 'commit']) {
+    if (information[key] !== identity.information[key]) throw new Error(`Packaged build identity mismatch: ${key}`)
+  }
   const policy = validateMigrationPolicy(JSON.parse(asar.extractFile(archive, 'config/release-migration.json').toString()))
   if (policy.bridgeVersion !== identity.bridgeVersion) throw new Error('Packaged bridge policy mismatch')
   if (platform === 'macos') {
     const plistVersion = execFileSync('plutil', ['-extract', 'CFBundleShortVersionString', 'raw', '-o', '-', join(location, 'Contents', 'Info.plist')], { encoding: 'utf8' }).trim()
-    if (plistVersion !== identity.version) throw new Error('macOS bundle version mismatch')
-    if (execFileSync('lipo', ['-archs', join(location, 'Contents', 'MacOS', 'LumaTile')], { encoding: 'utf8' }).trim() !== 'arm64') throw new Error('Expected a native arm64 macOS executable')
+    if (plistVersion !== information.baseVersion) throw new Error('macOS bundle version mismatch')
+    const plist = join(location, 'Contents', 'Info.plist')
+    if (execFileSync('plutil', ['-extract', 'CFBundleVersion', 'raw', '-o', '-', plist], { encoding: 'utf8' }).trim() !== information.nativeBuildVersion ||
+        execFileSync('plutil', ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', plist], { encoding: 'utf8' }).trim() !== information.applicationId) throw new Error('macOS native build identity mismatch')
+    if (execFileSync('lipo', ['-archs', join(location, 'Contents', 'MacOS', information.productName)], { encoding: 'utf8' }).trim() !== 'arm64') throw new Error('Expected a native arm64 macOS executable')
     execFileSync('codesign', ['--verify', '--deep', '--strict', location])
     checks.signing = 'ad-hoc'
   } else {
-    assertWindowsX64(await readFile(join(location, 'LumaTile.exe')))
-    const nativeVersion = execFileSync('pwsh', ['-NoProfile', '-Command', '(Get-Item -LiteralPath $env:LUMATILE_VERIFY_EXE).VersionInfo.ProductVersion'], {
-      env: { ...process.env, LUMATILE_VERIFY_EXE: join(location, 'LumaTile.exe') }, encoding: 'utf8',
-    }).trim()
-    assertWindowsProductVersion(nativeVersion, identity.version)
-    checks.nativeProductVersion = nativeVersion
+    assertWindowsX64(await readFile(join(location, `${information.productName}.exe`)))
+    const versions = JSON.parse(execFileSync('pwsh', ['-NoProfile', '-Command', '$v = (Get-Item -LiteralPath $env:LUMATILE_VERIFY_EXE).VersionInfo; @{ProductVersion=$v.ProductVersion; FileVersion=$v.FileVersion} | ConvertTo-Json -Compress'], {
+      env: { ...process.env, LUMATILE_VERIFY_EXE: join(location, `${information.productName}.exe`) }, encoding: 'utf8',
+    }))
+    if (versions.ProductVersion !== identity.version) assertWindowsProductVersion(versions.ProductVersion, information.baseVersion)
+    if (versions.FileVersion !== information.nativeBuildVersion) throw new Error('Windows native build counter mismatch')
+    checks.nativeProductVersion = versions.ProductVersion
+    checks.nativeFileVersion = versions.FileVersion
     checks.signing = 'unsigned'
   }
   const worker = join(resources, 'backend', platform === 'windows' ? 'LumaTileWorker.exe' : 'LumaTileWorker')
@@ -59,8 +69,11 @@ if (platform === 'android') {
   const messages = execFileSync(worker, ['--bridge'], { input: '{"id":"release-version","method":"bootstrap","params":{}}\n', encoding: 'utf8', timeout: 30_000 }).trim().split('\n').map(line => JSON.parse(line))
   const bootstrap = messages.find(message => message.id === 'release-version')?.result
   if (bootstrap?.version !== identity.version || bootstrap?.browserComponent?.error) throw new Error('Packaged Python bootstrap version or browser component check failed')
+  if (bootstrap?.build?.channel !== information.channel || bootstrap?.build?.dataNamespace !== information.dataNamespace || bootstrap?.build?.commit !== information.commit) throw new Error('Packaged Python channel mismatch')
   checks.electronVersion = pkg.version
   checks.pythonVersion = bootstrap.version
+  checks.channel = information.channel
+  checks.applicationId = information.applicationId
 }
 await writeFile(resolve(output), `${JSON.stringify({ platform, version: identity.version, commit: identity.commit, target: identity.target,
   purpose: values.rehearsal ? 'rehearsal' : 'release', deployable: !values.rehearsal, verified: true, checks }, null, 2)}\n`)

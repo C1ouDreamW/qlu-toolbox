@@ -1,11 +1,11 @@
 # Android 签名规则与恢复发布
 
-状态：2026-11-07，PR 演练安全修复与正式签名任务拆分已在本地实现，尚未执行正式签名或公开发布。按维护人决定，继续使用现有 GitHub 仓库 Secrets，取消 Environment 迁移、环境审批及其配置要求。本轮仅更新文档，不操作 Secret 或工作流。
+状态：2026-11-07，PR 演练安全修复与正式签名任务拆分已在本地实现，尚未执行正式签名或公开发布。按维护人决定，继续使用现有 GitHub 仓库 Secrets，取消 Environment 迁移、环境审批及其配置要求。现有正式 Secret 保持原样，后续实现不以 Environment 或密码找回为前置条件。
 
 ## 当前代码行为
 
 - `ci.yml` 和 `release-rehearsal.yml` 不请求任何长期 Secret，使用只读权限，不持久保存 checkout 凭据。
-- Android PR 演练改用 SDK Debug key 和独立 `.test` 应用 ID，验证实际 APK 的包名、版本、可调试标记、Web 元数据及 Debug 证书。后续统一渠道实现会将默认 Debug 身份规范为 `.debug`。
+- Android PR 演练改用 SDK Debug key 和固定独立 `.debug` 应用 ID，验证实际 APK 的包名、版本、可调试标记、Web 元数据及 Debug 证书。三端 Debug 使用独立应用名与数据命名空间，默认关闭更新、公告和统计；worker 与桌面端核验同一份构建身份。
 - 演练产物继续标记 `purpose=rehearsal`、`deployable=false`，发布器拒绝推广。
 - `release-android.yml` 分为无 Secret 的 unsigned 构建、仅签名任务和独立发布任务。签名任务使用现有四项仓库 Secrets，不运行 npm / Gradle，不持有 Release 写权限；所有 Action 固定完整 SHA。
 - 发布入口要求平台标签 push，核对标签 / workflow SHA / checkout 完整 commit、主线祖先关系和原有生产切换开关。unsigned 构件绑定同一 run / attempt 及构建任务输出摘要；签名后再次核验最终字节和证书。

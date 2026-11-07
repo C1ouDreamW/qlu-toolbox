@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
 
+env:
+  LUMATILE_BUILD_CHANNEL: stable
+
 jobs:
   validate-legacy-release:
     name: Validate legacy release rollout

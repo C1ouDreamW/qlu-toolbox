@@ -24,6 +24,8 @@ node_modules/
 /release/
 /release-*/
 /apps/mobile/dist/
+/apps/mobile/build-info.json
+/lumatile/build-info.json
 /apps/mobile/android/.gradle/
 /apps/mobile/android/.gradle-user/
 /apps/mobile/android/build/
@@ -70,6 +72,7 @@ Thumbs.db
 *.jks
 *.keystore
 keystore.properties
+alpha-keystore.properties
 
 # 用户导出文件与本地发布压缩包
 *.xlsx

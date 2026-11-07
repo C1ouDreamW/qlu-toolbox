@@ -77,8 +77,8 @@ async function removeBrowser() {
         <div class="setting-row"><div><strong>界面主题</strong><span>更改会在保存后立即生效</span></div><div class="segmented theme-segments"><button :class="{active:form.theme==='light'}" @click="form.theme='light'"><Sun :size="15" />浅色</button><button :class="{active:form.theme==='dark'}" @click="form.theme='dark'"><Moon :size="15" />深色</button><button :class="{active:form.theme==='system'}" @click="form.theme='system'"><Monitor :size="15" />跟随系统</button></div></div>
         <div class="setting-row"><div><strong>启动页</strong><span>打开应用时默认显示的页面</span></div><div class="segmented theme-segments"><button :class="{active:form.start_page==='schedule'}" @click="form.start_page='schedule'"><CalendarDays :size="15" />课表</button><button :class="{active:form.start_page==='home'}" @click="form.start_page='home'"><Home :size="15" />首页</button><button :class="{active:form.start_page==='last'}" @click="form.start_page='last'"><History :size="15" />上次页面</button></div></div>
         <label class="setting-row toggle-row"><div><strong>保留浏览器登录状态</strong><span>下次使用时可能无需重新登录</span></div><input v-model="form.keep_login_state" type="checkbox" class="switch" /></label>
-        <label class="setting-row toggle-row"><div><strong>启动时检查更新</strong><span>只访问公开更新源，获取新版本提醒</span></div><input v-model="form.check_updates" type="checkbox" class="switch" /></label>
-        <label class="setting-row toggle-row"><div><strong>匿名使用统计</strong><span>发送随机安装编号、软件版本和系统类型，帮助我们了解使用情况；不含任何个人信息，可随时关闭</span></div><input v-model="form.anonymous_stats" type="checkbox" class="switch" /></label>
+        <label class="setting-row toggle-row"><div><strong>启动时检查更新</strong><span>{{ data.channel === 'debug' ? 'Debug 版本使用开发构建，不提供在线更新' : '只访问公开更新源，获取新版本提醒' }}</span></div><input v-model="form.check_updates" :disabled="data.channel === 'debug'" type="checkbox" class="switch" /></label>
+        <label class="setting-row toggle-row"><div><strong>匿名使用统计</strong><span>发送随机安装编号、软件版本和系统类型，帮助我们了解使用情况；不含任何个人信息，可随时关闭</span></div><input v-model="form.anonymous_stats" :disabled="data.channel === 'debug' || data.channel === 'alpha'" type="checkbox" class="switch" /></label>
       </div>
     </section>
 
@@ -107,7 +107,7 @@ async function removeBrowser() {
       </div>
     </section>
 
-    <section class="settings-section"><div class="settings-title"><RefreshCw :size="20" /><div><h2>软件更新</h2><p>当前版本 v{{ data.version }}</p></div></div><button class="secondary-button" @click="emit('check-update')"><RefreshCw :size="16" /> 检查更新</button></section>
+    <section class="settings-section"><div class="settings-title"><RefreshCw :size="20" /><div><h2>软件更新</h2><p>当前版本 v{{ data.version }}</p></div></div><button class="secondary-button" :disabled="data.channel === 'debug'" @click="emit('check-update')"><RefreshCw :size="16" /> 检查更新</button></section>
 
     <BaseModal v-if="confirmBrowserRemoval" title="删除备用浏览器组件">
       <div class="browser-removal-mark"><AlertCircle :size="27" /></div>

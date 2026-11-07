@@ -99,7 +99,7 @@ onMounted(async () => {
     <div v-if="appStore.state.loading" class="launch-screen"><div class="launch-logo"><img :src="logoUrl" alt="一格有光 Logo" /></div><div class="spinner" /><p>正在准备你的工作台…</p></div>
     <div v-else-if="appStore.state.error" class="fatal-screen"><AlertCircle :size="38" /><h2>无法启动本地服务</h2><p>{{ appStore.state.error }}</p><button class="primary-button" @click="reloadApp">重新尝试</button></div>
     <div v-else-if="boot" class="workspace">
-      <Sidebar :current="appStore.state.page" :version="boot.version" @navigate="navigate" @feedback="feedbackOpen = true" />
+      <Sidebar :current="appStore.state.page" :version="boot.version" :channel="boot.channel" @navigate="navigate" @feedback="feedbackOpen = true" />
       <main class="content"><component :is="pageComponent" :key="appStore.state.page" :data="boot" @navigate="navigate" @check-update="checkUpdate(true)" @feedback="feedbackOpen = true" /></main>
     </div>
 

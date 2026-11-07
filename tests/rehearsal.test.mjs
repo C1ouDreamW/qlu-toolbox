@@ -26,13 +26,13 @@ test('rehearsals resolve immutable HEAD without a tag, release log or enabled ga
   for (const [platform, version] of [['windows', '2.0.6'], ['macos', '2.0.5'], ['android', '2.0.4']]) {
     const value = rehearsalIdentity(root, platform)
     assert.equal(value.commit, git(['rev-parse', 'HEAD']))
-    assert.equal(value.version, version)
+    assert.equal(value.version, `${version}-debug.0`)
     assert.equal(value.purpose, 'rehearsal')
     assert.equal(value.deployable, false)
     assert.equal(value.tag, undefined)
   }
   await writeFile(join(root, 'config/release-versions.json'), '{}')
-  assert.equal(rehearsalIdentity(root, 'windows').version, '2.0.6')
+  assert.equal(rehearsalIdentity(root, 'windows').version, '2.0.6-debug.0')
   assert.equal(git(['tag', '--list']), '')
   assert.throws(() => rehearsalIdentity(root, 'linux'))
 })
@@ -74,13 +74,13 @@ test('Android rehearsal rejects production identity, non-Debug flags and any oth
   const identity = rehearsalIdentity(root, 'android')
   const input = {
     identity,
-    badging: "package: name='io.github.c1oudreamw.lumatile.test' versionCode='15' versionName='2.0.4-test'\napplication-debuggable\n",
+    badging: "package: name='io.github.c1oudreamw.lumatile.debug' versionCode='15' versionName='2.0.4-debug.0'\napplication-debuggable\n",
     signature: `Signer #1 certificate SHA-256 digest: ${'b'.repeat(64)}\n`,
-    metadata: { platform: 'android', version: '2.0.4', versionCode: 15 },
+    metadata: identity.information,
     debugSigningSha256: 'b'.repeat(64),
   }
   assert.equal(assertAndroidApkIdentity(input).debuggable, true)
-  for (const badging of [input.badging.replace('.test', ''), input.badging.replace('application-debuggable', ''), input.badging.replace('15', '16'), input.badging.replace('2.0.4-test', '2.0.4')]) {
+  for (const badging of [input.badging.replace('.debug', ''), input.badging.replace('application-debuggable', ''), input.badging.replace('15', '16'), input.badging.replace('2.0.4-debug.0', '2.0.4')]) {
     assert.throws(() => assertAndroidApkIdentity({ ...input, badging }))
   }
   assert.throws(() => assertAndroidApkIdentity({ ...input, signature: input.signature.replace('b'.repeat(64), 'c'.repeat(64)) }), /certificate mismatch/)
