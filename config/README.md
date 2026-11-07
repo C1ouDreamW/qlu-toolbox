@@ -41,7 +41,7 @@ npm run release:prepare -- --platform macos --channel stable --target macos-arm6
 node scripts/extract-release-notes.mjs macos mac-v2.0.5 release-notes.md
 ```
 
-最后两条中的示例要求先设置 macOS 配置为 2.0.5，并在 `changelogs/macos.md` 添加对应版本说明。标签必须精确匹配本平台配置，拒绝旧标签、跨平台标签及不匹配渠道的版本。Alpha 准备需显式传入 `--channel alpha`，匹配 `mac-alpha-v2.1.0-alpha.1` 等标签；当前 Alpha 发布工作流和更新器仍待接入。Windows 目标为 `windows-x64`，Android 为 `android`。不支持的桌面主机（含 Rosetta 下的 darwin/x64）必须使用原生支持架构，不能推测架构。
+最后两条中的示例要求先设置 macOS 配置为 2.0.5，并在 `changelogs/macos.md` 添加对应版本说明。标签必须精确匹配本平台配置，拒绝旧标签、跨平台标签及不匹配渠道的版本。Alpha 准备需显式传入 `--channel alpha`，匹配 `mac-alpha-v2.1.0-alpha.1` 等标签；Alpha 发布工作流和更新器已接入，公开发布与设备升级验收尚待完成。Windows 目标为 `windows-x64`，Android 为 `android`。不支持的桌面主机（含 Rosetta 下的 darwin/x64）必须使用原生支持架构，不能推测架构。
 
 Windows/macOS 准备写根 package / 锁文件版本、Python `__version__`、构建器的渠道应用身份与原生版本映射，并生成 `lumatile/build-info.json`；Android 写移动 package / workspace 锁文件版本，生成 `apps/mobile/build-info.json`，Gradle 读取同一份身份。生成的两个 JSON 被 Git 忽略，PyInstaller / Electron 构建会将目标信息嵌入产物。仓库中的这些载体是构建模板，可暂时与其他端版本不同。
 
@@ -146,7 +146,7 @@ Alpha 使用 `win-alpha-vX.Y.Z-alpha.N`、`mac-alpha-vX.Y.Z-alpha.N`、`android-
 
 Android 现有 Stable raw 地址保持 `updates/android.json`，Alpha 使用 `updates/android-alpha.json`，主源分别为 `/stable/android.json` 与 `/alpha/android.json`。新清单保留 schema 1 并增加 tag / commit；客户端仍允许历史 Stable raw 清单，GitHub 独立发布候选必须提供可核验的源码身份。同 code 多源 APK 元数据冲突时拒绝更新；原生安装前仍校验包名、已安装应用的签名、code、Release 标记和版本渠道。
 
-`alphaPublishingEnabled` 是独立显式开关，目前为 `false`；不受桌面 Stable 桥接完成状态影响。`androidAlphaSigningSha256` 当前为 `null`，首次 Android Alpha 签名前登记独立长期 Alpha 证书的公开 SHA-256，必须与正式证书不同。缺少该材料只阻塞 Android Alpha。现有四项正式仓库 Secrets 不变，未生成或登记长期 Alpha key。
+`alphaPublishingEnabled` 是独立显式开关，目前为 `false`；不受桌面 Stable 桥接完成状态影响。`androidAlphaSigningSha256` 已登记维护人在 Windows 生成的长期 Alpha 证书公开指纹 `2fa1b1662922a1bd7c14d39077b6f2f0883107cd42b0172637fa9f72500ddc04`，与正式证书不同。维护人已报告四项 Alpha 仓库 Secrets 配置完成；备份恢复尚待确认，Secret 有效性和实际签名仍未验收。现有四项正式仓库 Secrets 不变。
 
 构件工具支持单平台单渠道，Alpha 文件名前缀为 `LumaTile-Alpha-`，bundle 只携带对应 `alpha/<target>.json`，Release 使用 prerelease 且不设置仓库 latest。并行推广按渠道与平台分别加锁；同渠道内禁止回退及同版本异包，不能跨渠道推广。部署 Alpha 时显式传入渠道：
 
