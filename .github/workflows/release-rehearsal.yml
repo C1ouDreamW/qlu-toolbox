@@ -31,6 +31,8 @@ jobs:
       PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -85,6 +87,8 @@ jobs:
       PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -125,14 +129,14 @@ jobs:
           retention-days: 7
 
   android:
-    name: Rehearse signed Android APK
-    # Fork PRs must never receive production signing material. Use pull_request,
-    # never pull_request_target, to preserve GitHub's untrusted-code boundary.
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    name: Rehearse Android Debug APK without release secrets
+    # Both fork and same-repository PRs use only the runner's disposable Debug key.
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -153,26 +157,14 @@ jobs:
           npm run mobile:build
           npm run mobile:sync
           node scripts/prepare-release.mjs --platform android --verify
-      - name: Test and build with the existing production signing key
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_FILE: release-signing.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Test and build an isolated Debug APK
         run: |
-          test -n "$ANDROID_KEYSTORE_BASE64"
-          test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_ALIAS"
-          test -n "$ANDROID_KEY_PASSWORD"
-          trap 'rm -f apps/mobile/android/release-signing.jks' EXIT
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > apps/mobile/android/release-signing.jks
-          bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleRelease
-      - name: Verify APK native/Web metadata and production certificate
+          bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleDebug -PappIdSuffix=.test
+      - name: Verify Debug identity and runner certificate
         run: |
-          node scripts/verify-release-build.mjs --rehearsal android apps/mobile/android/app/build/outputs/apk/release/app-release.apk verification.json
+          node scripts/verify-release-build.mjs --rehearsal android apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk verification.json
           mkdir artifacts
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk artifacts/LumaTile-Rehearsal-Android.apk
+          cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk artifacts/LumaTile-Rehearsal-Android-Debug.apk
           node scripts/rehearse-release.mjs android --record verification.json artifacts rehearsal-output
       - uses: actions/upload-artifact@v4
         with:

@@ -7,6 +7,7 @@ import test from 'node:test'
 import { rehearsalIdentity, recordRehearsal } from '../scripts/rehearse-release.mjs'
 import { assertWindowsProductVersion, assertWindowsX64, createReleaseBundle } from '../scripts/release-artifacts.mjs'
 import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
+import { assertAndroidApkIdentity } from '../scripts/android-apk-verification.mjs'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'lumatile-rehearsal-'))
@@ -66,6 +67,35 @@ test('rehearsals cannot produce deployment bundles or invoke publication APIs', 
   let called = false
   await assert.rejects(publishPlatformRelease({ identity, fetcher: async () => { called = true } }), /cannot be published/)
   assert.equal(called, false)
+})
+
+test('Android rehearsal rejects production identity, non-Debug flags and any other signing certificate', async t => {
+  const { root } = await fixture(t)
+  const identity = rehearsalIdentity(root, 'android')
+  const input = {
+    identity,
+    badging: "package: name='io.github.c1oudreamw.lumatile.test' versionCode='15' versionName='2.0.4-test'\napplication-debuggable\n",
+    signature: `Signer #1 certificate SHA-256 digest: ${'b'.repeat(64)}\n`,
+    metadata: { platform: 'android', version: '2.0.4', versionCode: 15 },
+    debugSigningSha256: 'b'.repeat(64),
+  }
+  assert.equal(assertAndroidApkIdentity(input).debuggable, true)
+  for (const badging of [input.badging.replace('.test', ''), input.badging.replace('application-debuggable', ''), input.badging.replace('15', '16'), input.badging.replace('2.0.4-test', '2.0.4')]) {
+    assert.throws(() => assertAndroidApkIdentity({ ...input, badging }))
+  }
+  assert.throws(() => assertAndroidApkIdentity({ ...input, signature: input.signature.replace('b'.repeat(64), 'c'.repeat(64)) }), /certificate mismatch/)
+  assert.throws(() => assertAndroidApkIdentity({ ...input, signature: input.signature + input.signature.replace('#1', '#2') }), /certificate mismatch/)
+  assert.throws(() => assertAndroidApkIdentity({ ...input, identity: { ...identity, androidSigningSha256: 'b'.repeat(64) } }), /non-production certificate/)
+  assert.throws(() => assertAndroidApkIdentity({ ...input, metadata: { ...input.metadata, version: '2.0.5' } }), /Web metadata mismatch/)
+})
+
+test('PR validation and rehearsal workflows never request secrets or write permissions', async () => {
+  for (const file of ['ci.yml', 'release-rehearsal.yml']) {
+    const workflow = await readFile(new URL(`../.github/workflows/${file}`, import.meta.url), 'utf8')
+    assert.doesNotMatch(workflow, /\bsecrets\s*(?:\.|\[|:\s*inherit)/i, `${file} must not request secrets`)
+    assert.doesNotMatch(workflow, /:\s*write(?:\s|$)|permissions:\s*write-all/, `${file} must remain read-only`)
+    assert.doesNotMatch(workflow, /pull_request_target|workflow_run/, `${file} must not elevate PR trust`)
+  }
 })
 
 test('Windows native metadata rejects arm64, x86, truncated and invalid PE headers', () => {

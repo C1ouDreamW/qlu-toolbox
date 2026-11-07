@@ -2,10 +2,13 @@ import { execFileSync } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
+import { createHash } from 'node:crypto'
+import { homedir } from 'node:os'
 import { parseArgs } from 'node:util'
 import { assertWindowsProductVersion, assertWindowsX64, repositoryRoot, taggedRelease } from './release-artifacts.mjs'
 import { rehearsalIdentity } from './rehearse-release.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { assertAndroidApkIdentity } from './android-apk-verification.mjs'
 
 const { values, positionals } = parseArgs({ options: { rehearsal: { type: 'boolean' } }, allowPositionals: true })
 const [platform, ...args] = positionals
@@ -16,15 +19,14 @@ const location = resolve(input)
 const checks = {}
 if (platform === 'android') {
   const tools = join(process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || '', 'build-tools', '36.0.0')
-  const badging = execFileSync(join(tools, 'aapt'), ['dump', 'badging', location], { encoding: 'utf8' }).split('\n')[0]
-  if (!badging.includes("name='io.github.c1oudreamw.lumatile'") || !badging.includes(`versionCode='${identity.versionCode}'`) || !badging.includes(`versionName='${identity.version}'`)) throw new Error('APK native metadata mismatch')
+  const badging = execFileSync(join(tools, 'aapt'), ['dump', 'badging', location], { encoding: 'utf8' })
   const signature = execFileSync(join(tools, 'apksigner'), ['verify', '--verbose', '--print-certs', location], { encoding: 'utf8' })
-  const signers = [...signature.matchAll(/Signer #\d+ certificate SHA-256 digest: ([a-f0-9]{64})/g)]
-  if (signers.length !== 1 || signers[0][1] !== identity.androidSigningSha256) throw new Error('APK signing certificate differs from the verified production baseline')
   const metadata = JSON.parse(execFileSync('unzip', ['-p', location, 'assets/public/lumatile-version.json'], { encoding: 'utf8' }))
-  if (metadata.platform !== 'android' || metadata.version !== identity.version || metadata.versionCode !== identity.versionCode) throw new Error('APK Web metadata mismatch')
-  checks.signingSha256 = signers[0][1]
-  checks.nativeVersionCode = identity.versionCode
+  // This is the SDK's public, disposable Debug certificate; no long-term key is read.
+  const debugSigningSha256 = values.rehearsal ? createHash('sha256').update(execFileSync('keytool', [
+    '-exportcert', '-alias', 'androiddebugkey', '-storepass', 'android', '-keystore', join(homedir(), '.android', 'debug.keystore'),
+  ])).digest('hex') : undefined
+  Object.assign(checks, assertAndroidApkIdentity({ identity, badging, signature, metadata, debugSigningSha256 }))
 } else {
   const asar = createRequire(import.meta.url)('@electron/asar')
   const resources = platform === 'macos' ? join(location, 'Contents', 'Resources') : join(location, 'resources')

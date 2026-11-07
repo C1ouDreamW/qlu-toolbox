@@ -14,9 +14,11 @@ export function rehearsalIdentity(root, platform) {
   const config = validateReleaseConfig(JSON.parse(git(['show', `${commit}:config/release-versions.json`])))
   const policy = JSON.parse(git(['show', `${commit}:config/release-migration.json`]))
   const { bridgeVersion } = validateMigrationPolicy(policy)
-  if (platform === 'android' && !/^[a-f0-9]{64}$/.test(policy.androidSigningSha256)) throw new Error('A production Android certificate digest is required for signed rehearsal verification')
+  if (platform === 'android' && !/^[a-f0-9]{64}$/.test(policy.androidSigningSha256)) throw new Error('The production certificate digest is required to reject production-signed rehearsals')
   const { tag: _tag, ...release } = resolveRelease(config, { platform })
-  return { ...release, commit, bridgeVersion, androidSigningSha256: policy.androidSigningSha256, purpose: 'rehearsal', deployable: false }
+  return { ...release, commit, bridgeVersion, androidSigningSha256: policy.androidSigningSha256,
+    ...(platform === 'android' ? { applicationId: 'io.github.c1oudreamw.lumatile.test', nativeVersionName: `${release.version}-test`, signing: 'debug' } : {}),
+    purpose: 'rehearsal', deployable: false }
 }
 
 export async function recordRehearsal({ identity, verification, artifacts, output }) {
