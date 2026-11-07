@@ -81,6 +81,10 @@ export function assertPromotion(platform, current, next) {
   } else if (a === b && (current.tag !== next.tag || current.commit !== next.commit || artifactIdentity(current.artifacts) !== artifactIdentity(next.artifacts))) {
     throw new Error('Published desktop version cannot be replaced')
   }
+  if (platform !== 'android') {
+    if (![current.buildNumber, next.buildNumber].every(value => Number.isSafeInteger(value) && value > 0)) throw new Error('Desktop publication requires a verified native build counter baseline')
+    if ((a !== b && next.buildNumber <= current.buildNumber) || (a === b && (next.buildNumber !== current.buildNumber || next.nativeBuildVersion !== current.nativeBuildVersion))) throw new Error('Desktop native build counter must increase with a new version and remain immutable on retries')
+  }
 }
 
 function artifactIdentity(artifacts) {

@@ -60,7 +60,7 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
   if ((identity.platform === 'android' ? manifest.versionName : manifest.version) !== identity.version) throw new Error('Release manifest version mismatch')
   if (identity.platform === 'android') {
     if (manifest.versionCode !== identity.versionCode || !isArtifactUrl(manifest.apkUrl, identity.tag, androidArtifactName(identity.version, channel), true)) throw new Error('Android release identity mismatch')
-  } else if (manifest.tag !== identity.tag || manifest.commit !== identity.commit) throw new Error('Desktop manifest identity mismatch')
+  } else if (manifest.tag !== identity.tag || manifest.commit !== identity.commit || manifest.buildNumber !== identity.information.buildNumber || manifest.nativeBuildVersion !== identity.information.nativeBuildVersion) throw new Error('Desktop manifest identity mismatch')
   const artifacts = identity.platform === 'android' ? [{ url: manifest.apkUrl, size: manifest.size, sha256: manifest.sha256 }] : Object.values(manifest.artifacts)
   for (const artifact of artifacts) {
     const bytes = await readFile(join(directory, new URL(artifact.url).pathname.split('/').at(-1)))
@@ -106,6 +106,13 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
         const prior = validatePlatformManifest('android', await publicJson(asset.browser_download_url), null, channel)
         if (androidReleaseTag(prior.versionName, channel) !== release.tag_name) throw new Error('Published Android manifest identity mismatch')
         assertPromotion('android', prior, manifest)
+      } else {
+        const name = `update-${identity.target}.json`
+        const asset = release.assets?.find(asset => asset.name === name)
+        if (!asset || !isArtifactUrl(asset.browser_download_url, release.tag_name, name, true)) throw new Error('Published desktop release lacks its native build baseline manifest')
+        const prior = validatePlatformManifest(identity.platform, await publicJson(asset.browser_download_url), identity.bridgeVersion, channel)
+        if (prior.tag !== release.tag_name || prior.version !== version) throw new Error('Published desktop manifest identity mismatch')
+        assertPromotion(identity.platform, prior, manifest)
       }
     }
   }

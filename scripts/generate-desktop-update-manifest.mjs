@@ -6,12 +6,14 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { artifactFileNames, assertStableVersion, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
 import { parseReleaseTag, releaseVersion, validateReleaseConfig } from './release-config.mjs'
+import { buildInformation } from '../electron/channel-contract.mjs'
 
 /** Pure generation entry for verified build artifacts; the CLI resolves identity from Git. */
-export async function generateDesktopManifest({ platform, version, tag, commit, artifacts, notes, channel = 'stable', bridgeVersion = null, publishedAt = new Date().toISOString() }) {
+export async function generateDesktopManifest({ platform, version, tag, commit, artifacts, notes, buildNumber = 1, channel = 'stable', bridgeVersion = null, publishedAt = new Date().toISOString() }) {
   const target = platform === 'windows' ? desktopTarget('win32', 'x64') : platform === 'macos' ? desktopTarget('darwin', 'arm64') : null
   if (!target || desktopTagVersion(tag, target, bridgeVersion, channel) !== version) throw new Error('Desktop release target, tag and version do not match')
   if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Expected a full commit SHA')
+  const information = buildInformation({ platform, target: target.id, channel, version, buildNumber }, commit)
   const files = await readdir(artifacts)
   const names = artifactFileNames(target, version, tag === `v${bridgeVersion}`, channel)
   const entries = {}
@@ -28,7 +30,7 @@ export async function generateDesktopManifest({ platform, version, tag, commit, 
     }
   }
   return validateDesktopManifest({
-    schemaVersion: 2, platform, arch: target.arch, channel, version, tag, commit,
+    schemaVersion: 2, platform, arch: target.arch, channel, version, tag, commit, buildNumber, nativeBuildVersion: information.nativeBuildVersion,
     name: `LumaTile for ${platform === 'windows' ? 'Windows' : 'macOS'} ${version}`,
     notes: notes.trim(), publishedAt, artifacts: entries,
   }, target, bridgeVersion, channel)
@@ -42,7 +44,8 @@ export function taggedDesktopIdentity(root, tag, platform) {
   const versions = validateReleaseConfig(JSON.parse(git(['show', `${commit}:config/release-versions.json`])))
   const policy = validateMigrationPolicy(JSON.parse(git(['show', `${commit}:config/release-migration.json`])))
   if (!Object.hasOwn(versions, platform) || platform === 'android') throw new Error('Expected windows or macos')
-  return { channel, version: releaseVersion(versions, platform, channel).version, commit, bridgeVersion: policy.bridgeVersion,
+  const release = releaseVersion(versions, platform, channel)
+  return { channel, version: release.version, buildNumber: release.buildNumber ?? 1, commit, bridgeVersion: policy.bridgeVersion,
     publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString() }
 }
 

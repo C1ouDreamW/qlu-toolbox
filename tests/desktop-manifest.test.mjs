@@ -27,6 +27,8 @@ test('single-target desktop manifests use actual artifact bytes without requirin
   assert.equal(result.artifacts.installer.size, bytes.length)
   assert.equal(result.arch, 'x64')
   assert.equal(result.schemaVersion, 2)
+  assert.equal(result.buildNumber, 1)
+  assert.equal(result.nativeBuildVersion, '2.0.6.1')
   assert.match(result.artifacts.installer.fallbackUrl, /github.com\/C1ouDreamW\/qlu-toolbox\/releases\/download\/win-v2.0.6\//)
   await writeFile(join(dir, 'LumaTile-Windows-v2.0.6-x64.zip'), 'portable fixture')
   const withPortable = await generateDesktopManifest({ ...identity, platform: 'windows', tag: 'win-v2.0.6', artifacts: dir })
@@ -41,6 +43,7 @@ test('wrong or missing target artifacts and prerelease or mismatched tags cannot
   }
   const result = await generateDesktopManifest({ ...identity, artifacts: dir, platform: 'macos', tag: 'mac-v2.0.6' })
   assert.equal(result.arch, 'arm64')
+  assert.equal(result.nativeBuildVersion, '1')
   assert.deepEqual(Object.keys(result.artifacts), ['dmg'])
 })
 

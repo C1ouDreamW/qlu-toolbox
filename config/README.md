@@ -182,6 +182,8 @@ Stable 独立发布必须在标签 commit 中包含本平台的晋级审查记�
 
 ## 构建依赖清单与许可材料
 
+新桌面更新清单同时记录 `buildNumber` 和 `nativeBuildVersion`，分别与打包身份中的 PE / CFBundleVersion 映射一致。公开和部署时要求同平台同渠道的新版本递增 buildNumber，同版本重试保持原生版本和安装包字节不变；跨基础版本也不能重置构建号。发布器还检查已有公开版本的本端清单，防止主源落后时漏掉较高历史构建号。客户端可继续读取旧清单；发布 / 部署遇到缺失原生基线时停止，须先完成桥接原生版本核验，不猜测为 1。
+
 `scripts/generate-build-inventory.mjs <platform> <empty-output-dir> [android-native-sbom.json]` 从已安装、已锁定的生产依赖生成 CycloneDX 1.6 清单、第三方许可原文、项目条款快照、待审查许可记录及未签名的构建来源记录。它只接受当前 commit 对应的构建身份和准确的自动生成版本载体；未提交源码、依赖修改、旧原生清单或缺失依赖会失败。
 
 桌面清单包括 npm 生产依赖、Python 运行时依赖、PyInstaller 引导程序、实际 Electron / Playwright Node 运行时及随附第三方通知。Android 原生清单使用固定版本的 Gradle CycloneDX 插件，命令为 `bash apps/mobile/android/gradlew -p apps/mobile/android --init-script "$PWD/scripts/android-sbom.init.gradle" :app:cyclonedxDirectBom`，输出位于 `apps/mobile/android/app/build/reports/sbom/android.cdx.json`。仅在显式执行清单任务时加载插件，普通 Debug 开发无需运行它。

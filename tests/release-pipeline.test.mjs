@@ -25,6 +25,7 @@ async function buildFixture(t, platform = 'windows', version = '2.0.6', code = 1
   const prefix = channel === 'alpha' ? (target?.prefix ?? 'android-v').replace('-v', '-alpha-v') : target?.prefix ?? 'android-v'
   const identity = { platform, channel, target: target?.id ?? 'android', version, versionCode: code, tag: `${prefix}${version}`,
     commit: 'a'.repeat(40), bridgeVersion: '2.0.5', androidSigningSha256: 'b'.repeat(64), notes: '- Platform fix', publishedAt: '2026-11-06T00:00:00Z' }
+  identity.buildNumber = channel === 'alpha' ? Number(version.split('.').at(-1)) : Number(version.split('.')[2])
   const artifacts = join(root, 'artifacts')
   identity.information = buildInformation(identity, identity.commit)
   await mkdir(artifacts)
@@ -49,7 +50,8 @@ function priorManifest(platform, version = '2.0.5', code = 15) {
   const bridge = version === '2.0.5'
   const tag = `${bridge ? 'v' : target.prefix}${version}`
   const file = artifactFileNames(target, version, bridge)[target.primary]
-  return { schemaVersion: 2, platform, arch: target.arch, channel: 'stable', version, tag, commit: 'b'.repeat(40), name: 'Earlier release', notes: '- Earlier release', publishedAt: '2026-11-05T00:00:00Z',
+  const buildNumber = Number(version.split('.')[2])
+  return { schemaVersion: 2, platform, arch: target.arch, channel: 'stable', version, tag, commit: 'b'.repeat(40), buildNumber, nativeBuildVersion: platform === 'windows' ? `${version}.${buildNumber}` : String(buildNumber), name: 'Earlier release', notes: '- Earlier release', publishedAt: '2026-11-05T00:00:00Z',
     artifacts: { [target.primary]: { url: `https://lumatile.ishua.cloud/releases/${tag}/${file}`, fallbackUrl: `https://github.com/C1ouDreamW/qlu-toolbox/releases/download/${tag}/${file}`, size: 123, sha256: 'b'.repeat(64) } } }
 }
 
@@ -146,6 +148,36 @@ test('Android rejects code rollback, same-code conflicts and replacing a publish
   ]) assert.throws(() => assertPromotion('android', current, next))
   assert.doesNotThrow(() => assertPromotion('android', current, { ...current }))
   assert.doesNotThrow(() => assertPromotion('android', current, { ...current, versionName: '2.0.7', versionCode: 17, sha256: 'f'.repeat(64) }))
+})
+
+test('desktop publication requires increasing native counters across base versions and immutable retry counters', () => {
+  for (const platform of ['windows', 'macos']) {
+    const current = priorManifest(platform, '2.0.6')
+    const next = priorManifest(platform, '2.1.0')
+    for (const buildNumber of [undefined, 1, 6]) assert.throws(() => assertPromotion(platform, current, { ...next, buildNumber }), /native build counter/)
+    assert.doesNotThrow(() => assertPromotion(platform, current, { ...next, buildNumber: 7, nativeBuildVersion: platform === 'windows' ? '2.1.0.7' : '7' }))
+    assert.throws(() => assertPromotion(platform, current, { ...current, buildNumber: 7 }), /immutable on retries/)
+    assert.doesNotThrow(() => assertPromotion(platform, current, { ...current }))
+    const { buildNumber, nativeBuildVersion, ...unknownBaseline } = current
+    assert.throws(() => assertPromotion(platform, unknownBaseline, next), /verified native build counter baseline/)
+  }
+})
+
+test('desktop deployment refuses an unknown native counter before creating a pointer', async t => {
+  const fixture = await buildFixture(t, 'macos')
+  const { buildNumber, nativeBuildVersion, ...missing } = fixture.stable
+  const data = join(fixture.root, 'server')
+  await assert.rejects(promoteManifest({ platform: 'macos', manifest: missing, data }), /verified native build counter/)
+  await assert.rejects(readdir(data), /ENOENT/)
+})
+
+test('publisher checks older public desktop native counters even if the current primary pointer is stale', async t => {
+  const fixture = await buildFixture(t, 'windows', '2.0.8')
+  const older = { ...priorManifest('windows', '2.0.7'), buildNumber: 50, nativeBuildVersion: '2.0.7.50' }
+  const url = `https://github.com/C1ouDreamW/qlu-toolbox/releases/download/${older.tag}/update-windows-x64.json`
+  const mock = githubMock(fixture, { otherReleases: [{ draft: false, prerelease: false, tag_name: older.tag, assets: [{ name: 'update-windows-x64.json', browser_download_url: url }] }], releaseManifests: new Map([[url, older]]) })
+  await assert.rejects(publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher: mock.fetcher }), /native build counter/)
+  assert.ok(mock.calls.every(call => call.method === 'GET'), 'Reject before creating or modifying a release')
 })
 
 function githubMock(fixture, { published = false, partial = [], prior = priorManifest(fixture.identity.platform), otherReleases = [], failUpload, remoteCommit, backup, releaseManifests = new Map() } = {}) {

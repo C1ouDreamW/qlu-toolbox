@@ -6,6 +6,7 @@ import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 
 export async function promoteManifest({ platform, manifest, data, bridgeVersion = null, channel = 'stable' }) {
   const next = validatePlatformManifest(platform, manifest, bridgeVersion, channel)
+  if (platform !== 'android' && !Number.isSafeInteger(next.buildNumber)) throw new Error('Desktop deployment requires a verified native build counter')
   const stable = join(data, channel)
   await mkdir(stable, { recursive: true })
   const name = `${manifestTarget(platform)}.json`

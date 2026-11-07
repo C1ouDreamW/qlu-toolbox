@@ -4,7 +4,7 @@ export { assertStableVersion, compareVersions } from './version-contract.mjs'
 // Pure release contract shared by the publisher and the desktop updater.
 /** @typedef {{ platform: 'windows' | 'macos', arch: 'x64' | 'arm64', id: string, prefix: string, primary: 'installer' | 'dmg' }} DesktopTarget */
 /** @typedef {{ url: string, fallbackUrl: string, sha256: string, size: number }} UpdateArtifact */
-/** @typedef {{ schemaVersion: number, platform: string, arch: string, channel: string, version: string, tag: string, commit: string, name: string, notes: string, publishedAt: string, artifacts: Record<string, UpdateArtifact> }} DesktopManifest */
+/** @typedef {{ schemaVersion: number, platform: string, arch: string, channel: string, version: string, tag: string, commit: string, name: string, notes: string, publishedAt: string, buildNumber?: number, nativeBuildVersion?: string, artifacts: Record<string, UpdateArtifact> }} DesktopManifest */
 
 export const UPDATE_ORIGIN = 'https://lumatile.ishua.cloud'
 export const GITHUB_REPOSITORY = 'C1ouDreamW/qlu-toolbox'
@@ -74,6 +74,11 @@ export function validateDesktopManifest(value, target, bridgeVersion = null, cha
     throw new Error('更新清单身份、版本或发布日期无效')
   }
   const names = artifactFileNames(target, item.version, item.tag === `v${bridgeVersion}`, channel)
+  // Old readers/manifests remain readable; new publication requires these fields separately.
+  if (Object.hasOwn(item, 'buildNumber') || Object.hasOwn(item, 'nativeBuildVersion')) {
+    if (!Number.isSafeInteger(item.buildNumber) || /** @type {number} */ (item.buildNumber) < 1 || /** @type {number} */ (item.buildNumber) > (target.platform === 'windows' ? 65535 : 9999) ||
+        item.nativeBuildVersion !== (target.platform === 'windows' ? `${item.version.split('-')[0]}.${item.buildNumber}` : String(item.buildNumber))) throw new Error('更新清单原生构建版本无效')
+  }
   if (!Object.hasOwn(item.artifacts, target.primary)) throw new Error('更新清单缺少本架构安装包')
   for (const [role, artifact] of Object.entries(item.artifacts)) {
     const file = /** @type {Record<string, string>} */ (names)[role]
