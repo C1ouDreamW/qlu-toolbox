@@ -2,7 +2,7 @@
 
 更新源是纯静态文件服务：宿主机 Nginx 负责 `lumatile.ishua.cloud` 的 HTTPS，Docker 容器只监听 `127.0.0.1:18080`。
 
-独立发布代码与三条工作流已接入，发布门禁仍关闭，尚未修改服务器。切换必须等桌面桥接与真实升级链验收完成，详见 [`config/README.md`](../../config/README.md)。下方将旧流程与切换后的单平台流程分别说明。
+三端 Stable / Alpha 独立工作流已接入，两个渠道的发布门禁仍关闭，尚未修改服务器。Stable 桌面切换需要桥接与真实升级链验收；Alpha 可独立准备和验收，详见 [`config/README.md`](../../config/README.md)。下方将旧流程与切换后的单平台流程分别说明。
 
 除静态文件外，容器配置还提供 `/beacon/desktop` 与 `/beacon/android` 两个 204 匿名统计心跳路由（只依赖访问日志计数）、写入本地 SQLite 的 `/api/feedback` 应用内反馈接口，以及受 Basic Auth 保护的反馈管理页 `/admin/`（与统计页共用 `/etc/nginx/lumatile-stats.htpasswd`，见 compose 挂载）。反馈服务说明见 `../feedback/README.md`，公告与统计页方案见 `../stats/README.md`。
 
@@ -45,7 +45,7 @@ data/
 
 ## 切换后的单平台发布
 
-新构件名为 `update-source-<platform>-<version>`，只含本端 stable 指针与本次不可变的 `releases/<platform-tag>/`。Windows 保留安装包和便携 ZIP；macOS 保留 arm64 DMG；Android 为正式签名 APK。三端独立发布均不自动部署服务器。
+新构件名为 `update-source-<platform>-<channel>-<version>-<run>-<attempt>`，只含本端本渠道指针与本次不可变的 `releases/<platform-tag>/`。Windows 保留安装包和便携 ZIP；macOS 保留 arm64 DMG；Android 为正式签名 APK。三端独立发布均不自动部署服务器。
 
 1. 下载对应构件，在其 `releases/<tag>/` 下运行 `sha256sum -c SHA256SUMS.txt`（macOS 可用 `shasum -a 256 -c SHA256SUMS.txt`），核对 `release-record.json` 的平台、目标、版本、commit 和 verification。Android 记录中还包含已验证的正式证书 digest。
 2. 只上传本次 `releases/<tag>/`。已有同名文件时先比对 SHA-256，不能覆盖不同内容，不能使用会删除其他平台目录的同步参数。上传后核对公网下载与哈希，保留原始构件供重试。
@@ -73,3 +73,20 @@ node scripts/promote-update-manifest.mjs windows /tmp/update-source/stable/windo
 ## 迁移服务器
 
 先同步整个 `data/` 并启动容器、配置同一域名的有效证书，再降低 DNS TTL 并切换解析。确认新服务器访问正常后再停旧服务器。客户端无需更新，因为域名不变。
+
+## Alpha 渠道部署
+
+Alpha 是独立应用，不覆盖 Stable，使用 `/alpha/<target>.json`、独立标签与 `LumaTile-Alpha-` 文件名。Android 备用清单为 `updates/android-alpha.json`，不能上传至 Stable raw 文件。容器模板已包含 `/alpha/` 的 JSON MIME、CORS 与 no-cache；安装包仍在按标签隔离的 `/releases/` 下长期缓存。宿主机示例会整体转发，但实际线上代理 / CDN 是否允许 Alpha 路径必须重新验证。
+
+1. 首发前完成 Alpha 门禁、签名证书登记、连续升级候选验证与发布授权。当前没有公开 Alpha 下载入口，勿用占位清单制造已发布状态。
+2. 下载并核验对应 Alpha bundle，仅复制本次 `releases/<alpha-tag>/`。本渠道已有同名文件必须保持同哈希。
+3. 上传完整安装包后，显式选择 Alpha 原子推广：
+
+   ```bash
+   node scripts/promote-update-manifest.mjs android /tmp/bundle/alpha/android.json /opt/lumatile-update/data alpha
+   ```
+
+4. 检查 `/alpha/android.json`、本包下载地址、Content-Type、Cache-Control、CORS 和不存在路径的 404。对比 Stable 和其他 Alpha 目标清单的哈希，确认未改变。
+5. Android 在最新 main 上准备 / 审查 `android-alpha.json` 的备用分支，再验证主源断开时 GitHub prerelease 兜底，使用相同长期 Alpha 证书完成第二版覆盖安装。
+
+本机没有 Docker / Nginx，不能记录为已通过容器或生产路由验收。`bash scripts/check-update-source.sh` 使用隔离临时数据与现有 nginx 镜像验证路由 / MIME / 缓存响应，已接入无 Secret CI；它不读取部署数据、不访问生产服务器。

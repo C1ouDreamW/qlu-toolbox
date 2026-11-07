@@ -43,6 +43,8 @@ jobs:
         run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Validate GitHub Actions workflows
         run: actionlint -shellcheck= -pyflakes=
+      - name: Verify isolated Alpha and Stable update-source routes
+        run: bash scripts/check-update-source.sh
 
   verify-windows:
     name: Windows verification
