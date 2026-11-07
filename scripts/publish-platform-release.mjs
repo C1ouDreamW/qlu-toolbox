@@ -28,7 +28,9 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
     const response = await fetcher(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(30_000) })
     if (allowMissing && response.status === 404) return null
     if (!response.ok) throw new Error(`Cannot verify publication baseline: ${response.status}`)
-    return response.json()
+    const value = await response.json()
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid publication baseline JSON')
+    return value
   }
   const paginate = async path => {
     const results = []

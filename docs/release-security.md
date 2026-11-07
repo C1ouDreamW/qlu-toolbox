@@ -82,7 +82,7 @@ Android 无密钥构建后，签名 job 使用两个条件互斥的步骤：
 
 备用清单按渠道选择文件：Stable 使用 `updates/android.json`，Alpha 使用 `updates/android-alpha.json`。脚本在最新 main 的独立 worktree 中检查单调性，只写当前渠道文件后创建 automation 分支，不修改 main；仍需创建并通过检查后合并该分支的 PR。首次 Alpha 可以没有旧 Alpha 文件，但不能借此绕过已有 Stable 文件的检查。
 
-本机已实际构建 `io.github.c1oudreamw.lumatile.alpha` 的非 debuggable Release APK，用一次性测试 key 验证无密钥 APK → zipalign → apksigner → 原生 / Web / 证书 / 最终摘要核验。该 key 和测试签名包已删除，不是长期 Alpha 身份，也没有公开发布。工作流结构与分渠道备用清单已纳入发布回归测试（58 项）。
+本机已实际构建 `io.github.c1oudreamw.lumatile.alpha` 的非 debuggable Release APK，用一次性测试 key 验证无密钥 APK → zipalign → apksigner → 原生 / Web / 证书 / 最终摘要核验。该 key 和测试签名包已删除，不是长期 Alpha 身份，也没有公开发布。工作流结构与分渠道备用清单已纳入发布回归测试（59 项）。
 
 ## 建立和恢复长期 Alpha 密钥
 

@@ -397,3 +397,12 @@ test('Android backup preparation creates Alpha independently and preserves the S
   await assert.rejects(prepareAndroidBackup({ checkout: root, manifest: fixture.manifest, channel: '../stable' }))
   assert.equal(await readFile(join(root, 'updates/android.json'), 'utf8'), sentinel)
 })
+
+test('first Alpha can ignore a missing baseline but cannot treat invalid JSON as absence', async t => {
+  const fixture = await buildFixture(t, 'windows', '2.1.0-alpha.1', 1, 'alpha')
+  for (const value of [null, [], 'invalid']) {
+    const mock = githubMock(fixture, { prior: () => value })
+    await assert.rejects(publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher: mock.fetcher }), /baseline JSON/)
+    assert.ok(mock.calls.every(call => call.method === 'GET'))
+  }
+})

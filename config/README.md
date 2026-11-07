@@ -156,4 +156,4 @@ node scripts/promote-update-manifest.mjs windows bundle/alpha/windows-x64.json /
 
 该命令只操作给定服务器目录，不上传包；须先复制并核验完整不可变 releases 目录。省略渠道仍为 Stable，传错渠道会拒绝。首次 Alpha 允许其主源清单返回 404，已有 GitHub prerelease 与备用清单仍参与单调性核验；其他网络错误不会被当作初次发布。
 
-本轮发布工具测试 56 项、桌面测试 34 项、移动端测试 34 项通过。`npm run test:mobile` 已加入 Android PR CI，不需要生成构建身份或任何签名材料。真实 Alpha 发布、Alpha key 恢复、两次覆盖升级及设备上的三渠道共存尚未验收。
+发布工具及工作流安全回归现为 59 项、桌面测试 34 项、移动端测试 34 项通过。`npm run test:mobile` 已加入 Android PR CI，不需要生成构建身份或任何签名材料。真实 Alpha 发布、Alpha key 恢复、两次覆盖升级及设备上的三渠道共存尚未验收。
