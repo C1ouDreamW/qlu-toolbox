@@ -11,6 +11,8 @@ import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
 import { createDesktopBridgeBundle } from '../scripts/desktop-bridge-bundle.mjs'
 import { readBuildInventory } from '../scripts/inventory-artifacts.mjs'
 import { writeInventoryFixture } from './inventory-fixture.mjs'
+import { verifyDesktopBridgeBundle } from '../scripts/verify-desktop-bridge-bundle.mjs'
+import { sha256 } from '../scripts/release-artifacts.mjs'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'lumatile-bridge-'))
@@ -82,7 +84,7 @@ async function bundleFixture(t) {
     const directory = join(f.root, platform); await mkdir(directory)
     artifacts[platform] = directory
     for (const file of Object.values(artifactFileNames(targetFor(platform), identity.version, true))) await writeFile(join(directory, file), `Synthetic ${platform} installation bytes`)
-    await writeInventoryFixture(directory, identity)
+    await writeInventoryFixture(directory, identity, { repository: f.context.repository, runId: f.context.runId, runAttempt: f.context.runAttempt })
     verifications[platform] = { platform, target: identity.target, channel: 'stable', commit: identity.commit, version: identity.version, purpose: 'bridge', deployable: true, verified: true,
       checks: { channel: 'stable', applicationId: info.applicationId, electronVersion: info.version, pythonVersion: info.version, nativeBuildVersion: info.nativeBuildVersion } }
   }
@@ -104,6 +106,32 @@ test('bridge bundle preserves all legacy installation names, generates three poi
   assert.equal(bundle.legacy.downloads.win32, bundle.manifests.windows.artifacts.installer.url)
   assert.equal(bundle.legacy.downloads.darwin, bundle.manifests.macos.artifacts.dmg.url)
   assert.equal(JSON.parse(await readFile(join(bundle.releaseDir, 'desktop.json'))).schemaVersion, 1)
+  const checked = await verifyDesktopBridgeBundle({ identities: f.identities, directory: bundle.releaseDir, context: f.context })
+  assert.deepEqual(checked.manifests, bundle.manifests)
+  await assert.rejects(verifyDesktopBridgeBundle({ identities: f.identities, directory: bundle.releaseDir, context: { repository: 'C1ouDreamW/qlu-toolbox', runId: 'wrong', runAttempt: '1' } }), /workflow run and attempt/)
+})
+
+async function replaceChecksummed(directory, file, value) {
+  await writeFile(join(directory, file), typeof value === 'string' ? value : JSON.stringify(value))
+  const sums = []
+  for (const name of (await readdir(directory)).filter(name => name !== 'SHA256SUMS.txt').sort()) sums.push(`${sha256(await readFile(join(directory, name)))}  ${name}`)
+  await writeFile(join(directory, 'SHA256SUMS.txt'), sums.join('\n') + '\n')
+}
+
+test('fresh bridge verification rejects recomputed checksums for changed pointers, bytes and source reviews', async t => {
+  for (const mutate of [
+    async b => replaceChecksummed(b.releaseDir, 'desktop.json', { ...b.legacy, downloads: { ...b.legacy.downloads, darwin: b.legacy.downloads.win32 } }),
+    async b => replaceChecksummed(b.releaseDir, 'LumaTile_v2.1.0.zip', 'replacement installation bytes'),
+    async b => replaceChecksummed(b.releaseDir, 'update-windows-x64.json', { ...b.manifests.windows, buildNumber: 99, nativeBuildVersion: '2.1.0.99' }),
+    async b => { b.record.targets.macos.identity.promotion.review.approvedBy = 'replacement'; await replaceChecksummed(b.releaseDir, 'bridge-record.json', b.record) },
+    async b => replaceChecksummed(b.releaseDir, 'unexpected.apk', 'unrelated Android bytes'),
+  ]) {
+    const f = await bundleFixture(t), b = await createDesktopBridgeBundle(f)
+    // De-serialize the record: changing the downloaded artifact cannot mutate trusted source objects.
+    b.record = JSON.parse(JSON.stringify(b.record))
+    await mutate(b)
+    await assert.rejects(verifyDesktopBridgeBundle({ identities: f.identities, directory: b.releaseDir }))
+  }
 })
 
 test('bridge bundle validates both targets before output and rejects mixed channels, source commits and partial packages', async t => {

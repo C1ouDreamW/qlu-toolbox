@@ -8,18 +8,24 @@ import { generateDesktopManifest } from './generate-desktop-update-manifest.mjs'
 import { readBuildInventory, copyBuildInventory } from './inventory-artifacts.mjs'
 import { sha256, targetFor } from './release-artifacts.mjs'
 
+export function assertBridgeTarget(identity, verification, platform, first) {
+  const info = validateBuildInformation(identity.information)
+  if (identity.platform !== platform || identity.purpose !== 'bridge' || identity.deployable !== true || identity.channel !== 'stable' || identity.tag !== `v${identity.version}` || identity.bridgeVersion !== identity.version ||
+      !/^[a-f0-9]{40}$/.test(identity.commit) || identity.commit !== first.commit || identity.version !== first.version || !isPublicationDate(identity.publishedAt) || !identity.notes?.trim() ||
+      !identity.promotion || identity.promotion.stableCommit !== identity.commit || identity.promotion.platform !== platform || identity.promotion.stableVersion !== identity.version) throw new Error('Bridge identity or promotion review mismatch')
+  for (const key of ['platform', 'target', 'version', 'channel', 'commit']) if (identity[key] !== info[key] || identity[key] !== verification[key]) throw new Error('Bridge build identity mismatch')
+  const checks = verification.checks
+  if (verification.purpose !== 'bridge' || verification.deployable !== true || verification.verified !== true || !checks || checks.applicationId !== info.applicationId || checks.channel !== 'stable' || checks.electronVersion !== info.version || checks.pythonVersion !== info.version || checks.nativeBuildVersion !== info.nativeBuildVersion) throw new Error('Bridge requires verified Stable native packages for both desktops')
+  return info
+}
+
 export async function createDesktopBridgeBundle({ identities, artifacts, verifications, output }) {
   const platforms = ['windows', 'macos']
   for (const values of [identities, artifacts, verifications]) if (!values || !isDeepStrictEqual(Object.keys(values).sort(), [...platforms].sort())) throw new Error('Bridge requires exactly Windows and macOS inputs')
   const first = identities.windows, validated = {}
   for (const platform of platforms) {
-    const identity = identities[platform], verification = verifications[platform], info = validateBuildInformation(identity.information)
-    if (identity.platform !== platform || identity.purpose !== 'bridge' || identity.deployable !== true || identity.channel !== 'stable' || identity.tag !== `v${identity.version}` || identity.bridgeVersion !== identity.version ||
-        !/^[a-f0-9]{40}$/.test(identity.commit) || identity.commit !== first.commit || identity.version !== first.version || !isPublicationDate(identity.publishedAt) || !identity.notes?.trim() ||
-        !identity.promotion || identity.promotion.stableCommit !== identity.commit || identity.promotion.platform !== platform || identity.promotion.stableVersion !== identity.version) throw new Error('Bridge identity or promotion review mismatch')
-    for (const key of ['platform', 'target', 'version', 'channel', 'commit']) if (identity[key] !== info[key] || identity[key] !== verification[key]) throw new Error('Bridge build identity mismatch')
-    const checks = verification.checks
-    if (verification.purpose !== 'bridge' || verification.deployable !== true || verification.verified !== true || !checks || checks.applicationId !== info.applicationId || checks.channel !== 'stable' || checks.electronVersion !== info.version || checks.pythonVersion !== info.version || checks.nativeBuildVersion !== info.nativeBuildVersion) throw new Error('Bridge requires verified Stable native packages for both desktops')
+    const identity = identities[platform], verification = verifications[platform]
+    const info = assertBridgeTarget(identity, verification, platform, first)
     const names = artifactFileNames(targetFor(platform), identity.version, true)
     const entries = []
     for (const file of Object.values(names)) {

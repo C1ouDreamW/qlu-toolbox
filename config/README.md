@@ -12,6 +12,8 @@ Android 两个独立应用 ID 各自维护单调递增的 `versionCode`（正整
 
 桥接构件生成器为 `build-desktop-bridge-bundle.mjs <vB> <windows-artifacts> <macos-artifacts> <windows-verification.json> <macos-verification.json> <output>`。两份验证报告由 `verify-release-build.mjs --bridge <platform> <vB> <app-dir> <report.json>` 从实际桌面包读取身份、原生版本、Electron / Python / 架构并核验；生成器必须同时收到两端完整报告、包和许可材料才创建输出。保留 `LumaTile_vB_x64_Setup.exe`、`LumaTile_vB.zip`、`LumaTile_vB_arm64.dmg`，生成旧 schema 1 `desktop.json` 及两个含原生构建号的新桌面清单。双端许可 / 来源文件加固定目标前缀归档，原文和内部摘要不改写；`bridge-record.json` 与全量校验和绑定两端证据，不包含 Android 构件或指针。当前只完成生成器和合成输入的契约测试，尚未实际构建桥接版本或公开、部署。
 
+全新归档消费任务使用 `verify-desktop-bridge-bundle.mjs <vB> <release-assets-directory>`：重新从不可变 Git 来源核对两个目标与晋级审查、全部最终安装字节、按目标分开的来源和许可摘要、原生数字版本及 run / attempt，并重建三份应有清单比较原文内容。仅有重新计算的 SHA256SUMS 不能授权修改下载地址、安装包或审查人；出现额外 Android 文件同样拒绝。该校验只读，不持有密钥，也不执行包内脚本；公开 Alpha 状态和旧 Stable 安装验收 / 线上基线仍须在后续桥接发布器核验，不把此校验独自视为公开批准。
+
 迁移配置新增三个默认关闭的状态：`desktopBridgePublishingEnabled` 允许发布指定桥接 B；`desktopCutoverEnabled` 表示允许受控首次桌面切换；`desktopMigrationComplete` 记录两端链路已验收完成。B 为空时不能启用任何状态，完成状态必须伴随受控切换、并关闭桥接发布。当前 B 仍为 null，三个状态均为 false；不把声明字段存在视为真实验收完成。受控切换的证据绑定和发布门禁仍需后续实现。
 
 - 阶段 A：版本配置、平台与目标解析、只读检查、版本注入、平台日志、本地入口和 CI 已接入。
