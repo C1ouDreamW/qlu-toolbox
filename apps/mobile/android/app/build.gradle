@@ -103,6 +103,10 @@ android {
         androidTest.assets.srcDirs += files("$projectDir/schemas")
     }
     signingConfigs {
+        debug {
+            def debugStore = System.getenv('LUMATILE_DEBUG_KEYSTORE_FILE')
+            if (debugStore) storeFile file(debugStore)
+        }
         release {
             if (hasReleaseSigning) {
                 storeFile rootProject.file(releaseStorePath)

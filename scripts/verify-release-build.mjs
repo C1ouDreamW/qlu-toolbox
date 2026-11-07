@@ -26,7 +26,7 @@ if (platform === 'android') {
   const metadata = JSON.parse(execFileSync('unzip', ['-p', location, 'assets/public/lumatile-version.json'], { encoding: 'utf8' }))
   // This is the SDK's public, disposable Debug certificate; no long-term key is read.
   const debugSigningSha256 = values.rehearsal ? createHash('sha256').update(execFileSync('keytool', [
-    '-exportcert', '-alias', 'androiddebugkey', '-storepass', 'android', '-keystore', join(homedir(), '.android', 'debug.keystore'),
+    '-exportcert', '-alias', 'androiddebugkey', '-storepass', 'android', '-keystore', process.env.LUMATILE_DEBUG_KEYSTORE_FILE || join(homedir(), '.android', 'debug.keystore'),
   ])).digest('hex') : undefined
   Object.assign(checks, assertAndroidApkIdentity({ identity, badging, signature, metadata, debugSigningSha256 }))
   const finalBytes = await readFile(location)

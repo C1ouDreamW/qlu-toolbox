@@ -160,6 +160,11 @@ jobs:
           npm run mobile:build
           npm run mobile:sync
           node scripts/prepare-release.mjs --platform android --verify
+      - name: Generate a disposable runner Debug key at a known path
+        run: |
+          debug_key="$RUNNER_TEMP/lumatile-debug.keystore"
+          keytool -genkeypair -keystore "$debug_key" -alias androiddebugkey -storepass android -keypass android -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 30
+          echo "LUMATILE_DEBUG_KEYSTORE_FILE=$debug_key" >> "$GITHUB_ENV"
       - name: Test and build an isolated Debug APK
         run: |
           bash apps/mobile/android/gradlew -p apps/mobile/android --no-daemon lintDebug testDebugUnitTest assembleDebug
