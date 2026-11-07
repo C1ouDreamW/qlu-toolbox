@@ -1,0 +1,28 @@
+# 只作为配置参考：先配置 DNS、申请证书，再在服务器中启用。
+server {
+    listen 80;
+    server_name lumatile.cn www.lumatile.cn;
+    return 301 https://lumatile.cn$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name lumatile.cn www.lumatile.cn;
+    ssl_certificate /etc/letsencrypt/live/lumatile.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/lumatile.cn/privkey.pem;
+
+    root /var/www/lumatile;
+    index index.html;
+    include /etc/nginx/mime.types;
+    types { text/javascript mjs; }
+    charset utf-8;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://lumatile.ishua.cloud; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
+    add_header Cache-Control no-cache;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
