@@ -139,3 +139,21 @@ Debug / Alpha 使用独立的应用 ID、产品名、可执行名称、NSIS 快�
 Windows 开发脚本固定生成 / 安装 `.debug`，不再接受 `.test` 自定义后缀或占用正式 ID 的 NoCoexist。CI 保持原有必需检查名称，并新增 PowerShell 辅助脚本解析；PR 演练的桌面包也使用 Debug 身份，不能推广为正式产物。
 
 阶段 1 本地验证：发布 / 渠道测试 51 项、桌面测试 31 项、Python 124 项（11 项因环境跳过）通过，类型检查与 actionlint 通过。实际 Android Debug APK 通过 lint / 单测、包名 / 版本 / Web 元数据 / Debug 证书核验；macOS arm64 Debug `.app` 通过 ad-hoc 签名、原生版本、嵌入身份和打包 worker bootstrap 核验。DMG 构建器在本机下载工具包后无进一步输出，任务已取消，DMG 与 Windows 产物仍须由 CI 验证，不计为本地通过。
+
+## Alpha 更新与发布工具（2026-11-07）
+
+Alpha 使用 `win-alpha-vX.Y.Z-alpha.N`、`mac-alpha-vX.Y.Z-alpha.N`、`android-alpha-vX.Y.Z-alpha.N`；严格按数字比较 Alpha 序号，拒绝 beta、Debug、前导零和附加版本修饰。桌面与 Android 客户端只请求本渠道清单；GitHub 兜底同时检查本平台标签与 prerelease 标志，并核验清单、源码 commit 和安装资产。Debug 在发出网络请求前拒绝在线更新。
+
+Android 现有 Stable raw 地址保持 `updates/android.json`，Alpha 使用 `updates/android-alpha.json`，主源分别为 `/stable/android.json` 与 `/alpha/android.json`。新清单保留 schema 1 并增加 tag / commit；客户端仍允许历史 Stable raw 清单，GitHub 独立发布候选必须提供可核验的源码身份。同 code 多源 APK 元数据冲突时拒绝更新；原生安装前仍校验包名、已安装应用的签名、code、Release 标记和版本渠道。
+
+`alphaPublishingEnabled` 是独立显式开关，目前为 `false`；不受桌面 Stable 桥接完成状态影响。`androidAlphaSigningSha256` 当前为 `null`，首次 Android Alpha 签名前登记独立长期 Alpha 证书的公开 SHA-256，必须与正式证书不同。缺少该材料只阻塞 Android Alpha。现有四项正式仓库 Secrets 不变，未生成或登记长期 Alpha key。
+
+构件工具支持单平台单渠道，Alpha 文件名前缀为 `LumaTile-Alpha-`，bundle 只携带对应 `alpha/<target>.json`，Release 使用 prerelease 且不设置仓库 latest。并行推广按渠道与平台分别加锁；同渠道内禁止回退及同版本异包，不能跨渠道推广。部署 Alpha 时显式传入渠道：
+
+```bash
+node scripts/promote-update-manifest.mjs windows bundle/alpha/windows-x64.json /srv/updates alpha
+```
+
+该命令只操作给定服务器目录，不上传包；须先复制并核验完整不可变 releases 目录。省略渠道仍为 Stable，传错渠道会拒绝。首次 Alpha 允许其主源清单返回 404，已有 GitHub prerelease 与备用清单仍参与单调性核验；其他网络错误不会被当作初次发布。
+
+本轮发布工具测试 56 项、桌面测试 34 项、移动端测试 34 项通过。`npm run test:mobile` 已加入 Android PR CI，不需要生成构建身份或任何签名材料。真实 Alpha 发布、Alpha key 恢复、两次覆盖升级及设备上的三渠道共存尚未验收。

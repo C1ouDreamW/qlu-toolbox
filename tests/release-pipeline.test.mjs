@@ -4,6 +4,8 @@ import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/pr
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { androidArtifactName } from '../electron/android-update-contract.mjs'
+import { channelIdentity } from '../electron/channel-contract.mjs'
 import { artifactFileNames, desktopTarget } from '../electron/update-contract.mjs'
 import { assertPromotion, createReleaseBundle, manifestTarget, sha256, taggedRelease, verifyReleaseFiles } from '../scripts/release-artifacts.mjs'
 import { promoteManifest } from '../scripts/promote-update-manifest.mjs'
@@ -15,19 +17,20 @@ async function temporary(t) {
   return dir
 }
 
-async function buildFixture(t, platform = 'windows', version = '2.0.6', code = 16) {
+async function buildFixture(t, platform = 'windows', version = '2.0.6', code = 16, channel = 'stable') {
   const root = await temporary(t)
   const target = platform === 'android' ? null : desktopTarget(platform === 'windows' ? 'win32' : 'darwin', platform === 'windows' ? 'x64' : 'arm64')
-  const identity = { platform, target: target?.id ?? 'android', version, versionCode: code, tag: `${target?.prefix ?? 'android-v'}${version}`,
+  const prefix = channel === 'alpha' ? (target?.prefix ?? 'android-v').replace('-v', '-alpha-v') : target?.prefix ?? 'android-v'
+  const identity = { platform, channel, target: target?.id ?? 'android', version, versionCode: code, tag: `${prefix}${version}`,
     commit: 'a'.repeat(40), bridgeVersion: '2.0.5', androidSigningSha256: 'b'.repeat(64), notes: '- Platform fix', publishedAt: '2026-11-06T00:00:00Z' }
   const artifacts = join(root, 'artifacts')
   await mkdir(artifacts)
-  const names = platform === 'android' ? { apk: `LumaTile-Android-v${version}.apk` } : artifactFileNames(target, version)
+  const names = platform === 'android' ? { apk: androidArtifactName(version, channel) } : artifactFileNames(target, version, false, channel)
   for (const [role, name] of Object.entries(names)) await writeFile(join(artifacts, name), `${platform} ${version} ${role} fixture`)
-  const verification = { platform, version, commit: identity.commit, target: identity.target, verified: true, checks: { testFixture: true } }
+  const verification = { platform, channel, version, commit: identity.commit, target: identity.target, verified: true, checks: { testFixture: true } }
   if (platform === 'android') {
     const bytes = await readFile(join(artifacts, names.apk))
-    verification.checks = { applicationId: 'io.github.c1oudreamw.lumatile', debuggable: false, nativeVersionCode: code,
+    verification.checks = { applicationId: channelIdentity(channel, 'android').applicationId, debuggable: false, nativeVersionCode: code,
       signingSha256: identity.androidSigningSha256, signedSha256: sha256(bytes), signedSize: bytes.length }
   }
   const output = join(root, 'bundle')
@@ -37,7 +40,7 @@ async function buildFixture(t, platform = 'windows', version = '2.0.6', code = 1
 
 function priorManifest(platform, version = '2.0.5', code = 15) {
   if (platform === 'android') return { schemaVersion: 1, applicationId: 'io.github.c1oudreamw.lumatile', channel: 'stable', versionName: version, versionCode: code,
-    sha256: 'b'.repeat(64), size: 123, notes: '- Old', publishedAt: '2026-11-05T00:00:00Z', apkUrl: `https://lumatile.ishua.cloud/releases/v${version}/LumaTile-Android-v${version}.apk` }
+    sha256: 'b'.repeat(64), size: 123, title: 'Earlier release', mandatory: false, notes: '- Old', publishedAt: '2026-11-05T00:00:00Z', apkUrl: `https://lumatile.ishua.cloud/releases/v${version}/LumaTile-Android-v${version}.apk` }
   const target = desktopTarget(platform === 'windows' ? 'win32' : 'darwin', platform === 'windows' ? 'x64' : 'arm64')
   const bridge = version === '2.0.5'
   const tag = `${bridge ? 'v' : target.prefix}${version}`
@@ -135,14 +138,14 @@ function githubMock(fixture, { published = false, partial = [], prior = priorMan
   const calls = []
   const api = 'https://api.github.com/repos/C1ouDreamW/qlu-toolbox'
   const response = (value, status = 200) => new Response(JSON.stringify(value), { status })
-  const release = () => ({ id: 123, tag_name: fixture.identity.tag, draft, prerelease: false, assets })
+  const release = () => ({ id: 123, tag_name: fixture.identity.tag, draft, prerelease: fixture.identity.channel === 'alpha', assets })
   const fetcher = async (input, options = {}) => {
     const url = new URL(input)
     const method = options.method ?? 'GET'
     calls.push({ url: String(url), method })
     if (url.hostname === 'lumatile.ishua.cloud') {
       assert.equal(options.headers.Authorization, undefined, 'Never send the GitHub token to a different origin')
-      return response(typeof prior === 'function' ? prior() : prior)
+      return prior === null ? response({}, 404) : response(typeof prior === 'function' ? prior() : prior)
     }
     if (url.hostname === 'raw.githubusercontent.com') return backup ? response(backup) : response({}, 404)
     if (url.hostname === 'github.com') {
@@ -167,6 +170,8 @@ function githubMock(fixture, { published = false, partial = [], prior = priorMan
     if (url.pathname.endsWith('/assets')) return response(assets)
     if (method === 'POST' && url.pathname.endsWith('/releases')) {
       assert.equal(JSON.parse(options.body).draft, true)
+      assert.equal(JSON.parse(options.body).prerelease, fixture.identity.channel === 'alpha')
+      assert.equal(JSON.parse(options.body).make_latest, 'false')
       exists = true
       return response(release(), 201)
     }
@@ -245,7 +250,7 @@ test('rollout policy comes from the tag commit; working-tree edits cannot enable
   await writeFile(join(root, 'config/release-migration.json'), JSON.stringify(policy))
   assert.throws(() => taggedRelease(root, 'windows', 'win-v2.0.6'), /disabled/)
   assert.equal(taggedRelease(root, 'windows', 'win-v2.0.6', false).version, '2.0.6')
-  assert.throws(() => taggedRelease(root, 'macos', 'win-v2.0.6', false), /Tag mismatch/)
+  assert.throws(() => taggedRelease(root, 'macos', 'win-v2.0.6', false), /release tag/)
 })
 
 test('publication rechecks monotonicity after uploading and leaves a superseded build in draft', async t => {
@@ -291,4 +296,89 @@ test('Android publishing checks all public platform versionCodes and keeps every
   const accepted = githubMock(next, setup)
   assert.equal((await publishPlatformRelease({ identity: next.identity, directory: next.releaseDir, token: 'fixture-token', fetcher: accepted.fetcher })).status, 'published')
   assert.equal(next.manifest.sha256, next.stable.sha256)
+})
+
+test('Alpha bundles and concurrent promotion touch only their own channel and platform', async t => {
+  const alpha = await buildFixture(t, 'windows', '2.1.0-alpha.10', 16, 'alpha')
+  const old = await buildFixture(t, 'windows', '2.1.0-alpha.2', 16, 'alpha')
+  const android = await buildFixture(t, 'android', '2.1.0-alpha.1', 1, 'alpha')
+  const stable = await buildFixture(t, 'windows', '2.0.7')
+  assert.deepEqual((await readdir(alpha.output)).sort(), ['alpha', 'releases'])
+  assert.ok((await verifyReleaseFiles(alpha.releaseDir)).includes('LumaTile-Alpha-Windows-v2.1.0-alpha.10-x64-Setup.exe'))
+  assert.equal(android.manifest.applicationId, 'io.github.c1oudreamw.lumatile.alpha')
+  assert.equal(android.manifest.tag, android.identity.tag)
+  assert.equal(android.manifest.commit, android.identity.commit)
+  const data = await temporary(t)
+  for (const bundle of [alpha, old, stable, android]) await cp(join(bundle.output, 'releases'), join(data, 'releases'), { recursive: true })
+  await Promise.all([
+    promoteManifest({ platform: 'windows', channel: 'alpha', manifest: alpha.stable, data }),
+    promoteManifest({ platform: 'windows', manifest: stable.stable, data }),
+    promoteManifest({ platform: 'android', channel: 'alpha', manifest: android.stable, data }),
+  ])
+  const stableBytes = await readFile(join(data, 'stable/windows-x64.json'), 'utf8')
+  await assert.rejects(promoteManifest({ platform: 'windows', channel: 'alpha', manifest: old.stable, data }), /rollback/)
+  await assert.rejects(promoteManifest({ platform: 'windows', channel: 'stable', manifest: alpha.stable, data }))
+  assert.equal(await readFile(join(data, 'stable/windows-x64.json'), 'utf8'), stableBytes)
+  assert.deepEqual((await readdir(join(data, 'stable'))), ['windows-x64.json'])
+  assert.deepEqual((await readdir(join(data, 'alpha'))).sort(), ['android.json', 'windows-x64.json'])
+  assert.throws(() => assertPromotion('windows', stable.stable, alpha.stable), /channels/)
+  assert.throws(() => assertPromotion('android', android.stable, { ...android.stable, applicationId: 'io.github.c1oudreamw.lumatile' }), /application IDs/)
+})
+
+test('first Alpha publication permits absent Alpha baselines and ignores all Stable counters', async t => {
+  for (const platform of ['windows', 'macos', 'android']) {
+    const fixture = await buildFixture(t, platform, '2.1.0-alpha.1', 1, 'alpha')
+    const mock = githubMock(fixture, { prior: null, otherReleases: [
+      { tag_name: 'android-v99.0.0', draft: false, prerelease: false },
+      { tag_name: 'win-v99.0.0', draft: false, prerelease: false },
+      { tag_name: 'mac-v99.0.0', draft: false, prerelease: false },
+    ] })
+    assert.equal((await publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher: mock.fetcher })).status, 'published')
+    assert.ok(mock.calls.some(call => call.url.includes(`/alpha/${manifestTarget(platform)}.json`)))
+    assert.ok(!mock.calls.some(call => call.url.includes('/stable/') || call.url.endsWith('/updates/android.json')))
+    if (platform === 'android') assert.ok(mock.calls.some(call => call.url.endsWith('/updates/android-alpha.json')))
+  }
+})
+
+test('newer Alpha versions and same-code mirror conflicts prevent publication before mutations', async t => {
+  const fixture = await buildFixture(t, 'windows', '2.1.0-alpha.2', 1, 'alpha')
+  const mock = githubMock(fixture, { prior: null, otherReleases: [{ tag_name: 'win-alpha-v2.1.0-alpha.10', draft: false, prerelease: true }] })
+  await assert.rejects(publishPlatformRelease({ identity: fixture.identity, directory: fixture.releaseDir, token: 'fixture-token', fetcher: mock.fetcher }), /newer/)
+  assert.ok(mock.calls.every(call => call.method === 'GET'))
+  const android = await buildFixture(t, 'android', '2.1.0-alpha.2', 2, 'alpha')
+  const conflicted = githubMock(android, { prior: null, backup: { ...android.manifest, size: android.manifest.size + 1 } })
+  await assert.rejects(publishPlatformRelease({ identity: android.identity, directory: android.releaseDir, token: 'fixture-token', fetcher: conflicted.fetcher }), /different APK/)
+  assert.ok(conflicted.calls.every(call => call.method === 'GET'))
+})
+
+test('Alpha uses an immutable independent gate and Android requires its own certificate', async t => {
+  const root = await temporary(t)
+  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  await mkdir(join(root, 'config')); await mkdir(join(root, 'changelogs'))
+  const config = { schemaVersion: 2 }
+  for (const platform of ['windows', 'macos', 'android']) {
+    const counter = platform === 'android' ? { versionCode: 1 } : { buildNumber: 1 }
+    config[platform] = { stable: { version: '2.0.4', ...counter }, alpha: { version: '2.1.0-alpha.1', ...counter } }
+    await writeFile(join(root, `changelogs/${platform}.md`), '## [2.1.0-alpha.1]\n\n- Alpha test\n')
+  }
+  await writeFile(join(root, 'config/release-versions.json'), JSON.stringify(config))
+  const policy = { schemaVersion: 1, bridgeVersion: null, independentPublishingEnabled: false, alphaPublishingEnabled: false, androidSigningSha256: 'b'.repeat(64), androidAlphaSigningSha256: null }
+  const save = async () => {
+    await writeFile(join(root, 'config/release-migration.json'), JSON.stringify(policy))
+    git(['add', '.']); git(['-c', 'user.name=Release Test', '-c', 'user.email=release@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'test: Alpha 门禁夹具'])
+    for (const prefix of ['win', 'mac', 'android']) git(['tag', '-f', `${prefix}-alpha-v2.1.0-alpha.1`])
+  }
+  git(['init', '-q']); await save()
+  assert.throws(() => taggedRelease(root, 'windows', 'win-alpha-v2.1.0-alpha.1'), /Alpha publishing is disabled/)
+  policy.alphaPublishingEnabled = true
+  await writeFile(join(root, 'config/release-migration.json'), JSON.stringify(policy))
+  assert.throws(() => taggedRelease(root, 'windows', 'win-alpha-v2.1.0-alpha.1'), /disabled/)
+  await save()
+  assert.equal(taggedRelease(root, 'windows', 'win-alpha-v2.1.0-alpha.1').channel, 'alpha')
+  assert.throws(() => taggedRelease(root, 'android', 'android-alpha-v2.1.0-alpha.1'), /signing certificate/)
+  policy.androidAlphaSigningSha256 = policy.androidSigningSha256; await save()
+  assert.throws(() => taggedRelease(root, 'android', 'android-alpha-v2.1.0-alpha.1'), /signing certificate/)
+  policy.androidAlphaSigningSha256 = 'c'.repeat(64); await save()
+  assert.equal(taggedRelease(root, 'android', 'android-alpha-v2.1.0-alpha.1').androidSigningSha256, 'c'.repeat(64))
+  assert.throws(() => taggedRelease(root, 'windows', 'win-alpha-v2.1.0-alpha.01'))
 })

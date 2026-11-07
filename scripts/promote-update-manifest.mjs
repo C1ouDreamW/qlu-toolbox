@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { assertPromotion, manifestTarget, sha256, validatePlatformManifest } from './release-artifacts.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 
-export async function promoteManifest({ platform, manifest, data, bridgeVersion = null }) {
-  const next = validatePlatformManifest(platform, manifest, bridgeVersion)
-  const stable = join(data, 'stable')
+export async function promoteManifest({ platform, manifest, data, bridgeVersion = null, channel = 'stable' }) {
+  const next = validatePlatformManifest(platform, manifest, bridgeVersion, channel)
+  const stable = join(data, channel)
   await mkdir(stable, { recursive: true })
   const name = `${manifestTarget(platform)}.json`
   const lockPath = join(stable, `.${name}.lock`)
@@ -24,11 +24,11 @@ export async function promoteManifest({ platform, manifest, data, bridgeVersion 
     }
     let previous
     try { previous = JSON.parse(await readFile(join(stable, name), 'utf8')) } catch (error) { if (error.code !== 'ENOENT') throw error }
-    if (previous) assertPromotion(platform, validatePlatformManifest(platform, previous, bridgeVersion), next)
+    if (previous) assertPromotion(platform, validatePlatformManifest(platform, previous, bridgeVersion, channel), next)
     const file = await open(temporary, 'wx')
     try { await file.writeFile(`${JSON.stringify(next, null, 2)}\n`); await file.sync() } finally { await file.close() }
     await rename(temporary, join(stable, name))
-    return { platform, version: platform === 'android' ? next.versionName : next.version, file: name }
+    return { platform, channel, version: platform === 'android' ? next.versionName : next.version, file: name }
   } finally {
     await rm(temporary, { force: true })
     await lock.close()
@@ -37,8 +37,8 @@ export async function promoteManifest({ platform, manifest, data, bridgeVersion 
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [platform, input, data] = process.argv.slice(2)
-  if (!platform || !input || !data) throw new Error('Usage: node scripts/promote-update-manifest.mjs <platform> <manifest.json> <server-data-directory>')
+  const [platform, input, data, channel = 'stable'] = process.argv.slice(2)
+  if (!platform || !input || !data) throw new Error('Usage: node scripts/promote-update-manifest.mjs <platform> <manifest.json> <server-data-directory> [stable|alpha]')
   const policy = validateMigrationPolicy(JSON.parse(await readFile(new URL('../config/release-migration.json', import.meta.url), 'utf8')))
-  console.log(JSON.stringify(await promoteManifest({ platform, manifest: JSON.parse(await readFile(resolve(input), 'utf8')), data: resolve(data), bridgeVersion: policy.bridgeVersion })))
+  console.log(JSON.stringify(await promoteManifest({ platform, channel, manifest: JSON.parse(await readFile(resolve(input), 'utf8')), data: resolve(data), bridgeVersion: policy.bridgeVersion })))
 }

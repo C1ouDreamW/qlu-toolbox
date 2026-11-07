@@ -115,3 +115,15 @@ test('a release tag must resolve to the build commit already contained in origin
   git(['update-ref', 'refs/remotes/origin/main', other])
   assert.doesNotThrow(() => assertReleaseSource(root, { ...release, commit: other }, { ...run, sha: other }))
 })
+
+test('Alpha signing receipts bind the separate app ID and certificate and cannot reuse Stable receipts', () => {
+  const alpha = { ...identity, channel: 'alpha', version: '2.1.0-alpha.1', versionCode: 1, tag: 'android-alpha-v2.1.0-alpha.1', androidSigningSha256: 'c'.repeat(64) }
+  const run = { ...context, ref: `refs/tags/${alpha.tag}` }
+  const alphaReceipt = { ...receipt(), channel: 'alpha', version: alpha.version, versionCode: 1, tag: alpha.tag,
+    applicationId: 'io.github.c1oudreamw.lumatile.alpha', signingSha256: alpha.androidSigningSha256 }
+  const options = { identity: alpha, context: run, receipt: alphaReceipt, bytes, expectedSha256: sha256(bytes) }
+  assert.doesNotThrow(() => assertUnsignedReceipt(options))
+  for (const change of [{ applicationId: receipt().applicationId }, { signingSha256: identity.androidSigningSha256 }, { channel: 'stable' }]) {
+    assert.throws(() => assertUnsignedReceipt({ ...options, receipt: { ...alphaReceipt, ...change } }))
+  }
+})

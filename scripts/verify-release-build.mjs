@@ -75,5 +75,5 @@ if (platform === 'android') {
   checks.channel = information.channel
   checks.applicationId = information.applicationId
 }
-await writeFile(resolve(output), `${JSON.stringify({ platform, version: identity.version, commit: identity.commit, target: identity.target,
+await writeFile(resolve(output), `${JSON.stringify({ platform, channel: identity.channel, version: identity.version, commit: identity.commit, target: identity.target,
   purpose: values.rehearsal ? 'rehearsal' : 'release', deployable: !values.rehearsal, verified: true, checks }, null, 2)}\n`)

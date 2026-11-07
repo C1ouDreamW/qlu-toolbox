@@ -60,6 +60,17 @@ export function resolveRelease(config, { platform, tag, channel = 'stable', targ
     ...(buildNumber === undefined ? {} : { buildNumber }), tag: expectedTag }
 }
 
+export function parseReleaseTag(platform, tag) {
+  const definition = RELEASE_TARGETS[platform]
+  if (!definition || typeof tag !== 'string') throw new Error('Invalid independent release tag')
+  for (const channel of ['stable', 'alpha']) {
+    const prefix = channel === 'alpha' ? definition.prefix.replace('-v', '-alpha-v') : definition.prefix
+    if (!tag.startsWith(prefix)) continue
+    return { channel, version: assertChannelVersion(tag.slice(prefix.length), channel) }
+  }
+  throw new Error('Invalid independent release tag for this platform')
+}
+
 export function extractReleaseNotes(markdown, version) {
   assertChannelVersion(version, typeof version === 'string' && version.includes('-alpha.') ? 'alpha' : 'stable')
   const sections = [...markdown.matchAll(/^## \[([^\]\r\n]+)\][^\r\n]*$/gm)]

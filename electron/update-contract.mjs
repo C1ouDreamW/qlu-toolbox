@@ -20,9 +20,12 @@ export function desktopTarget(platform, arch) {
 /** @param {unknown} value @returns {{ schemaVersion: number, bridgeVersion: string | null }} */
 export function validateMigrationPolicy(value) {
   if (!value || typeof value !== 'object') throw new Error('Invalid release migration policy')
-  const policy = /** @type {{ schemaVersion?: unknown, bridgeVersion?: unknown }} */ (value)
+  const policy = /** @type {{ schemaVersion?: unknown, bridgeVersion?: unknown, alphaPublishingEnabled?: unknown, androidAlphaSigningSha256?: unknown }} */ (value)
   if (policy.schemaVersion !== 1 || !Object.hasOwn(policy, 'bridgeVersion')) throw new Error('Invalid release migration policy')
   if (Object.hasOwn(policy, 'independentPublishingEnabled') && typeof policy.independentPublishingEnabled !== 'boolean') throw new Error('Invalid independent publishing flag')
+  if (Object.hasOwn(policy, 'alphaPublishingEnabled') && typeof policy.alphaPublishingEnabled !== 'boolean') throw new Error('Invalid Alpha publishing flag')
+  if (Object.hasOwn(policy, 'androidAlphaSigningSha256') && policy.androidAlphaSigningSha256 !== null &&
+      (typeof policy.androidAlphaSigningSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(policy.androidAlphaSigningSha256))) throw new Error('Invalid Alpha signing digest')
   return { schemaVersion: 1, bridgeVersion: policy.bridgeVersion === null ? null : assertStableVersion(policy.bridgeVersion) }
 }
 

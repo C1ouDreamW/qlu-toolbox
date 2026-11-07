@@ -2,5 +2,7 @@
   "schemaVersion": 1,
   "bridgeVersion": null,
   "independentPublishingEnabled": false,
+  "alphaPublishingEnabled": false,
+  "androidAlphaSigningSha256": null,
   "androidSigningSha256": "5ed4182baad6566311708db3699f13615f791811b389e5163917dd89ec4b3899"
 }

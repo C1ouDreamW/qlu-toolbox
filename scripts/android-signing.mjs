@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { assertAndroidApkIdentity, assertAndroidApkMetadata } from './android-apk-verification.mjs'
 import { sha256 } from './release-artifacts.mjs'
+import { channelIdentity } from '../electron/channel-contract.mjs'
 import { assertReleaseRun } from './release-source.mjs'
 
 export function toolEnvironment(env = process.env) {
@@ -27,10 +28,10 @@ function apkMetadata(apk, tools, env) {
 }
 
 function signingIdentity(identity) {
-  if (identity.platform !== 'android' || identity.channel !== 'stable' || identity.purpose === 'rehearsal' || identity.deployable === false ||
+  if (identity.platform !== 'android' || !['stable', 'alpha'].includes(identity.channel) || identity.purpose === 'rehearsal' || identity.deployable === false ||
       !/^[a-f0-9]{40}$/.test(identity.commit) || !/^[a-f0-9]{64}$/.test(identity.androidSigningSha256)) throw new Error('Expected an Android release signing identity')
   return { platform: identity.platform, channel: identity.channel, tag: identity.tag, commit: identity.commit,
-    version: identity.version, versionCode: identity.versionCode, applicationId: 'io.github.c1oudreamw.lumatile', signingSha256: identity.androidSigningSha256 }
+    version: identity.version, versionCode: identity.versionCode, applicationId: channelIdentity(identity.channel, 'android').applicationId, signingSha256: identity.androidSigningSha256 }
 }
 
 export async function createUnsignedReceipt({ identity, context, apk, tools, env = process.env }) {
@@ -83,7 +84,7 @@ export async function signAndroidRelease({ identity, context, receipt, apk, expe
     const signature = tool(join(tools, 'apksigner'), ['verify', '--verbose', '--print-certs', signed], toolEnv)
     const checks = assertAndroidApkIdentity({ identity, signature, ...apkMetadata(signed, tools, toolEnv) })
     const finalBytes = await readFile(signed)
-    const report = { platform: identity.platform, version: identity.version, commit: identity.commit, target: identity.target,
+    const report = { platform: identity.platform, channel: identity.channel, version: identity.version, commit: identity.commit, target: identity.target,
       purpose: 'release', deployable: true, verified: true,
       checks: { ...checks, unsignedSha256: expectedSha256, signedSha256: sha256(finalBytes), signedSize: finalBytes.length,
         runId: context.runId, runAttempt: context.runAttempt } }

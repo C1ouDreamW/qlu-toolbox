@@ -1,12 +1,19 @@
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { assertStableVersion, compareVersions, desktopTagVersion, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../electron/update-contract.mjs'
+import { desktopTagVersion, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../electron/update-contract.mjs'
+import { assertChannelVersion, compareChannelVersions } from '../electron/channel-contract.mjs'
+import { androidArtifactName, androidReleaseTag } from '../electron/android-update-contract.mjs'
+import { parseReleaseTag } from './release-config.mjs'
 import { assertPromotion, manifestTarget, repositoryRoot, sha256, taggedRelease, targetFor, validatePlatformManifest, verifyReleaseFiles } from './release-artifacts.mjs'
 
 // All mutations are confined to this platform's draft until every asset is verified.
 export async function publishPlatformRelease({ identity, directory, token, fetcher = fetch }) {
   if (identity.purpose === 'rehearsal' || identity.deployable === false) throw new Error('Rehearsal artifacts cannot be published')
+  const channel = identity.channel ?? 'stable'
+  if (!['stable', 'alpha'].includes(channel)) throw new Error('Invalid publication channel')
+  assertChannelVersion(identity.version, channel)
+  const prerelease = channel === 'alpha'
   if (!token) throw new Error('A GitHub contents-write token is required')
   const api = `https://api.github.com/repos/${GITHUB_REPOSITORY}`
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
@@ -38,11 +45,12 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
   const record = JSON.parse(await readFile(join(directory, 'release-record.json'), 'utf8'))
   if (record.verification?.purpose === 'rehearsal' || record.verification?.deployable === false) throw new Error('Rehearsal verification cannot authorize publication')
   for (const key of ['platform', 'version', 'tag', 'commit', 'target']) if (record[key] !== identity[key]) throw new Error(`Release record mismatch: ${key}`)
+  if (record.channel !== channel || (record.verification?.channel ?? 'stable') !== channel) throw new Error('Release record channel mismatch')
   if (record.verification?.verified !== true) throw new Error('Unverified release build')
-  const manifest = validatePlatformManifest(identity.platform, JSON.parse(await readFile(join(directory, `update-${manifestTarget(identity.platform)}.json`), 'utf8')), identity.bridgeVersion)
+  const manifest = validatePlatformManifest(identity.platform, JSON.parse(await readFile(join(directory, `update-${manifestTarget(identity.platform)}.json`), 'utf8')), identity.bridgeVersion, channel)
   if ((identity.platform === 'android' ? manifest.versionName : manifest.version) !== identity.version) throw new Error('Release manifest version mismatch')
   if (identity.platform === 'android') {
-    if (manifest.versionCode !== identity.versionCode || !isArtifactUrl(manifest.apkUrl, identity.tag, `LumaTile-Android-v${identity.version}.apk`, true)) throw new Error('Android release identity mismatch')
+    if (manifest.versionCode !== identity.versionCode || !isArtifactUrl(manifest.apkUrl, identity.tag, androidArtifactName(identity.version, channel), true)) throw new Error('Android release identity mismatch')
   } else if (manifest.tag !== identity.tag || manifest.commit !== identity.commit) throw new Error('Desktop manifest identity mismatch')
   const artifacts = identity.platform === 'android' ? [{ url: manifest.apkUrl, size: manifest.size, sha256: manifest.sha256 }] : Object.values(manifest.artifacts)
   for (const artifact of artifacts) {
@@ -63,35 +71,37 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
   const monotonic = async () => {
     const remote = await json(`${api}/commits/${encodeURIComponent(identity.tag)}`)
     if (remote?.sha !== identity.commit) throw new Error('Remote release tag commit differs from verified build')
-    const current = validatePlatformManifest(identity.platform, await publicJson(`${UPDATE_ORIGIN}/stable/${manifestTarget(identity.platform)}.json`), identity.bridgeVersion)
-    assertPromotion(identity.platform, current, manifest)
+    const baseline = await publicJson(`${UPDATE_ORIGIN}/${channel}/${manifestTarget(identity.platform)}.json`, prerelease)
+    if (baseline) assertPromotion(identity.platform, validatePlatformManifest(identity.platform, baseline, identity.bridgeVersion, channel), manifest)
     if (identity.platform === 'android') {
       for (const repository of ['C1ouDreamW/qlu-toolbox', 'C1ouDreamW/lumatile']) {
-        const backup = await publicJson(`https://raw.githubusercontent.com/${repository}/main/updates/android.json`, true)
-        if (backup) assertPromotion('android', validatePlatformManifest('android', backup), manifest)
+        const backup = await publicJson(`https://raw.githubusercontent.com/${repository}/main/updates/${prerelease ? 'android-alpha.json' : 'android.json'}`, true)
+        if (backup) assertPromotion('android', validatePlatformManifest('android', backup, null, channel), manifest)
       }
     }
     for (const release of await paginate('/releases')) {
-      if (release.draft || release.prerelease || release.tag_name === identity.tag) continue
+      if (release.draft !== false || release.prerelease !== prerelease || release.tag_name === identity.tag) continue
       let version
       if (identity.platform === 'android') {
-        if (!release.tag_name?.startsWith('android-v')) continue
-        try { version = assertStableVersion(release.tag_name.slice('android-v'.length)) } catch { continue }
-      } else version = desktopTagVersion(release.tag_name, targetFor(identity.platform), identity.bridgeVersion)
+        try {
+          const parsed = parseReleaseTag('android', release.tag_name)
+          if (parsed.channel === channel) version = parsed.version
+        } catch { continue }
+      } else version = desktopTagVersion(release.tag_name, targetFor(identity.platform), identity.bridgeVersion, channel)
       if (!version) continue
-      if (compareVersions(identity.version, version) <= 0) throw new Error('A newer or equal platform version is already public')
+      if (compareChannelVersions(identity.version, version, channel) <= 0) throw new Error('A newer or equal platform version is already public')
       if (identity.platform === 'android') {
         const asset = release.assets?.find(asset => asset.name === 'update-android.json')
         if (!asset || !isArtifactUrl(asset.browser_download_url, release.tag_name, 'update-android.json', true)) throw new Error('Published Android release lacks its manifest')
-        const prior = validatePlatformManifest('android', await publicJson(asset.browser_download_url))
-        if (`android-v${prior.versionName}` !== release.tag_name) throw new Error('Published Android manifest identity mismatch')
+        const prior = validatePlatformManifest('android', await publicJson(asset.browser_download_url), null, channel)
+        if (androidReleaseTag(prior.versionName, channel) !== release.tag_name) throw new Error('Published Android manifest identity mismatch')
         assertPromotion('android', prior, manifest)
       }
     }
   }
   let release = await json(`${api}/releases/tags/${encodeURIComponent(identity.tag)}`, undefined, true)
   if (release && release.tag_name !== identity.tag) throw new Error('GitHub returned a different release tag')
-  if (release?.prerelease) throw new Error('A stable tag is already associated with a prerelease')
+  if (release && release.prerelease !== prerelease) throw new Error('Release prerelease flag does not match its channel')
   if (release && !release.draft) {
     if ((await json(`${api}/commits/${encodeURIComponent(identity.tag)}`))?.sha !== identity.commit) throw new Error('Remote release tag commit differs from verified build')
     await verifyRemote(await assetsFor(release.id), true)
@@ -100,7 +110,7 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
   await monotonic()
   if (!release) {
     release = await json(`${api}/releases`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      tag_name: identity.tag, target_commitish: identity.commit, draft: true, prerelease: false, make_latest: 'false',
+      tag_name: identity.tag, target_commitish: identity.commit, draft: true, prerelease, make_latest: 'false',
       name: `LumaTile for ${identity.platform === 'macos' ? 'macOS' : identity.platform === 'windows' ? 'Windows' : 'Android'} ${identity.version}`, body: identity.notes,
     }) })
   }

@@ -1,7 +1,8 @@
+import { channelIdentity } from '../electron/channel-contract.mjs'
 // Pure checks shared by native-tool verification and failure-boundary tests.
 export function assertAndroidApkMetadata({ identity, badging, metadata }) {
   const debug = identity.purpose === 'rehearsal'
-  const applicationId = debug ? identity.applicationId : 'io.github.c1oudreamw.lumatile'
+  const applicationId = debug ? identity.applicationId : channelIdentity(identity.channel ?? 'stable', 'android').applicationId
   const versionName = debug ? identity.nativeVersionName : identity.version
   const packageLine = badging.split('\n')[0]
   if (!packageLine.includes(`name='${applicationId}'`) || !packageLine.includes(`versionCode='${identity.versionCode}'`) || !packageLine.includes(`versionName='${versionName}'`)) throw new Error('APK native metadata mismatch')

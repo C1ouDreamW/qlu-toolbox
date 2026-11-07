@@ -4,16 +4,16 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { artifactFileNames, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
-import { releaseVersion, validateReleaseConfig } from './release-config.mjs'
+import { artifactFileNames, assertStableVersion, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { parseReleaseTag, releaseVersion, validateReleaseConfig } from './release-config.mjs'
 
 /** Pure generation entry for verified build artifacts; the CLI resolves identity from Git. */
-export async function generateDesktopManifest({ platform, version, tag, commit, artifacts, notes, bridgeVersion = null, publishedAt = new Date().toISOString() }) {
+export async function generateDesktopManifest({ platform, version, tag, commit, artifacts, notes, channel = 'stable', bridgeVersion = null, publishedAt = new Date().toISOString() }) {
   const target = platform === 'windows' ? desktopTarget('win32', 'x64') : platform === 'macos' ? desktopTarget('darwin', 'arm64') : null
-  if (!target || desktopTagVersion(tag, target, bridgeVersion) !== version) throw new Error('Desktop release target, tag and version do not match')
+  if (!target || desktopTagVersion(tag, target, bridgeVersion, channel) !== version) throw new Error('Desktop release target, tag and version do not match')
   if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Expected a full commit SHA')
   const files = await readdir(artifacts)
-  const names = artifactFileNames(target, version, tag === `v${bridgeVersion}`)
+  const names = artifactFileNames(target, version, tag === `v${bridgeVersion}`, channel)
   const entries = {}
   for (const [role, file] of Object.entries(names)) {
     if (!files.includes(file)) {
@@ -28,21 +28,21 @@ export async function generateDesktopManifest({ platform, version, tag, commit, 
     }
   }
   return validateDesktopManifest({
-    schemaVersion: 2, platform, arch: target.arch, channel: 'stable', version, tag, commit,
+    schemaVersion: 2, platform, arch: target.arch, channel, version, tag, commit,
     name: `LumaTile for ${platform === 'windows' ? 'Windows' : 'macOS'} ${version}`,
     notes: notes.trim(), publishedAt, artifacts: entries,
-  }, target, bridgeVersion)
+  }, target, bridgeVersion, channel)
 }
 
 export function taggedDesktopIdentity(root, tag, platform) {
-  if (typeof tag !== 'string' || !/^(?:win-v|mac-v|v)(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(tag)) throw new Error('Invalid desktop release tag')
+  const channel = typeof tag === 'string' && tag.startsWith('v') ? (assertStableVersion(tag.slice(1)), 'stable') : parseReleaseTag(platform, tag).channel
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
   const commit = git(['rev-parse', '--verify', `refs/tags/${tag}^{commit}`])
   if (git(['rev-parse', 'HEAD']) !== commit) throw new Error('Release tag must point to the checked-out commit')
   const versions = validateReleaseConfig(JSON.parse(git(['show', `${commit}:config/release-versions.json`])))
   const policy = validateMigrationPolicy(JSON.parse(git(['show', `${commit}:config/release-migration.json`])))
   if (!Object.hasOwn(versions, platform) || platform === 'android') throw new Error('Expected windows or macos')
-  return { version: releaseVersion(versions, platform).version, commit, bridgeVersion: policy.bridgeVersion,
+  return { channel, version: releaseVersion(versions, platform, channel).version, commit, bridgeVersion: policy.bridgeVersion,
     publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString() }
 }
 
