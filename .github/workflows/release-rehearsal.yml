@@ -115,10 +115,10 @@ jobs:
         run: |
           version=$(node -p "require('./package.json').version")
           mount_dir=$(mktemp -d)
-          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
+          trap 'bash scripts/detach-dmg.sh "$mount_dir" >/dev/null 2>&1 || true' EXIT
           hdiutil attach "release/LumaTile-Debug_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"
           node scripts/verify-release-build.mjs --rehearsal macos "$mount_dir/LumaTile Debug.app" verification.json
-          hdiutil detach "$mount_dir"
+          bash scripts/detach-dmg.sh "$mount_dir"
           trap - EXIT
           mkdir artifacts
           cp "release/LumaTile-Debug_v${version}_arm64.dmg" artifacts/LumaTile-Rehearsal-macOS-arm64.dmg

@@ -180,14 +180,14 @@ jobs:
           test -x "$worker"
           test -n "$dmg"
           mount_dir=$(mktemp -d)
-          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
+          trap 'bash scripts/detach-dmg.sh "$mount_dir" >/dev/null 2>&1 || true' EXIT
           hdiutil attach "$dmg" -nobrowse -mountpoint "$mount_dir"
           test -d "$mount_dir/LumaTile Debug.app"
           codesign --verify --deep --strict --verbose=2 "$mount_dir/LumaTile Debug.app"
           response=$(printf '%s\n' '{"id":"smoke","method":"bootstrap","params":{}}' | "$mount_dir/LumaTile Debug.app/Contents/Resources/backend/LumaTileWorker" --bridge)
           expected=$(node -p "require('./package.json').version")
           node -e 'const message=JSON.parse(process.argv[1]); if(message.id!=="smoke" || message.result?.version!==process.argv[2] || message.result.browserComponent.error) process.exit(1)' "$response" "$expected"
-          hdiutil detach "$mount_dir"
+          bash scripts/detach-dmg.sh "$mount_dir"
           trap - EXIT
 
       - name: Upload macOS test artifact
