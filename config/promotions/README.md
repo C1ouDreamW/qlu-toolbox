@@ -35,7 +35,7 @@ node scripts/check-stable-promotion.mjs android
 node scripts/check-stable-promotion.mjs android <完整40位Stable候选commit>
 ```
 
-预检从 Git 对象读取审查记录和配置，核对 Alpha 标签与 commit、Alpha 是 Stable 源码祖先、基础版本和观察 / 批准时序，再比较完整提交差异。只允许本平台 Stable 版本字段、精确的构建身份输出、对应日志及本次审查记录等元数据变化。不会忽略整个 package.json、lockfile 或 build 配置；依赖变化、工作流变化、业务代码和其他目标配置变化都要求重新 Alpha。
+预检从 Git 对象读取审查记录和配置，核对 Alpha 标签与 commit、Alpha 是 Stable 源码祖先、基础版本和观察 / 批准时序，再比较完整提交差异。只允许本平台 Stable 版本字段、精确的构建身份输出、对应日志及本次审查记录等元数据变化。不会忽略整个 package.json、lockfile 或 build 配置；依赖变化、工作流变化、业务代码和其他非版本配置变化都要求重新 Alpha。其他平台 / 渠道可以在观察期间独立推进版本与构建号；只忽略已声明的版本字段，不放行额外开关或任意配置。
 
 正常模式要求 Alpha 的基础版本等于 Stable 版本。例如 `2.1.0-alpha.2` 晋级 `2.1.0`。Stable 使用自己的应用 ID、数据目录、正式证书和原生构建号重新构建，并核验最终包；不是重命名 Alpha 构件。
 

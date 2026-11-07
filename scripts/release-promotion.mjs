@@ -62,8 +62,14 @@ function metadataOnly(path, before, after, identity, versions) {
   if (path === 'config/release-versions.json') {
     validateReleaseConfig(a); validateReleaseConfig(b)
     if (a.schemaVersion !== 2 || b.schemaVersion !== 2) return false
-    for (const key of ['version', identity.platform === 'android' ? 'versionCode' : 'buildNumber']) {
-      delete a[identity.platform].stable[key]; delete b[identity.platform].stable[key]
+    // Another platform/channel may advance its version while this Alpha is under observation.
+    // Ignore only declared version counters; retain every other configuration field.
+    for (const platform of ['windows', 'macos', 'android']) {
+      for (const channel of ['stable', 'alpha']) {
+        for (const key of ['version', platform === 'android' ? 'versionCode' : 'buildNumber']) {
+          delete a[platform][channel][key]; delete b[platform][channel][key]
+        }
+      }
     }
     return isDeepStrictEqual(a, b)
   }

@@ -93,7 +93,7 @@ test('business, dependency, workflow, native, build flags and other target chang
     ['package.json', f => f.mutate('package.json', p => { p.build.win.executableName = 'wrong' })],
     ['package.json', f => f.mutate('package.json', p => { p.build.mac.hardenedRuntime = false })],
     ['package-lock.json', f => f.mutate('package-lock.json', p => { p.packages['node_modules/vue'].integrity = 'different' })],
-    ['config/release-versions.json', f => f.mutate('config/release-versions.json', p => { p.android.stable.version = '3.0.0' })],
+    ['config/release-versions.json', f => f.mutate('config/release-versions.json', p => { p.android.stable.newBehavior = true })],
     ['config/release-versions.json', f => f.mutate('config/release-versions.json', p => { p.windows.stable.newBehavior = true })],
     ['config/release-migration.json', f => f.mutate('config/release-migration.json', p => { p.androidSigningSha256 = 'c'.repeat(64) })],
     ['.github/workflows/release.yml', f => f.json('.github/workflows/release.yml', { permissions: 'write-all' })],
@@ -244,4 +244,14 @@ test('Android Stable does not wait for a desktop bridge while preserving its own
   await windows.mutate('config/release-migration.json', p => { p.bridgeVersion = null })
   await windows.finish()
   assert.throws(() => taggedRelease(windows.root, 'windows', windows.identity.tag), /desktop bridge/)
+})
+
+test('other platforms and channels may advance only version metadata during an Alpha observation', async t => {
+  const f = await fixture(t)
+  await f.mutate('config/release-versions.json', config => {
+    config.android.stable = { version: '3.0.0', versionCode: 20 }
+    config.macos.alpha = { version: '2.2.0-alpha.1', buildNumber: 3 }
+    config.windows.alpha = { version: '2.1.0-alpha.3', buildNumber: 3 }
+  })
+  assert.deepEqual(validateStablePromotion(f.root, await f.finish()).untestedPaths, [])
 })
