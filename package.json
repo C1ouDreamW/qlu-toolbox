@@ -11,6 +11,7 @@
   "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {
+    "doctor": "node scripts/doctor.mjs",
     "release:prepare": "node scripts/prepare-release.mjs",
     "test:release": "node --test tests/release.test.mjs tests/desktop-manifest.test.mjs tests/release-pipeline.test.mjs tests/rehearsal.test.mjs tests/android-signing.test.mjs tests/channels.test.mjs",
     "predev": "node scripts/prepare-release.mjs --platform host",

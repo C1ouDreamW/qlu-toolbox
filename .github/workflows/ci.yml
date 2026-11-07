@@ -85,6 +85,9 @@ jobs:
       - name: Check Python lockfile
         run: uv lock --check
 
+      - name: Check desktop development dependencies
+        run: npm run doctor
+
       - name: Prepare and verify Windows version
         shell: bash
         run: |
@@ -141,6 +144,9 @@ jobs:
 
       - name: Check Python lockfile
         run: uv lock --check
+
+      - name: Check desktop development dependencies
+        run: npm run doctor
 
       - name: Prepare and verify macOS version
         run: |
@@ -235,6 +241,9 @@ jobs:
 
       - name: Install npm dependencies
         run: npm ci
+
+      - name: Check Android development dependencies
+        run: npm run doctor -- --platform android
 
       - name: Prepare and verify Android version
         run: |

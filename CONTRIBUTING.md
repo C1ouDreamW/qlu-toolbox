@@ -7,7 +7,7 @@
 - 小型修复和文档改进可以直接提交 Pull Request。
 - 新功能、跨平台适配、依赖调整、架构改动或可能影响用户数据的修改，请先创建 Issue，说明目标、实现思路和影响范围。
 - 请尽量让一个 Pull Request 只解决一个问题，避免混入无关重构或格式调整。
-- 当前正式发布基线为 Windows 10/11 64 位。跨平台改动应保持现有 Windows 功能和构建流程可用。
+- 当前开发目标为 Windows x64、原生 macOS arm64 和 Android。修改共享代码时检查两种桌面目标及移动端；设备验收与 CI 构建分别记录。
 
 推荐使用以下贡献流程：
 
@@ -35,31 +35,46 @@
 
 ## 本地开发
 
-需要 [Node.js](https://nodejs.org/) 和 [uv](https://docs.astral.sh/uv/)：
+桌面使用 Node.js 22、uv 与 Python 3.12；Android 额外需要 JDK 21、SDK API 36、build-tools 36.0.0。桌面只支持原生 Windows x64 / macOS arm64，不使用 Rosetta 构建 arm64 包。新机器无需正式或 Alpha 签名材料。
+
+先安装锁定依赖，再检查当前目标：
 
 ```shell
 npm ci
 uv sync --locked
+npm run doctor
+# 仅 Android：npm run doctor -- --platform android
+# 两者一起：npm run doctor -- --platform all
+```
+
+`doctor` 不读取密钥，缺项会逐项给出修复命令；它不能代替首次运行、真实打包或设备安装验收。基础工具尚未安装时，可以先运行 `node scripts/doctor.mjs`，不依赖 node_modules。
+
+桌面启动：
+
+```shell
+npm run build:electron
 npm run dev
 ```
 
-验证：
+移动端 Web 开发使用 `npm run mobile:dev`；原生 Debug 构建步骤见 [`apps/mobile/README.md`](apps/mobile/README.md)。两个开发入口均默认 Debug，使用独立名称、包名和私有数据目录，关闭在线更新与匿名统计。不要用正式 key 给 Debug 签名。不同机器的 Android Debug key 不同，无法直接覆盖时只卸载 Debug 应用并保留所需 Debug 测试数据；不要卸载 Stable 解决开发安装冲突。
+
+针对修改范围验证：
 
 ```shell
 uv lock --check
 uv run --locked python -B -m unittest discover -s tests -v
+npm run test:release
+npm run test:desktop
+npm run test:mobile
 npm run typecheck
 npm run build
-npm run build:backend
 ```
 
-Windows 完整打包验证：
+桌面完整 Debug 打包使用 Windows 的 `npm run dist:installer` / `npm run dist:zip`，或原生 arm64 Mac 的 `npm run dist:mac`；这些入口自动准备身份并构建 Python worker。只运行 electron-builder 可能打入上次构建的 worker，不作为版本一致性验收。
 
-```shell
-npx electron-builder --win dir --publish never
-```
+开发准备会把当前渠道版本注入 package / lock / Python 版本载体，并生成被忽略的 build-info.json。提交前检查 diff，勿将本地 Debug 注入当作版本发布提交；只还原本次生成的版本字段，保留真实依赖和源码修改。平台渠道权威配置、实际产物核验与迁移状态见 [`config/README.md`](config/README.md)。
 
-Pull Request 会通过 GitHub Actions 自动执行以上检查。其他平台的适配应补充对应平台的打包命令和真实设备验证。
+PR CI 和构建演练只使用 Debug / 临时密钥；同仓库与 fork PR 均不接收 Alpha 或正式长期签名 Secret。Alpha 是独立的长期测试应用，需要单独的版本、包身份、更新源及 Android 签名；把 Debug 包重新命名或把 Alpha 包覆盖到 Stable 都不构成发布。流程与停点见[签名规则](docs/release-security.md)。
 
 修改 Python 依赖请使用 `uv add` 或 `uv remove`，修改前端依赖请使用 `npm install`，并一并提交更新后的锁文件。
 

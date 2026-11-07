@@ -246,9 +246,12 @@ LumaTile 保持迁移版的 applicationId 和正式签名，并持续递增 vers
 ```powershell
 uv sync --locked
 npm ci
+npm run doctor -- --platform all
 ```
 
 ### 桌面端
+
+日常开发默认生成独立的 **LumaTile Debug**，不需要正式 / Alpha key，不读取 Stable 私有数据，也不请求在线更新。完整新机器检查和贡献流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 
 客户端版本统一维护在 [`config/release-versions.json`](config/release-versions.json)，开发和打包入口自动准备对应平台版本，可能产生可见的版本载体改动。只读检查、平台日志及独立发布迁移进度见[平台版本说明](config/README.md)。桌面开发仅支持原生 Windows x64、macOS arm64，Rosetta 下请切换到 arm64 Node/Python。
 
@@ -272,7 +275,7 @@ npm run test:desktop
 npm run build
 ```
 
-构建发布产物：
+构建本地 Debug 产物（Alpha / Stable 由维护者的渠道发布入口处理）：
 
 ```powershell
 # Windows NSIS 安装包
@@ -291,7 +294,7 @@ npm run dist:mac
 可验证应用签名与内嵌资源是否完整：
 
 ```bash
-codesign --verify --deep --strict --verbose=2 release/mac-arm64/LumaTile.app
+codesign --verify --deep --strict --verbose=2 "release/mac-arm64/LumaTile Debug.app"
 ```
 
 桌面产物输出到 `release/`；Python Worker 构建中间产物输出到 `backend-dist/` 和 `backend-build/`。
