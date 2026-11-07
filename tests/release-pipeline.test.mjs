@@ -8,6 +8,7 @@ import { androidArtifactName } from '../electron/android-update-contract.mjs'
 import { channelIdentity } from '../electron/channel-contract.mjs'
 import { artifactFileNames, desktopTarget } from '../electron/update-contract.mjs'
 import { assertPromotion, createReleaseBundle, manifestTarget, sha256, taggedRelease, verifyReleaseFiles } from '../scripts/release-artifacts.mjs'
+import { prepareAndroidBackup } from '../scripts/prepare-android-backup.mjs'
 import { promoteManifest } from '../scripts/promote-update-manifest.mjs'
 import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
 
@@ -381,4 +382,18 @@ test('Alpha uses an immutable independent gate and Android requires its own cert
   policy.androidAlphaSigningSha256 = 'c'.repeat(64); await save()
   assert.equal(taggedRelease(root, 'android', 'android-alpha-v2.1.0-alpha.1').androidSigningSha256, 'c'.repeat(64))
   assert.throws(() => taggedRelease(root, 'windows', 'win-alpha-v2.1.0-alpha.01'))
+})
+
+test('Android backup preparation creates Alpha independently and preserves the Stable manifest', async t => {
+  const fixture = await buildFixture(t, 'android', '2.1.0-alpha.2', 2, 'alpha')
+  const root = await temporary(t)
+  await mkdir(join(root, 'updates'))
+  const sentinel = JSON.stringify(priorManifest('android'))
+  await writeFile(join(root, 'updates/android.json'), sentinel)
+  assert.equal(await prepareAndroidBackup({ checkout: root, manifest: fixture.manifest, channel: 'alpha' }), 'updates/android-alpha.json')
+  assert.equal(await readFile(join(root, 'updates/android.json'), 'utf8'), sentinel)
+  await assert.rejects(prepareAndroidBackup({ checkout: root, manifest: { ...fixture.manifest, versionCode: 1 }, channel: 'alpha' }), /rollback/)
+  await assert.rejects(prepareAndroidBackup({ checkout: root, manifest: fixture.manifest, channel: 'stable' }))
+  await assert.rejects(prepareAndroidBackup({ checkout: root, manifest: fixture.manifest, channel: '../stable' }))
+  assert.equal(await readFile(join(root, 'updates/android.json'), 'utf8'), sentinel)
 })

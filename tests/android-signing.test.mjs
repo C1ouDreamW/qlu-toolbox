@@ -63,7 +63,7 @@ test('metadata tools do not inherit signing secrets or GitHub write credentials'
 test('Android release YAML separates no-secret build, signature-only credentials and publication write access', async () => {
   const workflow = yaml.load(await readFile(new URL('../.github/workflows/release-android.yml', import.meta.url), 'utf8'))
   assert.deepEqual(Object.keys(workflow.on), ['push'])
-  assert.deepEqual(workflow.on.push.tags, ['android-v*'])
+  assert.deepEqual(workflow.on.push.tags, ['android-v*', 'android-alpha-v*'])
   assert.deepEqual(workflow.permissions, { contents: 'read' })
   const { build, sign, publish } = workflow.jobs
   assert.deepEqual(sign.needs, ['build'])
@@ -82,12 +82,14 @@ test('Android release YAML separates no-secret build, signature-only credentials
         assert.match(step.run, /^node scripts\/prepare-android-signing\.mjs sign /)
         const keys = Object.keys(step.env).filter(key => key.startsWith('ANDROID_')).sort()
         assert.deepEqual(keys, ['ANDROID_KEYSTORE_BASE64', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD'].sort())
-        for (const key of keys) assert.equal(step.env[key], '${{ secrets.' + key + ' }}')
+        const channel = step.if.includes("== 'alpha'") ? 'alpha' : 'stable'
+        assert.equal(step.if, "${{ needs.build.outputs.channel == '" + channel + "' }}")
+        for (const key of keys) assert.equal(step.env[key], '${{ secrets.' + (channel === 'alpha' ? key.replace('ANDROID_', 'ANDROID_ALPHA_') : key) + ' }}')
       }
       if (name === 'sign') assert.doesNotMatch(step.run ?? '', /\b(?:npm|npx|gradle|gradlew|uv)\b/, 'Do not execute business build tools in the signing job')
     }
   }
-  assert.equal(sign.steps.filter(step => /secrets\s*[.\[]/.test(JSON.stringify(step))).length, 1)
+  assert.equal(sign.steps.filter(step => /secrets\s*[.\[]/.test(JSON.stringify(step))).length, 2)
 })
 
 test('a release tag must resolve to the build commit already contained in origin/main', async t => {
@@ -125,5 +127,32 @@ test('Alpha signing receipts bind the separate app ID and certificate and cannot
   assert.doesNotThrow(() => assertUnsignedReceipt(options))
   for (const change of [{ applicationId: receipt().applicationId }, { signingSha256: identity.androidSigningSha256 }, { channel: 'stable' }]) {
     assert.throws(() => assertUnsignedReceipt({ ...options, receipt: { ...alphaReceipt, ...change } }))
+  }
+})
+
+test('desktop releases keep build jobs read-only and grant write access only to a fresh verified publisher', async () => {
+  for (const [platform, prefix] of [['windows', 'win'], ['macos', 'mac']]) {
+    const workflow = yaml.load(await readFile(new URL(`../.github/workflows/release-${platform}.yml`, import.meta.url), 'utf8'))
+    assert.deepEqual(Object.keys(workflow.on), ['push'])
+    assert.deepEqual(workflow.on.push.tags, [`${prefix}-v*`, `${prefix}-alpha-v*`])
+    assert.deepEqual(workflow.permissions, { contents: 'read' })
+    assert.deepEqual(Object.keys(workflow.jobs), ['build', 'publish'])
+    assert.deepEqual(workflow.jobs.publish.needs, ['build'])
+    assert.deepEqual(workflow.jobs.publish.permissions, { contents: 'write' })
+    assert.equal(workflow.jobs.build.permissions?.contents ?? workflow.permissions.contents, 'read')
+    assert.doesNotMatch(JSON.stringify(workflow.jobs.build), /secrets\s*[.\[]|github.token/)
+    for (const [name, job] of Object.entries(workflow.jobs)) {
+      assert.equal(job.environment, undefined)
+      for (const step of job.steps) {
+        if (step.uses) assert.match(step.uses, /^[\w-]+\/[\w-]+@[a-f0-9]{40}$/)
+        if (step.uses?.startsWith('actions/checkout@')) assert.equal(step.with['persist-credentials'], false)
+        if (name === 'publish') assert.doesNotMatch(step.run ?? '', /\b(?:npm|npx|gradle|uv)\b/)
+      }
+    }
+    const upload = workflow.jobs.build.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
+    const download = workflow.jobs.publish.steps.find(step => step.uses?.startsWith('actions/download-artifact@'))
+    assert.equal(download.with.name, upload.with.name.replaceAll('steps.version', 'needs.build'))
+    assert.match(download.with.name, /github.run_id.*github.run_attempt/)
+    assert.match(workflow.jobs.publish.steps.find(step => step.name?.startsWith('Recheck')).run, /validate-independent-release/)
   }
 })

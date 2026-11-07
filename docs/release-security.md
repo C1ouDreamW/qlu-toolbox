@@ -66,3 +66,20 @@ ANDROID_ALPHA_KEY_PASSWORD
 ## 本地验证记录
 
 2026-11-07：发布相关 44 项测试与 actionlint 通过；真实 unsigned Release APK 使用一次性测试 key 完成 zipalign、签名、证书 / 原生 / Web / 最终哈希核验，测试 key 与签名产物随后清理。普通本地 Release 在无签名配置时仍失败，显式 unsigned 构建收到签名配置时也被拒绝。未使用正式或 Alpha 长期密钥，未推送或触发 GitHub 发布。
+
+## Alpha 与 Stable 的独立签名入口
+
+三端独立工作流分别接收本平台 Stable / Alpha 标签，从不可变 tag commit 解析渠道、版本和门禁后才开始构建。Windows / macOS 构建 job 仅有 contents:read，独立 Ubuntu 发布 job 重新核验来源并下载同次 run / attempt 的 bundle；该 job 才有 contents:write，且不执行 npm、Gradle 或 Python 构建。
+
+Android 无密钥构建后，签名 job 使用两个条件互斥的步骤：
+
+| 渠道 | 注入签名步骤的仓库 Secrets |
+|---|---|
+| Stable | 现有 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD` |
+| Alpha | 新增 `ANDROID_ALPHA_KEYSTORE_BASE64`、`ANDROID_ALPHA_KEYSTORE_PASSWORD`、`ANDROID_ALPHA_KEY_ALIAS`、`ANDROID_ALPHA_KEY_PASSWORD` |
+
+两个步骤分别显式映射，不使用 Secret 的 `alpha && ... || stable` 回退表达式。Alpha Secret 缺失即签名失败，预期 Alpha 证书还必须与已登记正式证书不同。现有正式 Secret 不迁移、不修改；Alpha 长期 key 尚未建立，公开指纹为 null、Alpha 发布开关仍为 false。
+
+备用清单按渠道选择文件：Stable 使用 `updates/android.json`，Alpha 使用 `updates/android-alpha.json`。脚本在最新 main 的独立 worktree 中检查单调性，只写当前渠道文件后创建 automation 分支，不修改 main；仍需创建并通过检查后合并该分支的 PR。首次 Alpha 可以没有旧 Alpha 文件，但不能借此绕过已有 Stable 文件的检查。
+
+本机已实际构建 `io.github.c1oudreamw.lumatile.alpha` 的非 debuggable Release APK，用一次性测试 key 验证无密钥 APK → zipalign → apksigner → 原生 / Web / 证书 / 最终摘要核验。该 key 和测试签名包已删除，不是长期 Alpha 身份，也没有公开发布。工作流结构与分渠道备用清单已纳入发布回归测试（58 项）。

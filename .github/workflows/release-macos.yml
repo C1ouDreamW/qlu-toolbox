@@ -2,7 +2,7 @@ name: Release macOS
 
 on:
   push:
-    tags: ['mac-v*']
+    tags: ['mac-v*', 'mac-alpha-v*']
 
 permissions:
   contents: read
@@ -11,26 +11,28 @@ env:
   LUMATILE_BUILD_CHANNEL: stable
 
 concurrency:
-  group: release-macos-stable
+  group: release-macos-${{ startsWith(github.ref_name, 'mac-alpha-v') && 'alpha' || 'stable' }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build and publish macOS arm64
+  build:
+    name: Build and verify macOS arm64
     runs-on: macos-15
     timeout-minutes: 45
-    permissions:
-      contents: write
+    outputs:
+      commit: ${{ steps.version.outputs.commit }}
+      version: ${{ steps.version.outputs.version }}
+      channel: ${{ steps.version.outputs.channel }}
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: npm
@@ -39,8 +41,7 @@ jobs:
         run: |
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           node scripts/validate-independent-release.mjs macos "$GITHUB_REF_NAME"
-          echo "version=$(node -p "require('./config/release-versions.json').macos.stable.version")" >> "$GITHUB_OUTPUT"
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: '3.12'
       - name: Install locked dependencies
@@ -63,24 +64,54 @@ jobs:
           npx electron-builder --mac dmg --arm64 --publish never
       - name: Verify mounted DMG, signature, architecture and runtime versions
         run: |
-          version=$(node -p "require('./config/release-versions.json').macos.stable.version")
+          version=$(node -p "require('./lumatile/build-info.json').version")
+          product_name=$(node -p "require('./lumatile/build-info.json').productName")
+          prefix=LumaTile
+          if [ "$LUMATILE_BUILD_CHANNEL" = alpha ]; then prefix=LumaTile-Alpha; fi
           mount_dir=$(mktemp -d)
-          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
-          hdiutil attach "release/LumaTile_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"
-          node scripts/verify-release-build.mjs macos "$GITHUB_REF_NAME" "$mount_dir/LumaTile.app" verification.json
-          hdiutil detach "$mount_dir"
+          trap 'bash scripts/detach-dmg.sh "$mount_dir" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach "release/${prefix}_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"
+          node scripts/verify-release-build.mjs macos "$GITHUB_REF_NAME" "$mount_dir/$product_name.app" verification.json
+          bash scripts/detach-dmg.sh "$mount_dir"
           trap - EXIT
           mkdir artifacts
-          cp "release/LumaTile_v${version}_arm64.dmg" "artifacts/LumaTile-macOS-v${version}-arm64.dmg"
+          cp "release/${prefix}_v${version}_arm64.dmg" "artifacts/${prefix}-macOS-v${version}-arm64.dmg"
       - name: Build macOS-only update source bundle
         run: node scripts/build-release-bundle.mjs macos "$GITHUB_REF_NAME" artifacts verification.json update-source
       - name: Upload verified deployment bundle before publication
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: update-source-macos-${{ steps.version.outputs.version }}
+          name: update-source-macos-${{ steps.version.outputs.channel }}-${{ steps.version.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: update-source
           if-no-files-found: error
-      - name: Publish complete release through a verified draft
+
+  publish:
+    name: Publish the verified macos release
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      RELEASE_EXPECTED_COMMIT: ${{ needs.build.outputs.commit }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Recheck immutable source before publication
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node scripts/validate-independent-release.mjs macos "$GITHUB_REF_NAME"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: update-source-macos-${{ needs.build.outputs.channel }}-${{ needs.build.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: update-source
+      - name: Publish complete assets through a verified draft
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/publish-platform-release.mjs macos "$GITHUB_REF_NAME" "update-source/releases/$GITHUB_REF_NAME"
