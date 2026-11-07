@@ -79,7 +79,7 @@ npm run build
 
 PR CI 和构建演练只使用 Debug / 临时密钥；同仓库与 fork PR 均不接收 Alpha 或正式长期签名 Secret。Alpha 是独立的长期测试应用，需要单独的版本、包身份、更新源及 Android 签名；把 Debug 包重新命名或把 Alpha 包覆盖到 Stable 都不构成发布。流程与停点见[签名规则](docs/release-security.md)。
 
-维护人的候选构建、真实设备检查、观察记录、Stable 晋级和故障恢复步骤见 [发布与测试指南](RELEASING.md)。三端构建演练归档依赖清单、第三方通知和构建来源；这些材料记录构建输入与待审查项，不自动批准许可证合规。
+三端普通 CI 负责测试、Debug 打包和包内身份校验。Alpha / Stable 按平台标签发布，命令与现有签名规则见 [发布指南](RELEASING.md)；不要求提交额外的验收或晋级批准记录。
 
 修改 Python 依赖请使用 `uv add` 或 `uv remove`，修改前端依赖请使用 `npm install`，并一并提交更新后的锁文件。
 

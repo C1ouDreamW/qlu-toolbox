@@ -106,7 +106,7 @@
 
 Alpha / Debug 使用独立应用身份和私有数据，可以与 Stable 共存。加入测试无需卸载 Stable；各渠道不自动读取对方的课表、设置或登录状态。需要转移课表时，由用户主动导出备份再导入，首次测试建议使用内置虚拟展示课表。Android Alpha 使用固定独立测试证书，Debug 的机器临时证书不能保证跨机器覆盖安装。
 
-维护人手动生成的 Alpha Candidate 是安装验收包，带有明确的候选标记，不是公开 Alpha Release，也不能作为更新源推广。当前没有长期 Alpha 签名或真实安装验收完成记录。测试步骤与发布材料说明见 [发布与测试指南](RELEASING.md)。
+Alpha 按平台独立发布 GitHub prerelease，Stable 按平台独立发布正式版本；Debug 构件由普通 CI 提供。构建和发版命令见 [发布指南](RELEASING.md)。当前不发布新版本。
 
 ## 桌面版
 
