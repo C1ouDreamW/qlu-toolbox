@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, rm, readdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import test from 'node:test'
 import { desktopBridgeSource, taggedDesktopBridge } from '../scripts/desktop-bridge.mjs'
-import { validateMigrationPolicy } from '../electron/update-contract.mjs'
-import { createReleaseBundle } from '../scripts/release-artifacts.mjs'
+import { artifactFileNames, validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { createReleaseBundle, targetFor, verifyReleaseFiles } from '../scripts/release-artifacts.mjs'
 import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
+import { createDesktopBridgeBundle } from '../scripts/desktop-bridge-bundle.mjs'
+import { readBuildInventory } from '../scripts/inventory-artifacts.mjs'
+import { writeInventoryFixture } from './inventory-fixture.mjs'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'lumatile-bridge-'))
@@ -53,20 +56,69 @@ test('bridge requires its reserved version, explicit gate, both desktop versions
   assert.throws(() => desktopBridgeSource(f.root, 'v2.1.0'), /Both desktop Stable versions/)
 })
 
-test('publishing a bridge requires both actual Alpha source reviews and rejects business changes', async t => {
-  const f = await fixture(t)
+async function approve(f) {
   for (const [platform, prefix] of [['windows', 'win'], ['macos', 'mac']]) {
     const tag = `${prefix}-alpha-v2.1.0-alpha.1`; f.git(['tag', tag])
     await f.write(`config/promotions/${platform}-2.1.0.json`, { schemaVersion: 1, mode: 'alpha', platform, stableVersion: '2.1.0', alpha: { tag, commit: f.context.sha },
       review: { approvedBy: 'test-maintainer', observationStartedAt: '2026-11-02T00:00:00Z', observationEndedAt: '2026-11-03T00:00:00Z', approvedAt: '2026-11-04T00:00:00Z', summary: 'Synthetic review', tests: [{ name: 'Synthetic bridge installation', result: 'passed', evidence: 'fixture only' }] } })
   }
-  let sha = f.commit('2026-11-05T00:00:00Z'); f.git(['tag', '-f', 'v2.1.0'])
-  const identities = taggedDesktopBridge(f.root, 'v2.1.0', { ...f.context, sha })
+  const sha = f.commit('2026-11-05T00:00:00Z'); f.git(['tag', '-f', 'v2.1.0'])
+  return taggedDesktopBridge(f.root, 'v2.1.0', { ...f.context, sha })
+}
+
+test('publishing a bridge requires both actual Alpha source reviews and rejects business changes', async t => {
+  const f = await fixture(t), identities = await approve(f)
   assert.equal(identities.windows.promotion.alphaVersion, '2.1.0-alpha.1')
   assert.equal(identities.macos.promotion.alphaVersion, '2.1.0-alpha.1')
   await f.write('business.mjs', 'export const changed = true')
-  sha = f.commit('2026-11-06T00:00:00Z'); f.git(['tag', '-f', 'v2.1.0'])
+  const sha = f.commit('2026-11-06T00:00:00Z'); f.git(['tag', '-f', 'v2.1.0'])
   assert.throws(() => taggedDesktopBridge(f.root, 'v2.1.0', { ...f.context, sha }), /require another Alpha/)
+})
+
+async function bundleFixture(t) {
+  const f = await fixture(t), identities = await approve(f), artifacts = {}, verifications = {}
+  for (const platform of ['windows', 'macos']) {
+    const identity = identities[platform], info = identity.information
+    const directory = join(f.root, platform); await mkdir(directory)
+    artifacts[platform] = directory
+    for (const file of Object.values(artifactFileNames(targetFor(platform), identity.version, true))) await writeFile(join(directory, file), `Synthetic ${platform} installation bytes`)
+    await writeInventoryFixture(directory, identity)
+    verifications[platform] = { platform, target: identity.target, channel: 'stable', commit: identity.commit, version: identity.version, purpose: 'bridge', deployable: true, verified: true,
+      checks: { channel: 'stable', applicationId: info.applicationId, electronVersion: info.version, pythonVersion: info.version, nativeBuildVersion: info.nativeBuildVersion } }
+  }
+  return { ...f, identities, artifacts, verifications, output: join(f.root, 'bundle') }
+}
+
+test('bridge bundle preserves all legacy installation names, generates three pointers and keeps inventories separate', async t => {
+  const f = await bundleFixture(t), bundle = await createDesktopBridgeBundle(f)
+  assert.deepEqual((await readdir(join(f.output, 'stable'))).sort(), ['desktop.json', 'macos-arm64.json', 'windows-x64.json'])
+  const files = await verifyReleaseFiles(bundle.releaseDir)
+  for (const file of ['LumaTile_v2.1.0.zip', 'LumaTile_v2.1.0_x64_Setup.exe', 'LumaTile_v2.1.0_arm64.dmg']) assert.ok(files.includes(file))
+  assert.ok(!files.some(file => file.endsWith('.apk') || file.includes('android')))
+  for (const platform of ['windows', 'macos']) {
+    const item = bundle.record.targets[platform], prefix = `${item.identity.target}-`
+    await readBuildInventory(bundle.releaseDir, item.identity.information, item.inventory.provenanceSha256, prefix)
+    assert.ok(item.inventory.entries.every(entry => entry.file.startsWith(prefix)))
+  }
+  await assert.rejects(readBuildInventory(bundle.releaseDir, f.identities.windows.information, undefined, 'macos-arm64-'), /archive prefix/)
+  assert.equal(bundle.legacy.downloads.win32, bundle.manifests.windows.artifacts.installer.url)
+  assert.equal(bundle.legacy.downloads.darwin, bundle.manifests.macos.artifacts.dmg.url)
+  assert.equal(JSON.parse(await readFile(join(bundle.releaseDir, 'desktop.json'))).schemaVersion, 1)
+})
+
+test('bridge bundle validates both targets before output and rejects mixed channels, source commits and partial packages', async t => {
+  const f = await bundleFixture(t)
+  await assert.rejects(createDesktopBridgeBundle({ ...f, artifacts: { windows: f.artifacts.windows } }), /exactly Windows and macOS/)
+  await assert.rejects(createDesktopBridgeBundle({ ...f, identities: { ...f.identities, macos: { ...f.identities.macos, channel: 'alpha' } } }), /identity/)
+  await assert.rejects(createDesktopBridgeBundle({ ...f, verifications: { ...f.verifications, macos: { ...f.verifications.macos, commit: 'b'.repeat(40) } } }), /identity/)
+  await assert.rejects(createDesktopBridgeBundle({ ...f, verifications: { ...f.verifications, macos: { ...f.verifications.macos, checks: { ...f.verifications.macos.checks, nativeBuildVersion: '1' } } } }), /verified Stable native/)
+  const notice = join(f.artifacts.macos, 'THIRD-PARTY-NOTICES.txt'), original = await readFile(notice)
+  await writeFile(notice, 'Replaced license notice')
+  await assert.rejects(createDesktopBridgeBundle(f), /content differs/)
+  await writeFile(notice, original)
+  await rm(join(f.artifacts.windows, 'LumaTile_v2.1.0.zip'))
+  await assert.rejects(createDesktopBridgeBundle(f), /ENOENT/)
+  await assert.rejects(readdir(f.output), /ENOENT/)
 })
 
 test('desktop migration distinguishes bridge publishing, controlled cutover and completion', () => {

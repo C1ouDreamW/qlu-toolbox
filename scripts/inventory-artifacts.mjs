@@ -10,11 +10,12 @@ import { isPublicationDate } from '../electron/update-contract.mjs'
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 
 // Pure Node validation is deliberately usable on the signature-only and publication runners.
-export async function readBuildInventory(directory, information, expectedProvenanceSha256) {
+export async function readBuildInventory(directory, information, expectedProvenanceSha256, prefix = '') {
   const info = validateBuildInformation(information)
+  if (prefix !== '' && prefix !== `${info.target}-`) throw new Error('Invalid inventory archive prefix')
   const files = {}, entries = []
   for (const file of INVENTORY_FILES) {
-    const path = join(directory, file)
+    const path = join(directory, prefix + file)
     const stat = await lstat(path)
     if (!stat.isFile() || stat.size <= 0 || stat.size > 64 * 1024 * 1024) throw new Error('Invalid inventory sidecar file')
     files[file] = await readFile(path)
@@ -33,9 +34,10 @@ export async function readBuildInventory(directory, information, expectedProvena
   if (sbom.bomFormat !== 'CycloneDX' || sbom.specVersion !== '1.6' || sbom.metadata?.component?.['bom-ref'] !== root || sbom.metadata.component.version !== info.version ||
       ['platform', 'target', 'channel', 'applicationId', 'commit'].some(key => properties[`lumatile:build:${key}`] !== info[key]) ||
       review.schemaVersion !== 1 || review.status !== 'requires-maintainer-review' || !isDeepStrictEqual(review.identity, info) || !files['PROJECT-TERMS.txt'].toString('utf8').trim()) throw new Error('Inventory sidecar identity mismatch')
-  return { entries, provenanceSha256, provenance }
+  return { entries: entries.map(entry => ({ ...entry, file: prefix + entry.file })), provenanceSha256, provenance }
 }
 
-export async function copyBuildInventory(source, destination) {
-  for (const file of INVENTORY_FILES) await copyFile(join(source, file), join(destination, file), constants.COPYFILE_EXCL)
+export async function copyBuildInventory(source, destination, prefix = '') {
+  if (prefix !== '' && !['windows-x64-', 'macos-arm64-'].includes(prefix)) throw new Error('Invalid inventory archive prefix')
+  for (const file of INVENTORY_FILES) await copyFile(join(source, file), join(destination, prefix + file), constants.COPYFILE_EXCL)
 }
