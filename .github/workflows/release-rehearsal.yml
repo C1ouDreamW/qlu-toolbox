@@ -57,7 +57,7 @@ jobs:
       - name: Collect rehearsal-only installer and ZIP
         shell: pwsh
         run: |
-          $version = node -p "require('./config/release-versions.json').windows.version"
+          $version = node -p "require('./config/release-versions.json').windows.stable.version"
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
           Copy-Item "release/LumaTile_v${version}_x64_Setup.exe" artifacts/LumaTile-Rehearsal-Windows-x64-Setup.exe
           $ws = New-Object -ComObject WScript.Shell
@@ -110,7 +110,7 @@ jobs:
           npx electron-builder --mac dmg --arm64 --publish never
       - name: Verify mounted DMG, signature and runtime versions
         run: |
-          version=$(node -p "require('./config/release-versions.json').macos.version")
+          version=$(node -p "require('./config/release-versions.json').macos.stable.version")
           mount_dir=$(mktemp -d)
           trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
           hdiutil attach "release/LumaTile_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"

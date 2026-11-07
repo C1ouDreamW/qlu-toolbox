@@ -46,7 +46,7 @@ jobs:
       - name: Prepare legacy windows release version
         shell: bash
         run: |
-          expected=$(node -p "require('./config/release-versions.json').windows.version")
+          expected=$(node -p "require('./config/release-versions.json').windows.stable.version")
           test "v$expected" = "$GITHUB_REF_NAME"
           node scripts/prepare-release.mjs --platform windows
           node scripts/prepare-release.mjs --platform windows --verify
@@ -112,7 +112,7 @@ jobs:
       - name: Prepare legacy macos release version
         shell: bash
         run: |
-          expected=$(node -p "require('./config/release-versions.json').macos.version")
+          expected=$(node -p "require('./config/release-versions.json').macos.stable.version")
           test "v$expected" = "$GITHUB_REF_NAME"
           node scripts/prepare-release.mjs --platform macos
           node scripts/prepare-release.mjs --platform macos --verify
@@ -218,7 +218,7 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          version_code=$(node -p "require('./config/release-versions.json').android.versionCode")
+          version_code=$(node -p "require('./config/release-versions.json').android.stable.versionCode")
           apk=$(find artifacts -maxdepth 1 -name 'LumaTile-Android-v*.apk' -type f -print -quit)
           release_dir="update-source/releases/${GITHUB_REF_NAME}"
           mkdir -p "$release_dir" update-source/stable
@@ -240,7 +240,7 @@ jobs:
           apk=$(find artifacts -maxdepth 1 -name 'LumaTile-Android-v*.apk' -type f -print -quit)
           test -n "$apk"
           version="${GITHUB_REF_NAME#v}"
-          version_code=$(node -p "require('./config/release-versions.json').android.versionCode")
+          version_code=$(node -p "require('./config/release-versions.json').android.stable.versionCode")
           test -n "$version_code"
           git fetch origin main
           git checkout -B main origin/main

@@ -4,8 +4,8 @@ import compatibility from './webview-compatibility.json'
 import mobilePackage from './package.json'
 import releaseVersions from '../../config/release-versions.json'
 
-const android = releaseVersions.android
-if (releaseVersions.schemaVersion !== 1 || mobilePackage.version !== android.version) {
+const android = releaseVersions.android.stable
+if (releaseVersions.schemaVersion !== 2 || mobilePackage.version !== android.version) {
   throw new Error('Android Web version is stale; run npm run release:prepare -- --platform android')
 }
 

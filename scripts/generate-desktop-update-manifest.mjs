@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { artifactFileNames, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
-import { validateReleaseConfig } from './release-config.mjs'
+import { releaseVersion, validateReleaseConfig } from './release-config.mjs'
 
 /** Pure generation entry for verified build artifacts; the CLI resolves identity from Git. */
 export async function generateDesktopManifest({ platform, version, tag, commit, artifacts, notes, bridgeVersion = null, publishedAt = new Date().toISOString() }) {
@@ -42,7 +42,7 @@ export function taggedDesktopIdentity(root, tag, platform) {
   const versions = validateReleaseConfig(JSON.parse(git(['show', `${commit}:config/release-versions.json`])))
   const policy = validateMigrationPolicy(JSON.parse(git(['show', `${commit}:config/release-migration.json`])))
   if (!Object.hasOwn(versions, platform) || platform === 'android') throw new Error('Expected windows or macos')
-  return { version: versions[platform].version, commit, bridgeVersion: policy.bridgeVersion,
+  return { version: releaseVersion(versions, platform).version, commit, bridgeVersion: policy.bridgeVersion,
     publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString() }
 }
 

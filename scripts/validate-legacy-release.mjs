@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { assertStableVersion, readReleaseConfig } from './release-config.mjs'
+import { assertStableVersion, readReleaseConfig, releaseVersion } from './release-config.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 const tag = process.argv[2]
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -10,6 +10,7 @@ if (policy.independentPublishingEnabled === true) throw new Error('Legacy multi-
 if (bridgeVersion !== null && tag === `v${bridgeVersion}`) throw new Error('The reserved desktop bridge tag must use the desktop-only bridge workflow')
 const config = await readReleaseConfig(root)
 for (const platform of ['windows', 'macos', 'android']) {
-  assertStableVersion(config[platform].version)
-  if (tag !== `v${config[platform].version}`) throw new Error(`Legacy tag does not match ${platform} version config`)
+  const entry = releaseVersion(config, platform)
+  assertStableVersion(entry.version)
+  if (tag !== `v${entry.version}`) throw new Error(`Legacy tag does not match ${platform} version config`)
 }

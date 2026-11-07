@@ -30,8 +30,8 @@ def testAppLabel = (project.findProperty('appLabel') ?: '一格有光（测试�
 def webViewCompatibilityFile = rootProject.file('../webview-compatibility.json')
 def webViewCompatibility = new JsonSlurper().parse(webViewCompatibilityFile)
 def releaseVersions = new JsonSlurper().parse(rootProject.file('../../../config/release-versions.json'))
-def androidVersion = releaseVersions.android
-if (releaseVersions.schemaVersion != 1 || !(androidVersion?.version instanceof String) ||
+def androidVersion = releaseVersions.android.stable
+if (releaseVersions.schemaVersion != 2 || !(androidVersion?.version instanceof String) ||
         !(androidVersion.version ==~ /(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)/) ||
         !(androidVersion.versionCode instanceof Integer) || androidVersion.versionCode <= 0 || androidVersion.versionCode > 2100000000) {
     throw new GradleException('Invalid Android release version configuration')

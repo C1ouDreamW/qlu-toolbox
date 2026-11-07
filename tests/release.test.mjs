@@ -58,7 +58,7 @@ test('release identity binds tag, platform, target and stable channel to config'
     config.android.versionCode = code
     assert.throws(() => validateReleaseConfig(config), /versionCode/)
   }
-  assert.throws(() => validateReleaseConfig({ ...versions(), schemaVersion: 2 }), /schema/)
+  assert.throws(() => validateReleaseConfig({ ...versions(), schemaVersion: 3 }), /schema/)
 })
 
 test('desktop host mapping never substitutes an architecture, including Rosetta', () => {

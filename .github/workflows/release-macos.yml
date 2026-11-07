@@ -36,7 +36,7 @@ jobs:
         run: |
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           node scripts/validate-independent-release.mjs macos "$GITHUB_REF_NAME"
-          echo "version=$(node -p "require('./config/release-versions.json').macos.version")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./config/release-versions.json').macos.stable.version")" >> "$GITHUB_OUTPUT"
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: '3.12'
@@ -60,7 +60,7 @@ jobs:
           npx electron-builder --mac dmg --arm64 --publish never
       - name: Verify mounted DMG, signature, architecture and runtime versions
         run: |
-          version=$(node -p "require('./config/release-versions.json').macos.version")
+          version=$(node -p "require('./config/release-versions.json').macos.stable.version")
           mount_dir=$(mktemp -d)
           trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
           hdiutil attach "release/LumaTile_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"

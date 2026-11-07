@@ -1,10 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
-import { assertStableVersion } from './release-config.mjs'
+import { assertChannelVersion, versionChannel } from '../electron/channel-contract.mjs'
 
 export function replacePythonVersion(source, version) {
-  assertStableVersion(version)
+  assertChannelVersion(version, versionChannel(version))
   const pattern = /^__version__\s*=\s*["'][^"']+["']/gm
   if ([...source.matchAll(pattern)].length !== 1) {
     throw new Error('Expected exactly one __version__ in lumatile/__init__.py')

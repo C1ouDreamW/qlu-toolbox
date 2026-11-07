@@ -36,7 +36,7 @@ jobs:
         run: |
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           node scripts/validate-independent-release.mjs windows "$GITHUB_REF_NAME"
-          echo "version=$(node -p "require('./config/release-versions.json').windows.version")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./config/release-versions.json').windows.stable.version")" >> "$GITHUB_OUTPUT"
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: '3.12'
@@ -65,7 +65,7 @@ jobs:
       - name: Prepare installer and portable ZIP
         shell: pwsh
         run: |
-          $version = node -p "require('./config/release-versions.json').windows.version"
+          $version = node -p "require('./config/release-versions.json').windows.stable.version"
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
           Copy-Item "release/LumaTile_v${version}_x64_Setup.exe" "artifacts/LumaTile-Windows-v${version}-x64-Setup.exe"
           $ws = New-Object -ComObject WScript.Shell
