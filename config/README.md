@@ -146,7 +146,7 @@ Alpha 使用 `win-alpha-vX.Y.Z-alpha.N`、`mac-alpha-vX.Y.Z-alpha.N`、`android-
 
 Android 现有 Stable raw 地址保持 `updates/android.json`，Alpha 使用 `updates/android-alpha.json`，主源分别为 `/stable/android.json` 与 `/alpha/android.json`。新清单保留 schema 1 并增加 tag / commit；客户端仍允许历史 Stable raw 清单，GitHub 独立发布候选必须提供可核验的源码身份。同 code 多源 APK 元数据冲突时拒绝更新；原生安装前仍校验包名、已安装应用的签名、code、Release 标记和版本渠道。
 
-`alphaPublishingEnabled` 是独立显式开关，目前为 `false`；不受桌面 Stable 桥接完成状态影响。`androidAlphaSigningSha256` 已登记维护人在 Windows 生成的长期 Alpha 证书公开指纹 `2fa1b1662922a1bd7c14d39077b6f2f0883107cd42b0172637fa9f72500ddc04`，与正式证书不同。维护人已报告四项 Alpha 仓库 Secrets 配置完成；备份恢复尚待确认，Secret 有效性和实际签名仍未验收。现有四项正式仓库 Secrets 不变。
+`alphaPublishingEnabled` 是独立显式开关，目前为 `false`；不受桌面 Stable 桥接完成状态影响。`androidAlphaSigningSha256` 已登记维护人在 Windows 生成的长期 Alpha 证书公开指纹 `2fa1b1662922a1bd7c14d39077b6f2f0883107cd42b0172637fa9f72500ddc04`，与正式证书不同。维护人已报告四项 Alpha 仓库 Secrets 配置完成；维护人已确认备份完成；恢复核验、Secret 有效性和实际签名仍未验收。现有四项正式仓库 Secrets 不变。
 
 构件工具支持单平台单渠道，Alpha 文件名前缀为 `LumaTile-Alpha-`，bundle 只携带对应 `alpha/<target>.json`，Release 使用 prerelease 且不设置仓库 latest。并行推广按渠道与平台分别加锁；同渠道内禁止回退及同版本异包，不能跨渠道推广。部署 Alpha 时显式传入渠道：
 

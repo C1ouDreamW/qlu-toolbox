@@ -1,6 +1,6 @@
 # Android 签名规则与恢复发布
 
-状态：2026-11-07，PR 演练安全修复、三渠道更新与独立发布任务已提交并推送；长期 Alpha key 已由维护人在 Windows 生成，备份恢复、实际签名、真实安装验收和生产桥接尚待完成，未执行正式签名或公开发布。按维护人决定，继续使用现有 GitHub 仓库 Secrets，取消 Environment 迁移、环境审批及其配置要求。现有正式 Secret 保持原样，后续实现不以 Environment 或密码找回为前置条件。
+状态：2026-11-07，PR 演练安全修复、三渠道更新与独立发布任务已提交并推送；长期 Alpha key 已由维护人在 Windows 生成，备份已由维护人确认完成，恢复核验、实际签名、真实安装验收和生产桥接尚待完成，未执行正式签名或公开发布。按维护人决定，继续使用现有 GitHub 仓库 Secrets，取消 Environment 迁移、环境审批及其配置要求。现有正式 Secret 保持原样，后续实现不以 Environment 或密码找回为前置条件。
 
 ## 当前代码行为
 
@@ -78,7 +78,7 @@ Android 无密钥构建后，签名 job 使用两个条件互斥的步骤：
 | Stable | 现有 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD` |
 | Alpha | 新增 `ANDROID_ALPHA_KEYSTORE_BASE64`、`ANDROID_ALPHA_KEYSTORE_PASSWORD`、`ANDROID_ALPHA_KEY_ALIAS`、`ANDROID_ALPHA_KEY_PASSWORD` |
 
-两个步骤分别显式映射，不使用 Secret 的 `alpha && ... || stable` 回退表达式。Alpha Secret 缺失即签名失败，预期 Alpha 证书还必须与已登记正式证书不同。现有正式 Secret 不迁移、不修改；维护人已在 Windows 生成长期 Alpha key 并报告四项 Alpha Secrets 配置完成；公开指纹已登记为 `2fa1b1662922a1bd7c14d39077b6f2f0883107cd42b0172637fa9f72500ddc04`。备份恢复尚待确认，尚未使用长期 Alpha key 验证签名，Alpha 发布开关仍为 false。
+两个步骤分别显式映射，不使用 Secret 的 `alpha && ... || stable` 回退表达式。Alpha Secret 缺失即签名失败，预期 Alpha 证书还必须与已登记正式证书不同。现有正式 Secret 不迁移、不修改；维护人已在 Windows 生成长期 Alpha key 并报告四项 Alpha Secrets 配置完成；公开指纹已登记为 `2fa1b1662922a1bd7c14d39077b6f2f0883107cd42b0172637fa9f72500ddc04`。维护人已确认备份完成，恢复核验待验收，尚未使用长期 Alpha key 验证签名，Alpha 发布开关仍为 false。
 
 备用清单按渠道选择文件：Stable 使用 `updates/android.json`，Alpha 使用 `updates/android-alpha.json`。脚本在最新 main 的独立 worktree 中检查单调性，只写当前渠道文件后创建 automation 分支，不修改 main；仍需创建并通过检查后合并该分支的 PR。首次 Alpha 可以没有旧 Alpha 文件，但不能借此绕过已有 Stable 文件的检查。
 
@@ -86,7 +86,7 @@ Android 无密钥构建后，签名 job 使用两个条件互斥的步骤：
 
 ## 建立和恢复长期 Alpha 密钥
 
-以下是维护人生成与恢复操作步骤。当前已完成生成及公开指纹登记，维护人已报告四项 Alpha Secrets 配置完成；备份 / 恢复与实际签名验收尚待确认。只为 Android Alpha 新建密钥，不修改正式 key 或现有四项 Secret。Android Studio 也可完成生成，参考 [Android 官方签名说明](https://developer.android.com/studio/publish/app-signing#generate-key)；命令行参数参考 [JDK keytool](https://docs.oracle.com/en/java/javase/21/docs/specs/man/keytool.html)。
+以下是维护人生成与恢复操作步骤。当前已完成生成及公开指纹登记，维护人已报告四项 Alpha Secrets 配置完成；维护人已确认备份完成；恢复核验与实际签名仍待验收。只为 Android Alpha 新建密钥，不修改正式 key 或现有四项 Secret。Android Studio 也可完成生成，参考 [Android 官方签名说明](https://developer.android.com/studio/publish/app-signing#generate-key)；命令行参数参考 [JDK keytool](https://docs.oracle.com/en/java/javase/21/docs/specs/man/keytool.html)。
 
 1. 先选择仓库外的私有目录，以及独立的加密备份位置。用密码管理器保存 store password、key password、alias、用途与备份位置；密码不写入命令行、Git、聊天或日志。
 2. 在本机交互终端执行下面的命令，将路径替换为选定位置。省略密码参数，由 keytool 隐藏提示输入；如目录已有同名密钥，先核对用途，不能重新生成后覆盖。JKS 用于保存独立的 store / key password，alias 固定为 `lumatile-alpha`。证书 DN 只使用项目标识，无需填写个人资料。
