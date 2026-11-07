@@ -19,12 +19,17 @@ async function buildFixture(t, platform = 'windows', version = '2.0.6', code = 1
   const root = await temporary(t)
   const target = platform === 'android' ? null : desktopTarget(platform === 'windows' ? 'win32' : 'darwin', platform === 'windows' ? 'x64' : 'arm64')
   const identity = { platform, target: target?.id ?? 'android', version, versionCode: code, tag: `${target?.prefix ?? 'android-v'}${version}`,
-    commit: 'a'.repeat(40), bridgeVersion: '2.0.5', notes: '- Platform fix', publishedAt: '2026-11-06T00:00:00Z' }
+    commit: 'a'.repeat(40), bridgeVersion: '2.0.5', androidSigningSha256: 'b'.repeat(64), notes: '- Platform fix', publishedAt: '2026-11-06T00:00:00Z' }
   const artifacts = join(root, 'artifacts')
   await mkdir(artifacts)
   const names = platform === 'android' ? { apk: `LumaTile-Android-v${version}.apk` } : artifactFileNames(target, version)
   for (const [role, name] of Object.entries(names)) await writeFile(join(artifacts, name), `${platform} ${version} ${role} fixture`)
   const verification = { platform, version, commit: identity.commit, target: identity.target, verified: true, checks: { testFixture: true } }
+  if (platform === 'android') {
+    const bytes = await readFile(join(artifacts, names.apk))
+    verification.checks = { applicationId: 'io.github.c1oudreamw.lumatile', debuggable: false, nativeVersionCode: code,
+      signingSha256: identity.androidSigningSha256, signedSha256: sha256(bytes), signedSize: bytes.length }
+  }
   const output = join(root, 'bundle')
   const bundle = await createReleaseBundle({ identity, artifacts, verification, output })
   return { root, artifacts, output, identity, verification, ...bundle }
@@ -98,6 +103,16 @@ test('promotion refuses missing or corrupted uploaded artifacts before switching
   await writeFile(join(data, 'releases', fixture.identity.tag, 'LumaTile-Android-v2.0.6.apk'), 'corrupted bytes')
   await assert.rejects(promoteManifest({ platform: 'android', manifest: fixture.stable, data }), /does not match/)
   assert.deepEqual(await readdir(join(data, 'stable')), [])
+})
+
+test('Android bundles reject APK replacement after signing and mismatched certificate reports', async t => {
+  const fixture = await buildFixture(t, 'android')
+  const options = { identity: fixture.identity, artifacts: fixture.artifacts, verification: fixture.verification, output: join(fixture.root, 'another-output') }
+  await assert.rejects(createReleaseBundle({ ...options, verification: { ...fixture.verification,
+    checks: { ...fixture.verification.checks, signingSha256: 'f'.repeat(64) } } }), /Signed APK differs/)
+  await writeFile(join(fixture.artifacts, 'LumaTile-Android-v2.0.6.apk'), 'replaced after signing')
+  await assert.rejects(createReleaseBundle(options), /Signed APK differs/)
+  await assert.rejects(readdir(options.output), /ENOENT/)
 })
 
 test('Android rejects code rollback, same-code conflicts and replacing a published version', () => {

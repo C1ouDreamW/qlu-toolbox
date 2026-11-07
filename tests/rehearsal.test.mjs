@@ -98,10 +98,8 @@ test('PR validation and rehearsal workflows never request secrets or write permi
   }
 })
 
-test('legacy Android signing secrets remain disconnected during protected-pipeline migration', async () => {
-  // Replace this containment check with protected-job boundary checks when the new
-  // signing workflow is implemented and its external environment has been verified.
-  for (const file of ['release.yml', 'release-android.yml', 'release-rehearsal.yml']) {
+test('legacy combined releases and PR rehearsals do not regain Android signing secrets', async () => {
+  for (const file of ['release.yml', 'release-rehearsal.yml']) {
     const workflow = await readFile(new URL(`../.github/workflows/${file}`, import.meta.url), 'utf8')
     assert.doesNotMatch(workflow, /secrets\s*(?:\.\s*ANDROID_|\[\s*['"]ANDROID_)/i, `${file} must not restore legacy signing access`)
   }

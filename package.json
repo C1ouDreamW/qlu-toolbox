@@ -12,7 +12,7 @@
   "type": "module",
   "scripts": {
     "release:prepare": "node scripts/prepare-release.mjs",
-    "test:release": "node --test tests/release.test.mjs tests/desktop-manifest.test.mjs tests/release-pipeline.test.mjs tests/rehearsal.test.mjs",
+    "test:release": "node --test tests/release.test.mjs tests/desktop-manifest.test.mjs tests/release-pipeline.test.mjs tests/rehearsal.test.mjs tests/android-signing.test.mjs",
     "predev": "node scripts/prepare-release.mjs --platform host",
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "typecheck": "vue-tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
@@ -44,6 +44,7 @@
     "cross-env": "^7.0.3",
     "electron": "^37.2.0",
     "electron-builder": "^26.0.12",
+    "js-yaml": "4.3.0",
     "typescript": "^5.8.3",
     "vite": "^7.0.4",
     "vue-tsc": "^3.0.1",

@@ -14,6 +14,12 @@ def releaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: release
 def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS') ?: releaseSigning.getProperty('keyAlias')
 def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: releaseSigning.getProperty('keyPassword')
 def hasReleaseSigning = [releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.isBlank() }
+// CI builds without credentials, then signs the exact APK in an isolated job.
+// Local assembleRelease still requires signing unless this option is explicit.
+def unsignedRelease = project.findProperty('unsignedRelease') == 'true'
+if (unsignedRelease && hasReleaseSigning) {
+    throw new GradleException('Unsigned release builds must not receive signing credentials')
+}
 // 临时测试包开关：传 -PappIdSuffix=.test 时只影响 debug 构建，产出可与正式版共存的测试包。
 // 不传参数时行为与正式包完全一致（CI 与本地常规构建均不传）。
 def testAppIdSuffix = (project.findProperty('appIdSuffix') ?: '').toString().trim()
@@ -123,7 +129,7 @@ tasks.named('preBuild').configure { dependsOn buildWebViewAssets, verifyWebVersi
 
 tasks.matching { it.name == 'packageRelease' || it.name == 'assembleRelease' }.configureEach {
     doFirst {
-        if (!hasReleaseSigning) {
+        if (!hasReleaseSigning && !unsignedRelease) {
             throw new GradleException('Release signing is required. Configure keystore.properties or ANDROID_KEYSTORE_* environment variables.')
         }
     }

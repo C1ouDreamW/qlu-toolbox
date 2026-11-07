@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -33,6 +34,7 @@ jobs:
       - name: Validate immutable release identity and rollout gate
         id: version
         run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           node scripts/validate-independent-release.mjs macos "$GITHUB_REF_NAME"
           echo "version=$(node -p "require('./config/release-versions.json').macos.version")" >> "$GITHUB_OUTPUT"
       - uses: astral-sh/setup-uv@v5

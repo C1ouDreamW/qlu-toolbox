@@ -100,6 +100,15 @@ export async function createReleaseBundle({ identity, artifacts, verification, o
     const info = await stat(join(artifacts, name))
     if (!info.isFile() || info.size <= 0) throw new Error(`Missing build artifact: ${name}`)
   }
+  if (platform === 'android') {
+    const bytes = await readFile(join(artifacts, names.apk))
+    const checks = verification.checks
+    if (!checks || checks.applicationId !== 'io.github.c1oudreamw.lumatile' || checks.debuggable !== false ||
+        checks.nativeVersionCode !== identity.versionCode || !/^[a-f0-9]{64}$/.test(identity.androidSigningSha256) ||
+        checks.signingSha256 !== identity.androidSigningSha256 || checks.signedSha256 !== sha256(bytes) || checks.signedSize !== bytes.length) {
+      throw new Error('Signed APK differs from the verified release identity or final bytes')
+    }
+  }
   if ((await readdir(output).catch(error => { if (error.code === 'ENOENT') return []; throw error })).length) throw new Error('Bundle output must be empty')
   await mkdir(releaseDir, { recursive: true })
   let manifest

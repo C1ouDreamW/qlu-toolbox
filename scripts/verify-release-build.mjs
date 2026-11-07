@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
 import { parseArgs } from 'node:util'
 import { assertWindowsProductVersion, assertWindowsX64, repositoryRoot, taggedRelease } from './release-artifacts.mjs'
+import { sha256 } from './release-artifacts.mjs'
 import { rehearsalIdentity } from './rehearse-release.mjs'
 import { validateMigrationPolicy } from '../electron/update-contract.mjs'
 import { assertAndroidApkIdentity } from './android-apk-verification.mjs'
@@ -27,6 +28,8 @@ if (platform === 'android') {
     '-exportcert', '-alias', 'androiddebugkey', '-storepass', 'android', '-keystore', join(homedir(), '.android', 'debug.keystore'),
   ])).digest('hex') : undefined
   Object.assign(checks, assertAndroidApkIdentity({ identity, badging, signature, metadata, debugSigningSha256 }))
+  const finalBytes = await readFile(location)
+  Object.assign(checks, { signedSha256: sha256(finalBytes), signedSize: finalBytes.length })
 } else {
   const asar = createRequire(import.meta.url)('@electron/asar')
   const resources = platform === 'macos' ? join(location, 'Contents', 'Resources') : join(location, 'resources')
