@@ -26,12 +26,12 @@ done
 for channel in stable alpha; do
   curl -fsS -D "$fixture/headers" "$origin/$channel/android.json" -o "$fixture/response"
   cmp "$fixture/$channel/android.json" "$fixture/response"
-  rg -qi '^content-type: application/json' "$fixture/headers"
-  rg -qi '^cache-control: no-cache' "$fixture/headers"
-  rg -qi '^access-control-allow-origin: \*' "$fixture/headers"
+  grep -Eqi '^content-type: application/json' "$fixture/headers"
+  grep -Eqi '^cache-control: no-cache' "$fixture/headers"
+  grep -Eqi '^access-control-allow-origin: \*' "$fixture/headers"
 done
 curl -fsS -D "$fixture/headers" "$origin/releases/android-alpha-v2.1.0-alpha.1/LumaTile-Alpha-Android-v2.1.0-alpha.1.apk" -o "$fixture/response"
-rg -qi '^content-type: application/vnd.android.package-archive' "$fixture/headers"
-rg -qi '^cache-control: public, max-age=31536000, immutable' "$fixture/headers"
+grep -Eqi '^content-type: application/vnd.android.package-archive' "$fixture/headers"
+grep -Eqi '^cache-control: public, max-age=31536000, immutable' "$fixture/headers"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' "$origin/alpha/missing.json")" = 404 ]
 echo 'PASS: isolated Stable / Alpha routes, JSON/APK MIME, cache, CORS and missing-file 404'
