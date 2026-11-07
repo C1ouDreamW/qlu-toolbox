@@ -4,6 +4,7 @@ import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/pro
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { artifactFileNames, compareVersions, desktopTarget, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { validateStablePromotion } from './release-promotion.mjs'
 import { extractReleaseNotes, parseReleaseTag, resolveRelease, validateReleaseConfig } from './release-config.mjs'
 import { generateDesktopManifest } from './generate-desktop-update-manifest.mjs'
 import { androidArtifactName, validateAndroidManifest } from '../electron/android-update-contract.mjs'
@@ -45,8 +46,10 @@ export function taggedRelease(root, platform, tag, requireEnabled = true) {
   const release = resolveRelease(config, { platform, tag, channel })
   if (channel === 'stable' && platform !== 'android' && bridgeVersion !== null && compareVersions(release.version, bridgeVersion) <= 0) throw new Error('Independent desktop version must exceed the bridge')
   const notes = extractReleaseNotes(git(['show', `${commit}:changelogs/${platform}.md`]), release.version)
-  return { ...release, commit, information: buildInformation(release, commit), bridgeVersion, androidSigningSha256,
+  const identity = { ...release, commit, information: buildInformation(release, commit), bridgeVersion, androidSigningSha256,
     publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString(), notes }
+  if (channel === 'stable' && requireEnabled) identity.promotion = validateStablePromotion(root, identity)
+  return identity
 }
 
 export function targetFor(platform) {
@@ -121,7 +124,7 @@ export async function createReleaseBundle({ identity, artifacts, verification, o
   for (const name of Object.values(names)) await copyFile(join(artifacts, name), join(releaseDir, name))
   const manifestName = `update-${manifestTarget(platform)}.json`
   await writeFile(join(releaseDir, manifestName), `${JSON.stringify(manifest, null, 2)}\n`)
-  const record = { schemaVersion: 1, platform, version, tag, commit, target: identity.target, channel, verification }
+  const record = { schemaVersion: 1, platform, version, tag, commit, target: identity.target, channel, promotion: identity.promotion ?? null, verification }
   await writeFile(join(releaseDir, 'release-record.json'), `${JSON.stringify(record, null, 2)}\n`)
   await writeFile(join(releaseDir, 'release-notes.md'), `${identity.notes}\n`)
   const sums = []

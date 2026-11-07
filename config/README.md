@@ -157,3 +157,9 @@ node scripts/promote-update-manifest.mjs windows bundle/alpha/windows-x64.json /
 该命令只操作给定服务器目录，不上传包；须先复制并核验完整不可变 releases 目录。省略渠道仍为 Stable，传错渠道会拒绝。首次 Alpha 允许其主源清单返回 404，已有 GitHub prerelease 与备用清单仍参与单调性核验；其他网络错误不会被当作初次发布。
 
 发布工具及工作流安全回归现为 59 项、桌面测试 34 项、移动端测试 34 项通过。`npm run test:mobile` 已加入 Android PR CI，不需要生成构建身份或任何签名材料。真实 Alpha 发布、Alpha key 恢复、两次覆盖升级及设备上的三渠道共存尚未验收。
+
+## Stable 晋级来源核验（2026-11-07）
+
+Stable 独立发布必须在标签 commit 中包含本平台的晋级审查记录。脚本对照 Alpha 标签 / commit 与 Stable 的实际源码差异，只放行精确的版本载体、构建身份和发布说明；业务、依赖、构建规则或其他目标的变化需要新 Alpha，紧急例外须逐路径记录批准。审查记录随 `release-record.json` 归档。
+
+工作流在注入长期 Secret 前，还核验 Alpha 的公开 prerelease、源码 commit、目标清单与安装资产；发布器在上传前和公开前复查。只读预检、记录格式和紧急修复要求见 [`promotions/README.md`](promotions/README.md)。该机制不自动生成验收结论，也不打开当前发布门禁。本轮发布回归共 69 项通过，当前源码没有实际晋级批准记录；预检当前 Stable 版本会明确报缺少记录，不能视为具备发版资格。

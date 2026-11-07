@@ -1,9 +1,11 @@
+import { isDeepStrictEqual } from 'node:util'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { desktopTagVersion, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../electron/update-contract.mjs'
 import { assertChannelVersion, compareChannelVersions } from '../electron/channel-contract.mjs'
 import { androidArtifactName, androidReleaseTag } from '../electron/android-update-contract.mjs'
+import { validatePublishedAlpha } from './promotion-publication.mjs'
 import { parseReleaseTag } from './release-config.mjs'
 import { assertPromotion, manifestTarget, repositoryRoot, sha256, taggedRelease, targetFor, validatePlatformManifest, verifyReleaseFiles } from './release-artifacts.mjs'
 
@@ -47,6 +49,7 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
   const record = JSON.parse(await readFile(join(directory, 'release-record.json'), 'utf8'))
   if (record.verification?.purpose === 'rehearsal' || record.verification?.deployable === false) throw new Error('Rehearsal verification cannot authorize publication')
   for (const key of ['platform', 'version', 'tag', 'commit', 'target']) if (record[key] !== identity[key]) throw new Error(`Release record mismatch: ${key}`)
+  if (!isDeepStrictEqual(record.promotion ?? null, identity.promotion ?? null)) throw new Error('Release promotion evidence does not match the immutable source')
   if (record.channel !== channel || (record.verification?.channel ?? 'stable') !== channel) throw new Error('Release record channel mismatch')
   if (record.verification?.verified !== true) throw new Error('Unverified release build')
   const manifest = validatePlatformManifest(identity.platform, JSON.parse(await readFile(join(directory, `update-${manifestTarget(identity.platform)}.json`), 'utf8')), identity.bridgeVersion, channel)
@@ -71,6 +74,7 @@ export async function publishPlatformRelease({ identity, directory, token, fetch
     }
   }
   const monotonic = async () => {
+    if (identity.promotion) await validatePublishedAlpha(identity.promotion, fetcher)
     const remote = await json(`${api}/commits/${encodeURIComponent(identity.tag)}`)
     if (remote?.sha !== identity.commit) throw new Error('Remote release tag commit differs from verified build')
     const baseline = await publicJson(`${UPDATE_ORIGIN}/${channel}/${manifestTarget(identity.platform)}.json`, prerelease)

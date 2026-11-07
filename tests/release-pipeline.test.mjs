@@ -406,3 +406,11 @@ test('first Alpha can ignore a missing baseline but cannot treat invalid JSON as
     assert.ok(mock.calls.every(call => call.method === 'GET'))
   }
 })
+
+test('a release bundle cannot be published with promotion evidence from another reviewed source', async t => {
+  const fixture = await buildFixture(t)
+  const mock = githubMock(fixture)
+  await assert.rejects(publishPlatformRelease({ identity: { ...fixture.identity, promotion: { alpha: { commit: 'c'.repeat(40) } } },
+    directory: fixture.releaseDir, token: 'fixture-token', fetcher: mock.fetcher }), /promotion evidence/)
+  assert.equal(mock.calls.length, 0)
+})
