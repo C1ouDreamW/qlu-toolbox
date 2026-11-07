@@ -1,6 +1,6 @@
 # Android 签名规则与恢复发布
 
-状态：2026-11-07，PR 演练安全修复与正式签名任务拆分已在本地实现，尚未执行正式签名或公开发布。按维护人决定，继续使用现有 GitHub 仓库 Secrets，取消 Environment 迁移、环境审批及其配置要求。现有正式 Secret 保持原样，后续实现不以 Environment 或密码找回为前置条件。
+状态：2026-11-07，PR 演练安全修复、三渠道更新与独立发布任务已提交并推送；长期 Alpha key、真实安装验收和生产桥接尚待完成，未执行正式签名或公开发布。按维护人决定，继续使用现有 GitHub 仓库 Secrets，取消 Environment 迁移、环境审批及其配置要求。现有正式 Secret 保持原样，后续实现不以 Environment 或密码找回为前置条件。
 
 ## 当前代码行为
 
@@ -12,7 +12,7 @@
 - 旧组合发布的 Android job 仍主动失败，等待后续桌面桥接入口替换；不会恢复 PR 正式签名。
 - Windows / macOS 的独立发布基础保留；现有本地修复尚未推送，不代表远端工作流已经变更。
 
-独立 Android 发布代码已经恢复为分离任务，但原有 `independentPublishingEnabled=false` / 桥接门槛保持不变，不会因本轮实现自动发版。Alpha 渠道凭据选择随渠道契约继续扩展；旧组合发布不恢复。无需配置 Environment 或找回原正式密码。
+独立 Android 发布代码已经恢复为分离任务，但原有 `independentPublishingEnabled=false` / 桥接门槛保持不变，不会因本轮实现自动发版。Alpha 已使用独立凭据选择步骤与关闭的独立门禁；旧组合发布不恢复。无需配置 Environment 或找回原正式密码。
 
 ## 仓库 Secrets 使用规则
 
@@ -83,3 +83,33 @@ Android 无密钥构建后，签名 job 使用两个条件互斥的步骤：
 备用清单按渠道选择文件：Stable 使用 `updates/android.json`，Alpha 使用 `updates/android-alpha.json`。脚本在最新 main 的独立 worktree 中检查单调性，只写当前渠道文件后创建 automation 分支，不修改 main；仍需创建并通过检查后合并该分支的 PR。首次 Alpha 可以没有旧 Alpha 文件，但不能借此绕过已有 Stable 文件的检查。
 
 本机已实际构建 `io.github.c1oudreamw.lumatile.alpha` 的非 debuggable Release APK，用一次性测试 key 验证无密钥 APK → zipalign → apksigner → 原生 / Web / 证书 / 最终摘要核验。该 key 和测试签名包已删除，不是长期 Alpha 身份，也没有公开发布。工作流结构与分渠道备用清单已纳入发布回归测试（58 项）。
+
+## 建立和恢复长期 Alpha 密钥
+
+以下是维护人操作步骤，尚未执行。只为 Android Alpha 新建密钥，不修改正式 key 或现有四项 Secret。Android Studio 也可完成生成，参考 [Android 官方签名说明](https://developer.android.com/studio/publish/app-signing#generate-key)；命令行参数参考 [JDK keytool](https://docs.oracle.com/en/java/javase/21/docs/specs/man/keytool.html)。
+
+1. 先选择仓库外的私有目录，以及独立的加密备份位置。用密码管理器保存 store password、key password、alias、用途与备份位置；密码不写入命令行、Git、聊天或日志。
+2. 在本机交互终端执行下面的命令，将路径替换为选定位置。省略密码参数，由 keytool 隐藏提示输入；如目录已有同名密钥，先核对用途，不能重新生成后覆盖。JKS 用于保存独立的 store / key password，alias 固定为 `lumatile-alpha`。证书 DN 只使用项目标识，无需填写个人资料。
+
+   ```text
+   keytool -genkeypair -storetype JKS -keystore <仓库外目录>/lumatile-alpha.jks -alias lumatile-alpha -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=LumaTile Alpha,O=LumaTile,C=CN"
+   ```
+
+3. Mac 对目录 / key 分别设置 700 / 600；Windows 使用仅自己账户可读取的目录权限。把 key 加密备份到独立介质或密码管理器附件，并从备份恢复到另一个私有目录，使用 `keytool -list -v -keystore <恢复的文件> -alias lumatile-alpha` 验证 store password 与公开证书 SHA-256。
+4. 由维护人登记公开指纹到 `androidAlphaSigningSha256`（去冒号、小写 64 位），与正式指纹对照。key password 还须通过实际测试签名验证；“能列出证书”不能证明私钥口令正确。首次长期签名候选与后续公开发布分别授权，验证恢复后的签名与登记指纹一致后才标记保管完成。
+5. 只新增本仓库的四项 `ANDROID_ALPHA_*` Secrets。base64 是密钥的可逆编码，不是加密。维护人可以在本机把编码复制到剪贴板后直接粘贴 GitHub Secret，不把它打印到终端或聊天：
+
+   ```bash
+   # macOS；路径改为仓库外密钥文件
+   base64 < /private/key-directory/lumatile-alpha.jks | pbcopy
+   ```
+
+   ```powershell
+   # Windows；路径改为仓库外密钥文件
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes('D:\private-key-directory\lumatile-alpha.jks')) | Set-Clipboard
+   ```
+
+   对应关系：编码 → `ANDROID_ALPHA_KEYSTORE_BASE64`；store password → `ANDROID_ALPHA_KEYSTORE_PASSWORD`；`lumatile-alpha` → `ANDROID_ALPHA_KEY_ALIAS`；key password → `ANDROID_ALPHA_KEY_PASSWORD`。完成后清空剪贴板，按所用剪贴板管理器的方式清除敏感历史。不要把 GitHub Secret 当作唯一备份。
+6. 维护人反馈只需“已备份 / 已验证恢复 / 四项 Alpha Secret 已配置”和公开证书指纹。缺少权限或恢复验证时保持 Alpha 门禁关闭；不要用正式 Secret 补齐，也不要把临时测试 key 登记为长期 Alpha key。
+
+首次 Alpha 还需要登记测试设备、测试者与反馈入口，并做第二版本同证书覆盖安装；首包能安装不等于升级链已验收。
