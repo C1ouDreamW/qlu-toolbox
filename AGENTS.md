@@ -82,6 +82,7 @@
 
 - 分支与 PR 约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。外部贡献按其 Issue 流程处理；用户已明确授权的开发任务可直接实施，无需另开 Issue 或重复批准。
 - 不擅自执行 `git reset --hard`、`git clean -fd`、强制推送、删除用户数据等破坏性操作；不为消除工作区差异批量还原文件。提交只包含当前任务改动。
+- Git保持原子化提交，一次提交尽量对应一个逻辑面，单次提交不要过大。
 - 所有 Git Commit 使用 Conventional Commits，正文与页脚可选：
 
   ```text
