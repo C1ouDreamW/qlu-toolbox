@@ -1,4 +1,4 @@
-const FEEDBACK_URL = 'https://lumatile.ishua.cloud/api/feedback'
+const FEEDBACK_URL = 'https://api.lumatile.cn/v1/feedback-submissions'
 const REQUEST_TIMEOUT_MS = 10_000
 
 export interface FeedbackInput {
@@ -22,8 +22,8 @@ export async function submitFeedback(input: FeedbackInput, appVersion: string): 
       }),
       signal: controller.signal,
     })
-    const result = await response.json().catch(() => ({})) as { id?: unknown; error?: unknown }
-    if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : `反馈服务返回 ${response.status}`)
+    const result = await response.json().catch(() => ({})) as { id?: unknown; detail?: unknown }
+    if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : `反馈服务返回 ${response.status}`)
     if (typeof result.id !== 'string') throw new Error('反馈服务响应无效')
     return { id: result.id }
   } catch (error) {
