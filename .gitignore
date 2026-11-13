@@ -38,6 +38,7 @@ node_modules/
 /docs/*
 !/docs/readme/
 !/docs/release-security.md
+!/docs/backend-upgrade-plan.md
 *.build/
 *.dist/
 *.onefile-build/
