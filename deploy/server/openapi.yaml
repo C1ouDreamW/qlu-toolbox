@@ -1,0 +1,228 @@
+openapi: 3.1.0
+info:
+  title: LumaTile API
+  version: 1.0.0
+servers:
+  - url: https://api.lumatile.cn
+paths:
+  /v1/feedback-submissions:
+    post:
+      operationId: createFeedbackSubmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, content, platform, appVersion]
+              properties:
+                type: { enum: [bug, suggestion] }
+                content: { type: string, minLength: 2, maxLength: 2000 }
+                contact: { type: string, maxLength: 120 }
+                platform: { enum: [desktop, android] }
+                appVersion: { type: string, minLength: 1, maxLength: 40 }
+                systemVersion: { type: string, maxLength: 120 }
+      responses:
+        '201':
+          description: 反馈已创建
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: string, pattern: '^FB-[0-9A-F]{8}$' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
+    get:
+      servers: [{ url: https://console.lumatile.cn }]
+      operationId: listFeedbackSubmissions
+      security: [{ staffSession: [] }]
+      parameters:
+        - { in: query, name: status, schema: { enum: [all, new, resolved] } }
+        - { in: query, name: type, schema: { enum: [bug, suggestion] } }
+        - { in: query, name: platform, schema: { enum: [desktop, android] } }
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 200 } }
+        - { in: query, name: offset, schema: { type: integer, minimum: 0 } }
+      responses:
+        '200':
+          description: 反馈、分页链接和状态计数
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [total, items, counts, links]
+                properties:
+                  total: { type: integer, minimum: 0 }
+                  items: { type: array, items: { $ref: '#/components/schemas/Feedback' } }
+                  counts:
+                    type: object
+                    properties:
+                      new: { type: integer, minimum: 0 }
+                      resolved: { type: integer, minimum: 0 }
+                  links:
+                    type: object
+                    properties:
+                      self: { type: string }
+                      next: { type: [string, 'null'] }
+                      previous: { type: [string, 'null'] }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /v1/feedback-submissions/{id}:
+    servers: [{ url: https://console.lumatile.cn }]
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      operationId: getFeedbackSubmission
+      security: [{ staffSession: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Feedback' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    patch:
+      operationId: updateFeedbackSubmission
+      security: [{ staffSession: [], csrf: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              additionalProperties: false
+              properties:
+                status: { enum: [new, resolved] }
+      responses:
+        '200': { $ref: '#/components/responses/Feedback' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/distribution-policies/android:
+    servers: [{ url: https://console.lumatile.cn }]
+    get:
+      operationId: getAndroidDistributionPolicy
+      security: [{ staffSession: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Policy' }
+        '403': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: replaceAndroidDistributionPolicy
+      security: [{ staffSession: [], csrf: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mode]
+              properties:
+                mode: { enum: [server, website] }
+      responses:
+        '200': { $ref: '#/components/responses/Policy' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /v1/channels/{channel}/active-announcement:
+    servers: [{ url: https://console.lumatile.cn }]
+    parameters:
+      - { in: path, name: channel, required: true, schema: { enum: [stable, alpha] } }
+    get:
+      operationId: getActiveAnnouncement
+      security: [{ staffSession: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Announcement' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: replaceActiveAnnouncement
+      security: [{ staffSession: [], csrf: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [draftId]
+              properties:
+                draftId: { type: integer, minimum: 1 }
+      responses:
+        '200': { $ref: '#/components/responses/Announcement' }
+        '201': { $ref: '#/components/responses/Announcement' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deleteActiveAnnouncement
+      security: [{ staffSession: [], csrf: [] }]
+      responses:
+        '204': { description: 已撤回 }
+        '403': { $ref: '#/components/responses/Problem' }
+components:
+  schemas:
+    Feedback:
+      type: object
+      required: [id, type, content, platform, app_version, status, created_at]
+      properties:
+        id: { type: string }
+        type: { enum: [bug, suggestion] }
+        content: { type: string }
+        contact: { type: string }
+        platform: { enum: [desktop, android] }
+        app_version: { type: string }
+        system_version: { type: string }
+        status: { enum: [new, resolved] }
+        created_at: { type: string, format: date-time }
+  securitySchemes:
+    staffSession: { type: apiKey, in: cookie, name: sessionid }
+    csrf: { type: apiKey, in: header, name: X-CSRFToken }
+  responses:
+    Feedback:
+      description: 反馈资源
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Feedback' }
+    Announcement:
+      description: 当前渠道的公告
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [schemaVersion, id, title, body, level]
+            properties:
+              schemaVersion: { const: 1 }
+              id: { type: string }
+              title: { type: string }
+              body: { type: string }
+              level: { enum: [info, warning] }
+              url: { type: string, format: uri }
+              expiresAt: { type: string, format: date-time }
+    Policy:
+      description: 已生效的 Android 分发策略
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [mode, websiteUrl]
+            properties:
+              mode: { enum: [server, website] }
+              websiteUrl: { type: string, format: uri }
+    Problem:
+      description: 请求失败
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            required: [type, title, status, code, detail]
+            properties:
+              type: { type: string }
+              title: { type: string }
+              status: { type: integer }
+              code: { type: string }
+              detail: { type: string }

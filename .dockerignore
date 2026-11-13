@@ -1,0 +1,12 @@
+**
+!deploy/
+!deploy/server/
+!deploy/server/Dockerfile
+!deploy/server/manage.py
+!deploy/server/pyproject.toml
+!deploy/server/uv.lock
+!deploy/server/portal/
+!deploy/server/portal/**
+!deploy/feedback/
+!deploy/feedback/server.py
+**/__pycache__
