@@ -1,0 +1,60 @@
+name: Server artifacts
+
+on:
+  pull_request:
+    paths: ['deploy/server/**', 'deploy/feedback/**', 'web/**', '.dockerignore', '.github/workflows/server.yml']
+  push:
+    branches: [main]
+    paths: ['deploy/server/**', 'deploy/feedback/**', 'web/**', '.dockerignore', '.github/workflows/server.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      LUMATILE_SECRET_KEY: local-ci-tests
+      PYTHONPATH: ${{ github.workspace }}/deploy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - run: node --test web/tests/downloads.test.mjs
+      - run: uv run --directory deploy/server --locked python manage.py test portal
+      - run: uv run --directory deploy/server --locked python manage.py makemigrations --check --dry-run
+      - run: sudo apt-get update && sudo apt-get install -y nginx
+      - run: bash deploy/server/check-nginx.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumatile-web-${{ github.sha }}
+          path: web/frontend
+          if-no-files-found: error
+
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build and publish the backend image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/server:${GITHUB_SHA}"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build -f deploy/server/Dockerfile -t "$image" .
+          docker push "$image"
+          docker image inspect --format '{{index .RepoDigests 0}}' "$image" >> "$GITHUB_STEP_SUMMARY"

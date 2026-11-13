@@ -1,0 +1,90 @@
+name: Deploy LumaTile
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Production target
+        required: true
+        type: choice
+        options: [web, portal, android-stable, android-alpha]
+      run_id:
+        description: Workflow run containing the website or Android artifact
+        type: string
+      artifact:
+        description: Exact artifact name for web or Android
+        type: string
+      image:
+        description: GHCR digest reference for portal
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ inputs.target }}
+      ARTIFACT: ${{ inputs.artifact }}
+      RUN_ID: ${{ inputs.run_id }}
+      IMAGE: ${{ inputs.image }}
+    steps:
+      - name: Verify selected artifact source
+        if: inputs.target != 'portal'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ $RUN_ID =~ ^[0-9]+$ ]]
+          read -r workflow branch conclusion event sha < <(
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '[.path,.head_branch,.conclusion,.event,.head_sha] | @tsv'
+          )
+          [[ $conclusion == success ]]
+          if [[ $TARGET == web ]]; then
+            [[ $workflow == .github/workflows/server.yml && $branch == main && $event != pull_request && $ARTIFACT == "lumatile-web-$sha" ]]
+          else
+            channel=${TARGET#android-}
+            [[ $workflow == .github/workflows/release-android.yml && $event == push && $ARTIFACT == update-source-android-"$channel"-*-"$RUN_ID"-* ]]
+          fi
+      - uses: actions/download-artifact@v4
+        if: inputs.target != 'portal'
+        with:
+          name: ${{ inputs.artifact }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: payload
+      - name: Deploy selected artifact
+        env:
+          SSH_TARGET: ${{ vars.LUMATILE_DEPLOY_TARGET }}
+          SSH_KEY: ${{ secrets.LUMATILE_DEPLOY_KEY }}
+          SSH_KNOWN_HOSTS: ${{ vars.LUMATILE_SSH_KNOWN_HOSTS }}
+        run: |
+          [[ $SSH_TARGET =~ ^[a-z_][a-z0-9_-]*@[a-zA-Z0-9.-]+$ ]]
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          printf '%s\n' "$SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          remote=(ssh -i "$ssh_dir/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" "$SSH_TARGET")
+          if [[ $TARGET == portal ]]; then
+            [[ $IMAGE =~ ^ghcr\.io/c1oudreamw/qlu-toolbox/server@sha256:[a-f0-9]{64}$ ]]
+            "${remote[@]}" "bash /srv/apps/lumatile/deploy-portal.sh '$IMAGE'"
+          else
+            if [[ $TARGET == web ]]; then
+              revision=${ARTIFACT#lumatile-web-}
+              [[ $revision =~ ^[a-f0-9]{40}$ ]]
+              command="LUMATILE_WEB_CHECK_URL=https://lumatile.cn/download/ bash /srv/apps/lumatile/deploy-web.sh \"\$stage\" '$revision'"
+            else
+              channel=${TARGET#android-}
+              [[ $channel == stable || $channel == alpha ]]
+              command="bash /srv/apps/lumatile/promote-android.sh \"\$stage\" '$channel'"
+            fi
+            tar -C payload -czf - . | "${remote[@]}" "set -eu; stage=\$(mktemp -d); trap 'rm -rf -- \"\$stage\"' EXIT; tar -xzf - -C \"\$stage\"; $command"
+          fi
