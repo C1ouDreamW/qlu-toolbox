@@ -8,7 +8,7 @@ import { gradeExport } from './gradeExport'
 import { parseGradeWorkbook } from './gpaWorker'
 import { sendStatsBeacon } from './stats'
 import { appUpdate } from './update/appUpdate'
-import { fetchAnnouncement, findAvailableUpdate } from './update/updateService'
+import { ANDROID_DOWNLOAD_PAGE, fetchAnnouncement, findAvailableUpdate, isServerDistributionEnabled } from './update/updateService'
 import type { Announcement, AvailableUpdate, UpdateDownloadProgress } from './update/types'
 import brandIconUrl from '../../../assets/lumatile.png'
 import mobilePackage from '../package.json'
@@ -59,6 +59,7 @@ const availableUpdate = ref<AvailableUpdate | null>(null)
 const updateChecking = ref(false)
 const updateInstalling = ref(false)
 const updateMessage = ref('')
+const updateViaWebsite = ref(false)
 const updateProgress = ref<UpdateDownloadProgress | null>(null)
 const announcement = ref<Announcement | null>(null)
 const autoUpdateCheck = ref(buildInformation.updatesEnabled && localStorage.getItem('autoUpdateCheck') !== 'false')
@@ -185,12 +186,21 @@ async function checkForUpdate(manual = true) {
   if (!appUpdate.isNativeAndroid() || updateChecking.value) return
   updateChecking.value = true
   updateMessage.value = ''
+  updateViaWebsite.value = false
   try {
+    if (!await isServerDistributionEnabled()) {
+      availableUpdate.value = null
+      if (manual) updateViaWebsite.value = true
+      return
+    }
     const current = await appUpdate.getCurrentVersion()
     availableUpdate.value = await findAvailableUpdate(current)
     if (manual && !availableUpdate.value) updateMessage.value = `当前已是最新版本（v${current.versionName}）`
   } catch (error) {
-    if (manual) updateMessage.value = error instanceof Error ? error.message : String(error)
+    if (manual) {
+      updateMessage.value = error instanceof Error ? error.message : String(error)
+      updateViaWebsite.value = true
+    }
   } finally {
     updateChecking.value = false
   }
@@ -200,13 +210,19 @@ async function installAvailableUpdate() {
   const update = availableUpdate.value
   if (!update || updateInstalling.value) return
   updateMessage.value = ''
+  updateInstalling.value = true
   try {
+    if (!await isServerDistributionEnabled()) {
+      availableUpdate.value = null
+      updateViaWebsite.value = true
+      selectPage('settings')
+      return
+    }
     if (!await appUpdate.canInstallPackages()) {
       updateMessage.value = '请在系统设置中允许安装未知应用，返回后再次点击“下载并安装”。'
       await appUpdate.openInstallPermissionSettings()
       return
     }
-    updateInstalling.value = true
     updateProgress.value = { state: 'downloading', received: 0, total: update.size, percent: 0 }
     await appUpdate.downloadAndInstall(update)
     updateMessage.value = '系统安装界面已打开，请确认覆盖更新。'
@@ -417,6 +433,7 @@ onBeforeUnmount(() => {
       <button class="setting-card start-page-setting" type="button" aria-haspopup="dialog" :aria-expanded="startPageDialogOpen" @click="startPageDialogOpen = true"><CalendarDays /><span><strong>应用启动页</strong><small>可单独选择课表、工具箱或上次页面</small></span><span class="start-page-current">{{ selectedStartPage.label }}<ChevronRight /></span></button>
       <button class="setting-card" :disabled="loginClearing" @click="clearLogin"><Eraser /><span><strong>清除教务登录状态</strong><small>{{ loginClearing ? '正在清除 Cookie、缓存与站点数据…' : '清除 Cookie、缓存与站点数据' }}</small></span></button>
       <button class="setting-card" :disabled="updateChecking || !buildInformation.updatesEnabled" @click="checkForUpdate(true)"><RefreshCw :class="{ spin: updateChecking }" /><span><strong>检查更新</strong><small>{{ updateMessage || `当前版本 v${mobilePackage.version}` }}</small></span><ChevronRight /></button>
+      <a v-if="updateViaWebsite" class="setting-card" :href="ANDROID_DOWNLOAD_PAGE"><Download /><span><strong>前往官网下载</strong><small>通过官网选择可用下载渠道</small></span><ChevronRight /></a>
       <button class="setting-card switch-card" type="button" role="switch"  :disabled="!buildInformation.updatesEnabled" :aria-checked="autoUpdateCheck" @click="toggleAutoUpdateCheck"><RefreshCw /><span><strong>自动检查更新</strong><small>启动时访问公开更新源，获取新版本提醒</small></span><span class="switch-track" :class="{ on: autoUpdateCheck }"><i class="switch-thumb"></i></span></button>
       <button class="setting-card switch-card" type="button" role="switch"  :disabled="!buildInformation.telemetryEnabled" :aria-checked="anonymousStats" @click="toggleAnonymousStats"><ShieldCheck /><span><strong>匿名使用统计</strong><small>发送随机安装编号、软件版本和系统类型；不含任何个人信息</small></span><span class="switch-track" :class="{ on: anonymousStats }"><i class="switch-thumb"></i></span></button>
       <button class="setting-card feedback-entry" @click="feedbackOpen = true"><MessageSquareText /><span><strong>反馈与建议</strong><small>遇到问题或有个想法？一句话告诉我们</small></span><ChevronRight /></button>

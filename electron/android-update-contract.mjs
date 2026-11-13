@@ -3,6 +3,8 @@ import { assertChannelVersion } from './version-contract.mjs'
 import { channelIdentity } from './channel-contract.mjs'
 import { GITHUB_REPOSITORY, isArtifactUrl, isPublicationDate, UPDATE_ORIGIN } from './update-contract.mjs'
 
+export const ANDROID_UPDATE_ORIGIN = 'https://updates.lumatile.cn'
+
 export function androidReleaseTag(version, channel = 'stable') {
   assertChannelVersion(version, channel)
   if (!['stable', 'alpha'].includes(channel)) throw new Error('Debug builds cannot be released')
@@ -36,6 +38,6 @@ export function validateAndroidManifest(item, channel = 'stable') {
   if ((item.tag !== undefined || item.commit !== undefined) &&
       (item.tag !== tag || typeof item.commit !== 'string' || !/^[a-f0-9]{40}$/.test(item.commit))) throw new Error('Android 清单源码身份无效')
   const tags = channel === 'stable' ? [tag, `v${item.versionName}`] : [tag]
-  if (!tags.some(value => isArtifactUrl(item.apkUrl, value, file))) throw new Error('Android APK 地址与渠道或版本不匹配')
+  if (!tags.some(value => item.apkUrl === `${ANDROID_UPDATE_ORIGIN}/releases/${value}/${file}` || isArtifactUrl(item.apkUrl, value, file))) throw new Error('Android APK 地址与渠道或版本不匹配')
   return item
 }

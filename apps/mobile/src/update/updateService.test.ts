@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { androidArtifactName, androidReleaseTag, androidUpdateSources } from '../../../../electron/android-update-contract.mjs'
+import { ANDROID_UPDATE_ORIGIN, androidArtifactName, androidReleaseTag, androidUpdateSources } from '../../../../electron/android-update-contract.mjs'
 const native = vi.hoisted(() => ({ downloadAndInstall: vi.fn() }))
 const information = vi.hoisted(() => ({ channel: 'stable', applicationId: 'io.github.c1oudreamw.lumatile', version: '2.0.0', updatesEnabled: true }))
 vi.mock('@capacitor/core', () => ({ Capacitor: {}, registerPlugin: () => native }))
 vi.mock('../build-info', () => ({ buildInformation: information }))
-import { findAvailableUpdate } from './updateService'
+import { DISTRIBUTION_URL, findAvailableUpdate, isServerDistributionEnabled } from './updateService'
 import { appUpdate } from './appUpdate'
 import type { CurrentAppVersion, UpdateManifest } from './types'
 const api = 'https://api.github.com/repos/C1ouDreamW/qlu-toolbox'
@@ -37,6 +37,7 @@ function network(routes: Map<string, unknown>) {
 }
 function sources(item: UpdateManifest) {
   const urls = androidUpdateSources(item.channel)
+  urls[0] = `${ANDROID_UPDATE_ORIGIN}/${item.channel}/android.json`
   return new Map<string, unknown>([
     ...urls.map((url, index) => [url, { ...item, apkUrl: index ? githubUrl(item) : item.apkUrl }] as [string, unknown]),
     [`${api}/releases?per_page=100&page=1`, []],
@@ -57,11 +58,12 @@ it('prefers self-hosted and retries a matching mirror only for transport failure
   const item = manifest()
   network(sources(item))
   const update = (await findAvailableUpdate(current))!
-  expect(update.apkUrl).toBe(item.apkUrl)
+  const primary = item.apkUrl.replace('https://lumatile.ishua.cloud', ANDROID_UPDATE_ORIGIN)
+  expect(update.apkUrl).toBe(primary)
   expect(update.fallbackApkUrls).toEqual([githubUrl(item)])
   native.downloadAndInstall.mockRejectedValueOnce({ code: 'UPDATE_HTTP_ERROR' }).mockResolvedValueOnce({ ready: true })
   await appUpdate.downloadAndInstall(update)
-  expect(native.downloadAndInstall.mock.calls.map(call => call[0].apkUrl)).toEqual([item.apkUrl, githubUrl(item)])
+  expect(native.downloadAndInstall.mock.calls.map(call => call[0].apkUrl)).toEqual([primary, githubUrl(item)])
   native.downloadAndInstall.mockReset().mockRejectedValue({ code: 'UPDATE_SIGNATURE_MISMATCH' })
   await expect(appUpdate.downloadAndInstall(update)).rejects.toMatchObject({ code: 'UPDATE_SIGNATURE_MISMATCH' })
   expect(native.downloadAndInstall).toHaveBeenCalledTimes(1)
@@ -78,7 +80,7 @@ it('Alpha checks only Alpha sources and never accepts Stable IDs, channels or pa
   for (const change of [{ applicationId: 'io.github.c1oudreamw.lumatile' }, { channel: 'stable' }, { apkUrl: manifest().apkUrl }, { versionName: '2.1.0' }]) {
     const item = { ...manifest('alpha'), ...change }
     const routes = sources(manifest('alpha'))
-    for (const url of androidUpdateSources('alpha')) routes.set(url, item)
+    for (const url of androidUpdateSources('alpha')) routes.set(url.replace("https://lumatile.ishua.cloud", ANDROID_UPDATE_ORIGIN), item)
     const fetcher = network(routes)
     await expect(findAvailableUpdate(current)).rejects.toThrow('无法读取')
     expect(fetcher.mock.calls.some(([url]) => url.includes('/stable/') || url.endsWith('/updates/android.json'))).toBe(false)
@@ -150,4 +152,11 @@ it('same-code conflicts remain errors even when they are current or a healthy mi
 it('higher code cannot disguise a rollback in the channel version', async () => {
   network(sources(manifest('stable', '1.0.0', 12)))
   await expect(findAvailableUpdate(current)).rejects.toThrow('顺序')
+})
+
+it('allows APK checks only when the public distribution policy explicitly enables them', async () => {
+  for (const [policy, expected] of [[{ mode: 'server' }, true], [{ mode: 'website' }, false], [null, false], [undefined, false]] as const) {
+    network(new Map([[DISTRIBUTION_URL, policy]]))
+    expect(await isServerDistributionEnabled()).toBe(expected)
+  }
 })

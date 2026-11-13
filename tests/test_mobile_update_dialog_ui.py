@@ -82,6 +82,7 @@ window.Capacitor={PluginHeaders:s.headers,
   nativePromise:(plugin,method)=>Promise.resolve(((s.native[plugin]||{})[method])??{}),
   nativeCallback:()=>1};
 window.fetch=async(url)=>{const target=String(url);
+  if(target.endsWith('/android/distribution.json'))return new Response('{"mode":"server"}',{status:200,headers:{'Content-Type':'application/json'}});
   if(target.includes('android.json'))return new Response(JSON.stringify(s.manifest),{status:200,headers:{'Content-Type':'application/json'}});
   if(target.includes('announcement.json'))return new Response('',{status:404});
   return new Response('{}',{status:200,headers:{'Content-Type':'application/json'}})};'''

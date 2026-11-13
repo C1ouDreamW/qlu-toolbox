@@ -1,12 +1,24 @@
 import type { Announcement, AvailableUpdate, CurrentAppVersion, UpdateManifest } from './types'
-import { androidReleaseTag, androidUpdateSources, validateAndroidManifest } from '../../../../electron/android-update-contract.mjs'
+import { ANDROID_UPDATE_ORIGIN, androidReleaseTag, androidUpdateSources, validateAndroidManifest } from '../../../../electron/android-update-contract.mjs'
 import { assertChannelVersion, compareChannelVersions } from '../../../../electron/version-contract.mjs'
 import { GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../../../../electron/update-contract.mjs'
 import { buildInformation } from '../build-info'
 
-export const ANNOUNCEMENT_URL = `${UPDATE_ORIGIN}/${buildInformation.channel}/announcement.json`
+export const ANNOUNCEMENT_URL = `${ANDROID_UPDATE_ORIGIN}/${buildInformation.channel}/announcement.json`
 
 const REQUEST_TIMEOUT_MS = 10_000
+export const ANDROID_DOWNLOAD_PAGE = 'https://lumatile.cn/download/#download-android'
+export const DISTRIBUTION_URL = `${ANDROID_UPDATE_ORIGIN}/android/distribution.json`
+
+export async function isServerDistributionEnabled() {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    const response = await fetch(DISTRIBUTION_URL, { cache: 'no-store', signal: controller.signal })
+    return response.ok && (await response.json())?.mode === 'server'
+  } catch { return false }
+  finally { window.clearTimeout(timeout) }
+}
 
 /** 拉取服务器公告；无公告（404/过期/网络失败）一律返回 null，调用方无需报错。 */
 export async function fetchAnnouncement(): Promise<Announcement | null> {
@@ -50,6 +62,7 @@ export async function findAvailableUpdate(current: CurrentAppVersion): Promise<A
 
   assertChannelVersion(current.versionName, buildInformation.channel)
   const sources = androidUpdateSources(buildInformation.channel)
+  sources[0] = `${ANDROID_UPDATE_ORIGIN}/${buildInformation.channel}/android.json`
   const results = await Promise.allSettled([...sources.map(fetchManifest), fetchGithubManifest(current)])
   for (const result of results) if (result.status === 'rejected' && result.reason instanceof ManifestConflict) throw result.reason
   const candidates = results.flatMap((result, index) => result.status === 'fulfilled' && result.value
@@ -92,7 +105,11 @@ async function fetchManifest(url: string): Promise<UpdateManifest> {
       signal: controller.signal,
     })
     if (!response.ok) throw new Error(`${shortSource(url)} 返回 HTTP ${response.status}`)
-    return validateManifest(await response.json(), url)
+    const manifest = validateManifest(await response.json(), url)
+    if (url.startsWith(`${ANDROID_UPDATE_ORIGIN}/`) && manifest.apkUrl.startsWith(`${UPDATE_ORIGIN}/releases/`)) {
+      return { ...manifest, apkUrl: ANDROID_UPDATE_ORIGIN + manifest.apkUrl.slice(UPDATE_ORIGIN.length) }
+    }
+    return manifest
   } finally {
     window.clearTimeout(timeout)
   }
