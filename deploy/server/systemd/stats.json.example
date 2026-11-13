@@ -1,0 +1,6 @@
+{
+  "log_paths": ["/var/log/nginx/lumatile.access.log", "/var/log/nginx/lumatile.access.log.1"],
+  "db_path": "/srv/data/lumatile/stats/stats.db",
+  "report_dir": "/srv/data/lumatile/stats/report",
+  "feedback_db_path": "/srv/data/lumatile/feedback/feedback.db"
+}

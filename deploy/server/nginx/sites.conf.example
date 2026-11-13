@@ -1,0 +1,64 @@
+# 由 certbot 签发后使用其实际证书路径，四个站点可分别签发。
+server {
+    listen 443 ssl;
+    server_name updates.lumatile.cn;
+    ssl_certificate /etc/letsencrypt/live/updates.lumatile.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/updates.lumatile.cn/privkey.pem;
+    access_log /var/log/nginx/lumatile.access.log combined;
+    include /etc/nginx/lumatile/updates.conf;
+    location / { return 404; }
+}
+
+server {
+    listen 443 ssl;
+    server_name lumatile.ishua.cloud;
+    ssl_certificate /etc/letsencrypt/live/lumatile.ishua.cloud/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/lumatile.ishua.cloud/privkey.pem;
+    access_log /var/log/nginx/lumatile.access.log combined;
+    include /etc/nginx/lumatile/updates.conf;
+    location ~ ^/(stable|alpha)/(desktop|windows-x64|macos-arm64)\.json$ {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+    location ~ ^/releases/[^/]+/[^/]+\.(exe|dmg|zip)$ { try_files $uri =404; }
+    location ~ ^/beacon/(desktop|android)$ {
+        add_header Cache-Control "no-store" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        return 204;
+    }
+    location = /healthz { return 200 "ok\n"; }
+    location = /api/feedback {
+        client_max_body_size 8k;
+        include /etc/nginx/lumatile/proxy.conf;
+    }
+    location / { return 404; }
+}
+
+server {
+    listen 443 ssl;
+    server_name api.lumatile.cn;
+    ssl_certificate /etc/letsencrypt/live/api.lumatile.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.lumatile.cn/privkey.pem;
+    location = /healthz { include /etc/nginx/lumatile/proxy.conf; }
+    location = /v1/feedback-submissions {
+        client_max_body_size 16k;
+        error_page 413 = @feedback_too_large;
+        include /etc/nginx/lumatile/proxy.conf;
+    }
+    location @feedback_too_large {
+        default_type application/problem+json;
+        add_header Access-Control-Allow-Origin "https://localhost" always;
+        add_header Cache-Control "no-store" always;
+        return 413 '{"type":"about:blank","title":"Request Entity Too Large","status":413,"code":"payload_too_large","detail":"请求体过大"}';
+    }
+    location / { return 404; }
+}
+
+server {
+    listen 443 ssl;
+    server_name console.lumatile.cn;
+    ssl_certificate /etc/letsencrypt/live/console.lumatile.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/console.lumatile.cn/privkey.pem;
+    location /static/ { alias /srv/www/lumatile-console/; }
+    location / { include /etc/nginx/lumatile/proxy.conf; }
+}

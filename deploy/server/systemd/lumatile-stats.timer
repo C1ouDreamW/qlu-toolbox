@@ -1,0 +1,9 @@
+[Unit]
+Description=每日生成 LumaTile 统计报表
+
+[Timer]
+OnCalendar=*-*-* 00:25:00 Asia/Shanghai
+Persistent=true
+
+[Install]
+WantedBy=timers.target

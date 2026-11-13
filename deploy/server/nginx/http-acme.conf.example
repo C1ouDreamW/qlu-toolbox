@@ -1,0 +1,6 @@
+server {
+    listen 80;
+    server_name lumatile.cn www.lumatile.cn updates.lumatile.cn api.lumatile.cn console.lumatile.cn lumatile.ishua.cloud;
+    location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
+    location / { return 301 https://$host$request_uri; }
+}

@@ -1,0 +1,6 @@
+[Unit]
+Description=LumaTile 访问日志统计
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /srv/apps/lumatile/collect.py --config /srv/apps/lumatile/stats.json

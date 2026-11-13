@@ -1,0 +1,20 @@
+services:
+  portal:
+    image: ${LUMATILE_IMAGE:?set LUMATILE_IMAGE}
+    restart: unless-stopped
+    environment:
+      LUMATILE_SECRET_KEY: ${LUMATILE_SECRET_KEY:?set LUMATILE_SECRET_KEY}
+    ports:
+      - "127.0.0.1:18080:8080"
+    volumes:
+      - ${LUMATILE_FEEDBACK_DIR:-/srv/data/lumatile/feedback}:/data
+      - ${LUMATILE_UPDATE_DIR:-/srv/data/lumatile/updates}:/updates
+      - ${LUMATILE_STATIC_DIR:-/srv/www/lumatile-console}:/static
+      - ${LUMATILE_STATS_DIR:-/srv/data/lumatile/stats/report}:/stats:ro
+      - /srv/www/lumatile:/website:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; request=urllib.request.Request('http://127.0.0.1:8080/healthz', headers={'Host':'api.lumatile.cn'}); urllib.request.urlopen(request, timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

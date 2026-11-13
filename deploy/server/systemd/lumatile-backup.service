@@ -1,0 +1,7 @@
+[Unit]
+Description=LumaTile SQLite 一致性备份
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/bin/bash /srv/apps/lumatile/backup.sh
