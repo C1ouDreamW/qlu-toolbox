@@ -5,8 +5,8 @@ import { release } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PythonBridge } from './bridge.js'
-import { checkDesktopUpdate, verifyBootstrapVersion } from './updates.js'
-import { validateMigrationPolicy } from './update-contract.mjs'
+import { checkGithubUpdate, verifyBootstrapVersion } from './updates.js'
+import { desktopTarget, validateMigrationPolicy } from './update-contract.mjs'
 import { configureDesktopIdentity, readDesktopBuildInformation } from './build-info.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -18,6 +18,7 @@ let mainWindow: BrowserWindow | null = null
 const ANNOUNCEMENT_URL = `https://lumatile.ishua.cloud/${information.channel}/announcement.json`
 const STATS_BEACON_URL = 'https://lumatile.ishua.cloud/beacon/desktop'
 const FEEDBACK_URL = 'https://lumatile.ishua.cloud/api/feedback'
+const DOWNLOAD_URL = `https://lumatile.cn/download/#download-${information.platform === 'macos' ? 'mac' : 'windows'}`
 
 async function loadInstallId(): Promise<string> {
   const file = path.join(app.getPath('userData'), 'stats-client.json')
@@ -184,13 +185,14 @@ function registerIpc() {
     await shell.openExternal(url)
   })
   ipcMain.handle('system:check-update', async () => {
-    if (!information.updatesEnabled) throw new Error('Debug 版本不提供在线更新，请使用开发构建')
+    if (!information.updatesEnabled || information.channel === 'debug') return null
     const policyFile = path.join(app.getAppPath(), 'config', 'release-migration.json')
     const policy = validateMigrationPolicy(JSON.parse(await readFile(policyFile, 'utf8')))
-    return checkDesktopUpdate(information.version, {
-      platform: process.platform, arch: process.arch, channel: information.channel, bridgeVersion: policy.bridgeVersion,
-    })
+    const bridgeVersion = information.channel === 'stable' ? policy.bridgeVersion : null
+    const result = await checkGithubUpdate(information.version, desktopTarget(process.platform, process.arch), bridgeVersion, fetch, information.channel)
+    return result ? { ...result, url: DOWNLOAD_URL } : null
   })
+  ipcMain.handle('system:open-download-page', () => shell.openExternal(DOWNLOAD_URL))
   ipcMain.handle('system:send-stats-beacon', () => sendStatsBeacon())
   ipcMain.handle('system:fetch-announcement', () => fetchAnnouncement())
   ipcMain.handle('system:submit-feedback', (_event, payload) => submitFeedback(payload ?? {}))

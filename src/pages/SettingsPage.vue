@@ -107,7 +107,7 @@ async function removeBrowser() {
       </div>
     </section>
 
-    <section class="settings-section"><div class="settings-title"><RefreshCw :size="20" /><div><h2>软件更新</h2><p>当前版本 v{{ data.version }}</p></div></div><button class="secondary-button" :disabled="data.channel === 'debug'" @click="emit('check-update')"><RefreshCw :size="16" /> 检查更新</button></section>
+    <section class="settings-section"><div class="settings-title"><RefreshCw :size="20" /><div><h2>软件更新</h2><p>当前版本 v{{ data.version }}</p></div></div><button class="secondary-button" @click="emit('check-update')"><RefreshCw :size="16" /> 前往官网下载</button></section>
 
     <BaseModal v-if="confirmBrowserRemoval" title="删除备用浏览器组件">
       <div class="browser-removal-mark"><AlertCircle :size="27" /></div>

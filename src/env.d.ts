@@ -14,6 +14,7 @@ interface Window {
     copyText?(value: string): Promise<void>
     openExternal(url: string): Promise<void>
     checkUpdate(currentVersion: string): Promise<UpdateInfo | null>
+    openDownloadPage(): Promise<void>
     sendStatsBeacon(): Promise<void>
     fetchAnnouncement(): Promise<Announcement | null>
     submitFeedback(payload: { type: 'bug' | 'suggestion'; content: string; contact: string }): Promise<{ id: string }>

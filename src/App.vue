@@ -51,15 +51,19 @@ async function acceptWelcome() {
   await appStore.saveSettings({ welcome_accepted: true })
   runStartupTasks()
 }
-async function checkUpdate(manual = false) {
+async function checkUpdate() {
   if (!boot.value || checkingUpdate.value) return
   checkingUpdate.value = true
   try {
     update.value = await window.lumatile.checkUpdate(boot.value.version)
-    if (manual && !update.value) appStore.notify('当前已是最新版本', 'success')
-  } catch (error) {
-    if (manual) appStore.notify(`检查更新失败：${error instanceof Error ? error.message : error}`, 'error')
+  } catch {
+    // 启动检查失败时仍可从设置打开官网下载页。
   } finally { checkingUpdate.value = false }
+}
+
+async function openDownloadPage() {
+  try { await api.openDownloadPage() }
+  catch { appStore.notify('无法打开浏览器，请访问 lumatile.cn/download/', 'error') }
 }
 
 async function showAnnouncement() {
@@ -100,7 +104,7 @@ onMounted(async () => {
     <div v-else-if="appStore.state.error" class="fatal-screen"><AlertCircle :size="38" /><h2>无法启动本地服务</h2><p>{{ appStore.state.error }}</p><button class="primary-button" @click="reloadApp">重新尝试</button></div>
     <div v-else-if="boot" class="workspace">
       <Sidebar :current="appStore.state.page" :version="boot.version" :channel="boot.channel" @navigate="navigate" @feedback="feedbackOpen = true" />
-      <main class="content"><component :is="pageComponent" :key="appStore.state.page" :data="boot" @navigate="navigate" @check-update="checkUpdate(true)" @feedback="feedbackOpen = true" /></main>
+      <main class="content"><component :is="pageComponent" :key="appStore.state.page" :data="boot" @navigate="navigate" @check-update="openDownloadPage" @feedback="feedbackOpen = true" /></main>
     </div>
 
     <Transition name="toast"><div v-if="appStore.state.toast" class="toast" :data-tone="appStore.state.toast.tone"><CheckCircle2 v-if="appStore.state.toast.tone === 'success'" :size="19" /><AlertCircle v-else-if="appStore.state.toast.tone === 'error'" :size="19" /><Info v-else :size="19" /><span>{{ appStore.state.toast.message }}</span></div></Transition>
