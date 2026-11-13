@@ -1,0 +1,12 @@
+{
+  "windows": {
+    "version": "2.0.4",
+    "installer": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_x64_Setup.exe",
+    "portable": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4.zip"
+  },
+  "mac": {
+    "version": "2.0.4",
+    "installer": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_arm64.dmg",
+    "release": "https://github.com/C1ouDreamW/qlu-toolbox/releases/tag/v2.0.4"
+  }
+}

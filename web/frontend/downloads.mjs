@@ -1,14 +1,15 @@
-const UPDATE_ORIGIN = 'https://lumatile.ishua.cloud'
+const UPDATE_ORIGIN = 'https://updates.lumatile.cn'
+const LEGACY_ORIGIN = 'https://lumatile.ishua.cloud'
 const REPO_PATH = '/C1ouDreamW/qlu-toolbox/releases/download/'
 
 export const MANIFEST_URLS = {
   android: `${UPDATE_ORIGIN}/stable/android.json`,
-  desktop: `${UPDATE_ORIGIN}/stable/desktop.json`,
+  distribution: `${UPDATE_ORIGIN}/android/distribution.json`,
 }
 
 function downloadUrl(value, extension) {
   const url = new URL(value)
-  const trusted = url.origin === UPDATE_ORIGIN && url.pathname.startsWith('/releases/')
+  const trusted = [UPDATE_ORIGIN, LEGACY_ORIGIN].includes(url.origin) && url.pathname.startsWith('/releases/')
     || url.origin === 'https://github.com' && url.pathname.startsWith(REPO_PATH)
   if (!trusted || url.username || url.password || url.search || url.hash || !url.pathname.endsWith(extension)) {
     throw new Error('安装包下载地址无效')
@@ -36,10 +37,24 @@ export async function fetchManifest(url) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 6000)
   try {
-    const response = await fetch(url, { signal: controller.signal, cache: 'no-cache', credentials: 'omit' })
+    const response = await fetch(url, { signal: controller.signal, cache: 'no-store', credentials: 'omit' })
     if (!response.ok) throw new Error('更新源暂时不可用')
     return await response.json()
   } finally {
     clearTimeout(timer)
+  }
+}
+
+export async function loadAndroidDownload() {
+  try {
+    const policy = await fetchManifest(MANIFEST_URLS.distribution)
+    if (policy?.mode !== 'server') return null
+    const download = readDownload('android', await fetchManifest(MANIFEST_URLS.android))
+    if (download.url.startsWith(`${LEGACY_ORIGIN}/releases/`)) {
+      download.url = UPDATE_ORIGIN + download.url.slice(LEGACY_ORIGIN.length)
+    }
+    return download
+  } catch {
+    return null
   }
 }

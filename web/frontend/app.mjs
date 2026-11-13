@@ -1,4 +1,4 @@
-import { MANIFEST_URLS, fetchManifest, readDownload } from './downloads.mjs'
+import { loadAndroidDownload, fetchManifest } from './downloads.mjs'
 
 const views = {
   schedule: {
@@ -35,31 +35,64 @@ document.querySelectorAll('[data-view]').forEach(button => {
   })
 })
 
+const androidCard = document.querySelector('[data-platform="android"]')
+const androidLink = androidCard.querySelector('[data-download]')
+const githubApk = androidLink.href
+const androidVersion = androidCard.querySelector('[data-version]').textContent
+const androidMeta = androidCard.querySelector('[data-meta]').textContent
+
 async function updateDownloads() {
-  const results = await Promise.allSettled([
-    fetchManifest(MANIFEST_URLS.android), fetchManifest(MANIFEST_URLS.desktop),
-  ])
-  let updated = 0
+  const status = document.querySelector('#download-status')
+  const download = await loadAndroidDownload()
+  androidLink.href = download?.url ?? githubApk
+  const version = download ? `v${download.version}` : androidVersion
+  androidCard.querySelector('[data-version]').textContent = version
+  androidCard.querySelector('[data-meta]').textContent = download
+    ? `约 ${(download.size / 1024 / 1024).toFixed(1)} MB · 正式安装包`
+    : androidMeta
+  document.querySelectorAll('[data-android-version]').forEach(item => { item.textContent = version })
+  status.textContent = download ? 'Android 提供自建源下载，桌面版通过外部渠道分发。' : '安装包可通过 GitHub 等已配置渠道获取。'
+}
+
+async function updateDesktopDownloads() {
+  const releases = await fetchManifest('/desktop-releases.json').catch(() => null)
+  if (!releases) return
+  for (const platform of ['windows', 'mac']) {
+    const card = document.querySelector(`[data-platform="${platform}"]`)
+    const release = releases[platform]
+    if (!release || !/^\d+\.\d+\.\d+$/.test(release.version)) continue
+    const prefix = 'https://github.com/C1ouDreamW/qlu-toolbox/releases/'
+    if (typeof release.installer !== 'string' || !release.installer.startsWith(prefix + 'download/')) continue
+    card.querySelector('[data-version]').textContent = `v${release.version}`
+    card.querySelector('[data-download]').href = release.installer
+    const extra = platform === 'windows' ? release.portable : release.release
+    if (typeof extra === 'string' && extra.startsWith(prefix)) card.querySelector('.download-backup').href = extra
+  }
+}
+
+async function showExternalLinks() {
+  const channels = await fetchManifest('/download-channels.json').catch(() => null)
+  if (!channels) return
   for (const card of document.querySelectorAll('[data-platform]')) {
-    const platform = card.dataset.platform
-    const result = results[platform === 'android' ? 0 : 1]
-    try {
-      if (result.status === 'rejected') throw result.reason
-      const download = readDownload(platform, result.value)
-      card.querySelector('[data-download]').href = download.url
-      card.querySelector('[data-version]').textContent = `v${download.version}`
-      if (platform === 'android') {
-        card.querySelector('[data-meta]').textContent = `约 ${(download.size / 1024 / 1024).toFixed(1)} MB · 正式安装包`
-        document.querySelectorAll('[data-android-version]').forEach(item => { item.textContent = `v${download.version}` })
-      }
-      updated++
-    } catch {
-      // shortcut: 清单不可用时保留已发布版本链接，增加统一下载代理后再由服务端回退。
+    const links = channels[card.dataset.platform]
+    for (const [key, label, host] of [['qq', '加入 QQ 群', 'qm.qq.com'], ['baidu', '百度网盘', 'pan.baidu.com']]) {
+      if (!links?.[key]) continue
+      try {
+        const url = new URL(links[key])
+        if (url.protocol !== 'https:' || url.hostname !== host || url.username || url.password) continue
+        const link = document.createElement('a')
+        link.className = 'download-backup'
+        link.href = url.href
+        link.target = '_blank'
+        link.rel = 'noopener noreferrer'
+        link.textContent = label
+        card.append(link)
+      } catch { /* 未配置有效链接时隐藏该入口。 */ }
     }
   }
-  document.querySelector('#download-status').textContent = updated === 3
-    ? '已获取更新源当前版本 · 安装包由 LumaTile 自建更新源提供'
-    : '部分版本信息暂时无法刷新，已保留已发布版本链接；下载失败时请使用备用下载。'
 }
 
 updateDownloads()
+updateDesktopDownloads()
+showExternalLinks()
+window.addEventListener('pageshow', event => { if (event.persisted) void updateDownloads() })
