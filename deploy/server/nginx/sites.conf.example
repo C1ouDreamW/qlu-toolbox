@@ -20,6 +20,16 @@ server {
         add_header Cache-Control "no-cache" always;
         try_files $uri =404;
     }
+    # 已公开桌面包走 GitHub，旧清单内的下载地址继续可用。
+    location = /releases/v2.0.4/LumaTile_v2.0.4_x64_Setup.exe {
+        return 302 https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_x64_Setup.exe;
+    }
+    location = /releases/v2.0.4/LumaTile_v2.0.4_arm64.dmg {
+        return 302 https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_arm64.dmg;
+    }
+    location = /releases/v2.0.4/LumaTile_v2.0.4.zip {
+        return 302 https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4.zip;
+    }
     location ~ ^/releases/[^/]+/[^/]+\.(exe|dmg|zip)$ { try_files $uri =404; }
     location ~ ^/beacon/(desktop|android)$ {
         add_header Cache-Control "no-store" always;
