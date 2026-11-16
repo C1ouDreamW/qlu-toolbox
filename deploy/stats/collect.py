@@ -432,13 +432,13 @@ def svg_line(values: list[int], labels: list[str], color: str, title: str) -> st
     )
     every = max(count // 6, 1)
     text_points = " ".join(
-        f'<text x="{x:.1f}" y="{height - 8}" font-size="9" fill="#889" text-anchor="middle">{label[5:]}</text>'
+        f'<text x="{x:.1f}" y="{height - 8}" font-size="14" fill="#526176" text-anchor="middle">{label[5:]}</text>'
         for i, ((x, _), label) in enumerate(zip(points, labels))
         if i % every == 0
     )
     return f"""<svg viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(title)}">
       <polyline fill="{color}22" stroke="none" points="{area}" />
-      <polyline fill="none" stroke="{color}" stroke-width="2" points="{polyline}" />
+      <polyline fill="none" stroke="{color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="{polyline}" />
       {dots}
       {text_points}
     </svg>"""
@@ -455,10 +455,10 @@ def svg_bars(values: list[int], labels: list[str], color: str, title: str) -> st
         x = pad + i * step + step * 0.12
         bars.append(
             f'<rect x="{x:.1f}" y="{height - pad - bar_height:.1f}" width="{step * 0.76:.1f}" '
-            f'height="{bar_height:.1f}" fill="{color}"><title>{labels[i]}：{value}</title></rect>'
+            f'height="{bar_height:.1f}" rx="2" fill="{color}"><title>{labels[i]}：{value}</title></rect>'
         )
     text_points = " ".join(
-        f'<text x="{pad + i * step + step / 2:.1f}" y="{height - 8}" font-size="9" fill="#889" '
+        f'<text x="{pad + i * step + step / 2:.1f}" y="{height - 8}" font-size="14" fill="#526176" '
         f'text-anchor="middle">{label[5:]}</text>'
         for i, label in enumerate(labels)
         if i % max(count // 6, 1) == 0
@@ -475,7 +475,7 @@ def dist_table(title: str, rows: list[dict], total: int | None = None) -> str:
     max_count = max(1, max(row["count"] for row in rows))
     body = "".join(
         f'<tr><td class="label">{html.escape(str(row["label"]))}</td>'
-        f'<td class="bar-cell"><div class="bar" style="width:{row["count"] / max_count * 100:.0f}%"></div></td>'
+        f'<td class="bar-cell" aria-hidden="true"><div class="bar" style="width:{row["count"] / max_count * 100:.0f}%"></div></td>'
         f'<td class="num">{row["count"]}</td></tr>'
         for row in rows
     )
@@ -495,9 +495,9 @@ def daily_table(report: dict) -> str:
     )
     if not rows:
         rows = '<tr><td colspan="5" class="empty">暂无每日数据</td></tr>'
-    return f"""<details class="card daily-detail">
-      <summary>每日精确数据 <span>展开查看 {len(report['days'])} 天明细</span></summary>
-      <div class="table-scroll"><table>
+    return f"""<details class="card daily-detail" id="daily">
+      <summary>每日明细 <span>{len(report['days'])} 天</span></summary>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="每日统计数据"><table>
         <thead><tr><th>日期</th><th>日活</th><th>新增安装</th><th>更新检查</th><th>下载</th></tr></thead>
         <tbody>{rows}</tbody>
       </table></div>
@@ -507,10 +507,10 @@ def daily_table(report: dict) -> str:
 def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
     labels = report["days"]
     totals = report["totals"]
-    dau_chart = svg_line(report["dau"], labels, "#4f6ef7", "日活")
-    download_chart = svg_bars(report["downloads"], labels, "#18a058", "每日下载")
-    check_chart = svg_line(report["raw_checks"], labels, "#e2a03f", "更新检查")
-    new_chart = svg_bars(report["new_installs"], labels, "#8a63f4", "新增安装")
+    dau_chart = svg_line(report["dau"], labels, "#0064dc", "日活")
+    download_chart = svg_bars(report["downloads"], labels, "#d29412", "每日下载")
+    check_chart = svg_line(report["raw_checks"], labels, "#a36a00", "更新检查")
+    new_chart = svg_bars(report["new_installs"], labels, "#4b92ec", "新增安装")
 
     card_rows = [
         ("识别的安装", totals["installs"], "累计去重"),
@@ -520,23 +520,24 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
     ]
     cards = "".join(
         f'<div class="stat"><div class="stat-label">{label}</div>'
-        f'<div class="stat-num">{value}</div><div class="stat-note">{note}</div></div>'
+        f'<div class="stat-num">{value:,}</div><div class="stat-note">{note}</div></div>'
         for label, value, note in card_rows
     )
     if feedback is not None:
         feedback_panel = (
-            '<section class="feedback-panel"><div><p class="eyebrow">反馈队列</p>'
+            '<section class="feedback-panel"><div><p class="section-label">用户反馈</p>'
             f'<h2><strong>{feedback["new"]}</strong> 条待处理</h2>'
             f'<p>已处理 {feedback["resolved"]} 条 · 近 7 天新增 {feedback["recent"]} 条</p></div>'
-            '<a class="button" href="/admin/">查看全部反馈 <span aria-hidden="true">→</span></a></section>'
+            '<a class="button" href="/#feedback-title">处理反馈 <span aria-hidden="true">→</span></a></section>'
         )
     else:
         feedback_panel = (
-            '<section class="feedback-panel unavailable"><div><p class="eyebrow">反馈队列</p>'
-            '<h2>反馈统计暂不可用</h2><p>统计任务未能读取反馈数据库，仍可直接进入管理页。</p></div>'
-            '<a class="button" href="/admin/">打开反馈管理 <span aria-hidden="true">→</span></a></section>'
+            '<section class="feedback-panel unavailable"><div><p class="section-label">用户反馈</p>'
+            '<h2>反馈统计暂不可用</h2><p>统计任务未能读取反馈数据库，可以在工作台查看反馈。</p></div>'
+            '<a class="button" href="/#feedback-title">查看反馈 <span aria-hidden="true">→</span></a></section>'
         )
     range_days = report["range_days"]
+    generated_at = report["generated_at"]
     github_title = (
         f'GitHub 下载（{report["github_snapshot_day"]} 快照）'
         if report["github_snapshot_day"] else "GitHub 下载（暂无快照）"
@@ -547,64 +548,100 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
 <meta name="robots" content="noindex">
 <title>LumaTile 统计</title>
 <style>
-  :root {{ --ink: #172038; --muted: #657089; --line: #dbe2ec; --paper: #fff;
-    --canvas: #eef3f8; --blue: #3559e0; --green: #0f9d78; --amber: #d48222; --violet: #7651c9; }}
+  :root {{ --ink: #18283e; --muted: #526176; --line: #dee7f3; --paper: #fff;
+    --canvas: #f2f5fb; --blue: #0064dc; --nav: #142f56; --yellow: #ffc739; --yellow-soft: #fff3cf;
+    --shadow: 0 12px 32px #182e5610; }}
   * {{ box-sizing: border-box; }}
-  body {{ font-family: "Segoe UI Variable", "Microsoft YaHei UI", system-ui, sans-serif; margin: 0;
-    background: var(--canvas); color: var(--ink); }}
-  body::before {{ content: ""; position: fixed; inset: 0 0 auto; height: 4px;
-    background: linear-gradient(90deg, var(--blue) 0 42%, var(--green) 42% 67%, var(--amber) 67% 84%, var(--violet) 84%); }}
-  main {{ max-width: 1120px; margin: 0 auto; padding: 48px 24px 64px; }}
-  h1 {{ font: 700 clamp(30px, 5vw, 52px)/1.05 "Segoe UI Variable Display", "Microsoft YaHei UI", sans-serif;
-    letter-spacing: -.04em; margin: 7px 0 12px; }}
-  h2 {{ font-size: 20px; margin: 4px 0; }} h3 {{ font-size: 14px; margin: 0 0 14px; }}
+  body {{ font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    margin: 0; background: var(--canvas); color: var(--ink); line-height: 1.55; }}
+  :focus-visible {{ outline: 3px solid var(--blue); outline-offset: 3px; }}
+  .skip-link {{ position: absolute; z-index: 1; transform: translateY(-120%); padding: 8px 14px; background: var(--paper); }}
+  .skip-link:focus {{ transform: translateY(0); }}
+  .topbar {{ background: var(--nav); color: #ebf3ff; }}
+  .topbar :focus-visible {{ outline-color: var(--yellow); }}
+  .topbar nav, main {{ width: min(100% - 48px, 1280px); margin-inline: auto; }}
+  .topbar nav {{ display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-height: 64px; }}
+  .topbar a {{ color: inherit; padding: 9px 12px; border-radius: 8px; font-size: .88rem; font-weight: 600; white-space: nowrap; text-decoration: none; }}
+  .topbar a:hover {{ background: #224575; }}
+  .topbar a[aria-current] {{ color: var(--ink); background: var(--yellow); }}
+  .topbar .brand {{ padding-inline-start: 0; margin-inline-end: 14px; font-size: 1.15rem; font-weight: 750; }}
+  .brand small {{ margin-inline-start: 4px; color: #b8cbed; font-size: .75rem; }}
+  main {{ padding-block: 30px 52px; }}
+  h1 {{ font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -.035em; line-height: 1.25; margin: 0 0 8px; }}
+  h2 {{ font-size: 1.15rem; margin: 0; }} h3 {{ font-size: 1rem; margin: 0 0 14px; }}
   p {{ margin: 0; }} a {{ color: var(--blue); }}
-  .masthead {{ display: flex; justify-content: space-between; gap: 32px; align-items: end; margin-bottom: 28px; }}
-  .eyebrow {{ color: var(--blue); font: 700 11px/1.2 ui-monospace, Consolas, monospace; letter-spacing: .13em; text-transform: uppercase; }}
-  .updated {{ max-width: 430px; color: var(--muted); font-size: 13px; line-height: 1.6; }}
-  .live {{ flex: 0 0 auto; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.7);
-    padding: 8px 12px; color: var(--muted); font: 600 12px ui-monospace, Consolas, monospace; }}
-  .live::before {{ content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px;
-    border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px #0f9d7822; }}
-  .cards {{ display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line);
-    border-radius: 16px; overflow: hidden; background: var(--paper); box-shadow: 0 16px 40px rgba(23,32,56,.06); }}
-  .stat {{ min-width: 0; padding: 20px; border-right: 1px solid var(--line); }} .stat:last-child {{ border-right: 0; }}
-  .stat-num {{ margin: 8px 0 3px; font: 720 30px/1 ui-monospace, Consolas, monospace; letter-spacing: -.06em; }}
-  .stat-label, .stat-note {{ color: var(--muted); font-size: 12px; }} .stat-label {{ font-weight: 650; color: var(--ink); }}
-  .feedback-panel {{ display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 16px 0 38px;
-    padding: 20px 22px; border: 1px solid #cbd6ff; border-radius: 16px; background: #f7f9ff; }}
-  .feedback-panel h2 strong {{ color: var(--blue); font: 750 28px ui-monospace, Consolas, monospace; }}
-  .feedback-panel p:not(.eyebrow) {{ color: var(--muted); font-size: 13px; }}
+  .masthead {{ display: flex; justify-content: space-between; gap: 12px 24px; align-items: flex-start; flex-wrap: wrap;
+    margin-bottom: 14px; padding: 22px; border: 1px solid #cedff8; border-radius: 18px; background: linear-gradient(115deg, #e4efff, #f5f8ff); }}
+  .updated, .stamp {{ color: var(--muted); font-size: .85rem; }}
+  .stamp {{ border: 1px solid #c4d7f2; border-radius: 8px; background: var(--paper); padding: 6px 10px; }}
+  .report-nav {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }}
+  .report-nav a {{ border: 1px solid #c4d7f2; border-radius: 8px; background: var(--paper); padding: 6px 10px;
+    font-size: .85rem; font-weight: 600; text-decoration: none; }}
+  .report-nav a:hover {{ background: #eaf2ff; }}
+  .cards {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }}
+  .stat {{ min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }}
+  .stat:first-child {{ background: #fff9e7; border-color: #efd588; }}
+  .stat-num {{ margin: 5px 0 3px; font-size: clamp(1.15rem, 3vw, 1.8rem); font-weight: 750; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }}
+  .stat-label, .stat-note, .section-label {{ color: var(--muted); font-size: .85rem; }}
+  .stat-label, .section-label {{ font-weight: 650; }}
+  .feedback-panel {{ display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px;
+    margin: 14px 0 26px; padding: 16px 20px; border: 1px solid #eed68d; border-radius: 14px; background: var(--yellow-soft); }}
+  .feedback-panel h2 {{ margin-block: 3px; }}
+  .feedback-panel h2 strong {{ color: #694800; font-variant-numeric: tabular-nums; }}
+  .feedback-panel p {{ color: var(--muted); font-size: .85rem; }}
   .feedback-panel.unavailable {{ border-color: var(--line); background: var(--paper); }}
-  .button {{ flex: 0 0 auto; border-radius: 10px; background: var(--blue); color: #fff; padding: 10px 14px;
-    font-size: 13px; font-weight: 650; text-decoration: none; }} .button:focus-visible, summary:focus-visible {{ outline: 3px solid #3559e055; outline-offset: 3px; }}
-  .section-head {{ display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 34px 0 12px; }}
-  .section-head h2 {{ margin: 0; }} .section-head p {{ color: var(--muted); font-size: 12px; }}
-  .chart-grid, .dist-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }}
-  .card {{ min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }}
-  svg {{ display: block; width: 100%; height: auto; overflow: visible; }} svg circle:focus {{ outline: none; stroke: #fff; stroke-width: 2; }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }} th {{ color: var(--muted); font-size: 11px; text-align: left; }}
-  td, th {{ padding: 7px 6px; border-bottom: 1px solid #edf0f5; }} tbody tr:last-child td {{ border-bottom: 0; }}
+  .button {{ border-radius: 8px; background: var(--blue); color: #fff; padding: 8px 12px; font-size: .85rem; font-weight: 650; text-decoration: none; }}
+  .button:hover {{ background: #0054b8; }}
+  .section-head {{ display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin: 26px 0 12px; }}
+  .section-head p {{ color: var(--muted); font-size: .85rem; }}
+  .chart-grid, .dist-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }}
+  .card {{ min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }}
+  svg {{ display: block; width: 100%; height: auto; overflow: visible; }} svg circle:focus {{ stroke: var(--nav); stroke-width: 2; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: .85rem; font-variant-numeric: tabular-nums; }}
+  th {{ color: var(--muted); text-align: left; }}
+  td, th {{ padding: 8px; border-bottom: 1px solid var(--line); }} tbody tr:last-child td {{ border-bottom: 0; }}
   td:not(:first-child), th:not(:first-child) {{ text-align: right; }}
-  .bar-cell {{ width: 52%; }} .bar {{ height: 9px; border-radius: 2px; background: var(--blue); min-width: 2px; }}
-  .num {{ text-align: right; font: 600 12px ui-monospace, Consolas, monospace; }}
-  .muted {{ color: var(--muted); font-size: 12px; margin-top: 10px; }}
-  .daily-detail {{ margin-top: 14px; padding: 0; }} .daily-detail summary {{ cursor: pointer; padding: 16px 18px; font-size: 13px; font-weight: 650; }}
-  .daily-detail summary span {{ float: right; color: var(--muted); font-weight: 400; }} .daily-detail[open] summary {{ border-bottom: 1px solid var(--line); }}
-  .table-scroll {{ max-height: 390px; overflow: auto; padding: 8px 14px 14px; }} .empty {{ color: var(--muted); text-align: center !important; }}
-  footer {{ margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.6; }}
-  @media (max-width: 760px) {{ main {{ padding: 36px 14px 48px; }} .masthead {{ align-items: start; flex-direction: column; gap: 14px; }}
-    .cards {{ grid-template-columns: repeat(2, 1fr); }} .stat:nth-child(2) {{ border-right: 0; }} .stat:nth-child(-n+2) {{ border-bottom: 1px solid var(--line); }}
-    .chart-grid, .dist-grid {{ grid-template-columns: 1fr; }} .feedback-panel {{ align-items: stretch; flex-direction: column; }} .button {{ text-align: center; }} }}
-  @media (max-width: 420px) {{ .cards {{ grid-template-columns: 1fr; }} .stat {{ border-right: 0; border-bottom: 1px solid var(--line); }}
-    .stat:nth-child(3) {{ border-bottom: 1px solid var(--line); }} .stat:last-child {{ border-bottom: 0; }} .daily-detail summary span {{ display: none; }} }}
-</style></head><body><main>
-<header class="masthead"><div><p class="eyebrow">LumaTile / Operations</p><h1>更新源统计</h1>
-<p class="updated">匿名观测安装、更新与下载状态，不包含账号、成绩或网络地址。</p></div>
-<div class="live">生成于 {report['generated_at']}</div></header>
+  .label {{ overflow-wrap: anywhere; }}
+  .bar-cell {{ width: 42%; }} .bar {{ height: 7px; border-radius: 99px; background: #4b92ec; }}
+  .num {{ font-weight: 650; }}
+  .muted {{ color: var(--muted); font-size: .85rem; margin-top: 8px; }}
+  .daily-detail {{ margin-top: 12px; padding: 0; }} .daily-detail summary {{ cursor: pointer; padding: 14px 16px; font-weight: 650; }}
+  .daily-detail summary span {{ float: right; color: var(--muted); font-size: .85rem; font-weight: 400; }}
+  .daily-detail[open] summary {{ border-bottom: 1px solid var(--line); }}
+  .table-scroll {{ max-height: 420px; overflow: auto; padding: 0 12px 12px; }}
+  .table-scroll th {{ position: sticky; top: 0; background: var(--paper); white-space: nowrap; }}
+  .table-scroll time {{ white-space: nowrap; }}
+  .empty {{ color: var(--muted); text-align: center !important; }}
+  footer {{ margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }}
+  @media (max-width: 760px) {{
+    .topbar nav, main {{ width: calc(100% - 28px); }}
+    .topbar nav {{ padding-block: 10px; }}
+    .topbar .brand {{ width: 100%; padding-block: 2px; }}
+    .topbar a {{ padding: 7px 9px; }}
+    main {{ padding-top: 22px; }}
+    .masthead {{ padding: 16px; }}
+    .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+    .chart-grid, .dist-grid {{ grid-template-columns: 1fr; }}
+  }}
+</style></head><body>
+<a class="skip-link" href="#main">跳到主要内容</a>
+<header class="topbar">
+  <nav aria-label="控制台导航">
+    <a class="brand" href="/">LumaTile <small>控制台</small></a>
+    <a href="/">工作台</a><a href="/admin/portal/announcement/">公告草稿</a>
+    <a href="/admin/portal/operation/">操作记录</a><a href="/stats/" aria-current="page">访问统计</a>
+  </nav>
+</header>
+<main id="main" tabindex="-1">
+<header class="masthead"><div><h1>访问统计</h1>
+<p class="updated">匿名观测安装、更新与下载状态。</p></div>
+<p class="stamp">生成于 <time datetime="{generated_at}">{generated_at.replace("T", " ", 1)}</time></p></header>
+<nav class="report-nav" aria-label="报告目录">
+  <a href="#trends">趋势图</a><a href="#daily">每日明细</a><a href="#breakdown">构成与下载</a>
+</nav>
 <div class="cards">{cards}</div>
 {feedback_panel}
-<div class="section-head"><h2>最近 {range_days} 天趋势</h2><p>悬停数据点，或展开下方精确数据</p></div>
+<div class="section-head" id="trends"><h2>最近 {range_days} 天趋势</h2><p>逐日数值见每日明细</p></div>
 <div class="chart-grid">
   <section class="card"><h3>日活 · 去重安装</h3>{dau_chart}</section>
   <section class="card"><h3>每日新增安装</h3>{new_chart}</section>
@@ -612,7 +649,7 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
   <section class="card"><h3>自建源每日下载</h3>{download_chart}</section>
 </div>
 {daily_table(report)}
-<div class="section-head"><h2>构成与下载</h2><p>安装分布按随机安装编号去重</p></div>
+<div class="section-head" id="breakdown"><h2>构成与下载</h2><p>安装分布按随机安装编号去重</p></div>
 <div class="dist-grid">
   {dist_table(f"版本分布（近 {range_days} 天）", report["version_dist"])}
   {dist_table(f"系统分布（近 {range_days} 天）", report["os_dist"])}

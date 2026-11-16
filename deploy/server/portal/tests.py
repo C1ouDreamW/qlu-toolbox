@@ -66,6 +66,22 @@ class PortalTests(TestCase):
         self.assertContains(console.get(detail, secure=True), "操作时间")
         self.assertEqual(console.post(detail, secure=True).status_code, 403)
 
+    def test_stats_requires_login_and_offers_navigation_without_a_report(self):
+        console = Client(HTTP_HOST="console.lumatile.cn")
+        self.assertRedirects(console.get("/stats/", secure=True), "/admin/login/?next=/stats/",
+                             fetch_redirect_response=False)
+        console.force_login(self.staff)
+        with self.settings(STATS_DIR=self.root):
+            missing = console.get("/stats/", secure=True)
+            self.assertContains(missing, "统计报告尚未生成", status_code=404)
+            self.assertContains(missing, "返回工作台", status_code=404)
+            self.assertEqual(missing.headers["Cache-Control"], "no-store")
+            (self.root / "stats.html").write_text("<h1>合成报告</h1>", encoding="utf-8")
+            report = console.get("/stats/", secure=True)
+            self.assertEqual(report.status_code, 200)
+            self.assertEqual(b"".join(report.streaming_content).decode(), "<h1>合成报告</h1>")
+            self.assertEqual(report.headers["Cache-Control"], "no-store")
+
     def test_feedback_uses_existing_database_and_keeps_public_reads_private(self):
         form = {"type": "bug", "content": "合成反馈", "platform": "android", "appVersion": "2.0.4"}
         api = Client(HTTP_HOST="api.lumatile.cn")

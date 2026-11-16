@@ -181,12 +181,13 @@ class WatermarkTests(unittest.TestCase):
         report = collect.collect_report(self.conn)
         page = collect.render_html(report, {"new": 2, "resolved": 3, "recent": 1})
 
-        self.assertIn('href="/admin/"', page)
+        self.assertIn('href="/#feedback-title"', page)
+        self.assertIn('href="#daily"', page)
+        self.assertIn('<details class="card daily-detail" id="daily">', page)
         self.assertIn("<strong>2</strong> 条待处理", page)
         self.assertIn("已处理 3 条 · 近 7 天新增 1 条", page)
         self.assertIn("架构分布（近 30 天）", page)
         self.assertIn("arm64", page)
-        self.assertIn("每日精确数据", page)
         self.assertIn(f'<time datetime="{today}">{today}</time>', page)
 
 

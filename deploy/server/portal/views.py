@@ -253,7 +253,9 @@ def stats(request):
     try:
         report = (settings.STATS_DIR / "stats.html").open("rb")
     except FileNotFoundError:
-        return HttpResponse("统计报告尚未生成", status=404, content_type="text/plain; charset=utf-8")
+        result = render(request, "portal/stats_unavailable.html", status=404)
+        result["Cache-Control"] = "no-store"
+        return result
     return FileResponse(report, content_type="text/html; charset=utf-8", headers={"Cache-Control": "no-store"})
 
 

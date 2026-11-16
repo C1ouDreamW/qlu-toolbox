@@ -1,0 +1,25 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>访问统计 · LumaTile 控制台</title>
+  <link rel="icon" href="{% static 'portal/logo.png' %}" type="image/png">
+  <link rel="stylesheet" href="{% static 'portal/console.css' %}">
+</head>
+<body class="console">
+<a class="skip-link" href="#main">跳到主要内容</a>
+{% include "portal/topbar.html" %}
+<main id="main" class="workspace" tabindex="-1">
+  <section class="panel">
+    <header class="page-heading">
+      <h1>访问统计</h1>
+      <a class="outline-link" href="/">返回工作台</a>
+    </header>
+    <p class="message" data-state="empty">统计报告尚未生成，请稍后刷新。</p>
+  </section>
+</main>
+</body>
+</html>
