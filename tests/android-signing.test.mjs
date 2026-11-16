@@ -77,11 +77,11 @@ test('Android release YAML separates no-secret build, signature-only credentials
   assert.deepEqual(Object.keys(workflow.on), ['push'])
   assert.deepEqual(workflow.on.push.tags, ['android-v*', 'android-alpha-v*'])
   assert.deepEqual(workflow.permissions, { contents: 'read' })
-  const { build, sign, publish } = workflow.jobs
+  const { build, sign, publish, deploy } = workflow.jobs
   assert.deepEqual(sign.needs, ['build'])
   assert.deepEqual(publish.needs, ['build', 'sign'])
   assert.deepEqual(publish.permissions, { contents: 'write' })
-  for (const [name, job] of Object.entries(workflow.jobs)) {
+  for (const [name, job] of Object.entries({ build, sign, publish })) {
     assert.equal(job.environment, undefined, 'Use existing repository Secrets, not Environment')
     if (name !== 'publish') assert.equal(job.permissions?.contents ?? workflow.permissions.contents, 'read')
     assert.doesNotMatch(JSON.stringify(job.env ?? {}), /secrets\s*[.\[]/, 'Credentials belong only to the signing step')
@@ -102,6 +102,11 @@ test('Android release YAML separates no-secret build, signature-only credentials
     }
   }
   assert.equal(sign.steps.filter(step => /secrets\s*[.\[]/.test(JSON.stringify(step))).length, 2)
+  assert.deepEqual(deploy.needs, ['build', 'sign', 'publish'])
+  assert.equal(deploy.uses, './.github/workflows/deploy-server.yml')
+  assert.equal(deploy.with.artifact, '${{ needs.sign.outputs.artifact }}')
+  assert.deepEqual(deploy.permissions, { contents: 'read', actions: 'read' })
+  assert.deepEqual(Object.keys(deploy.secrets), ['LUMATILE_DEPLOY_KEY'])
 })
 
 test('only verified main pushes deploy web and portal from the same workflow', async () => {
