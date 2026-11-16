@@ -13,7 +13,7 @@ Alpha / Debug 可以与 Stable 共存，私有数据互不读取；需要转移�
 1. 在 `config/release-versions.json` 更新本平台对应渠道的版本和构建号，并更新 `changelogs/<platform>.md`。
 2. 在 `config/release-migration.json` 启用该渠道发布开关，合入 main。
 3. 创建本平台标签并推送；标签格式见 [版本配置](config/README.md)。Alpha 生成 prerelease，Stable 生成正式 Release，其他平台不受影响。
-4. 工作流构建并校验包，上传完整资产后公开。需要更新自建源时，下载该平台 / 渠道的 update-source，上传 release 目录，再用 `scripts/promote-update-manifest.mjs` 切换对应清单；Android 备用清单通过单独分支更新。
+4. 工作流构建并校验包，上传完整资产后公开。Android 发布后，自动部署同一构件到对应渠道的自建源，备用清单仍通过单独分支更新。生产部署失败时可从 `Deploy LumaTile` 重试，见[部署说明](deploy/server/README.md)。桌面安装包通过 GitHub Releases 分发。
 
 正式版和 Alpha 分别构建，不把 Alpha APK 改名当作 Stable。Android Alpha 使用独立固定证书，Stable 沿用现有正式证书。已公开版本和标签不能覆盖；失败上传可在摘要一致时补齐，修改包则增加版本和构建号。
 

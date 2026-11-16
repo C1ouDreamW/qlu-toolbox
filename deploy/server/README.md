@@ -25,9 +25,25 @@ bash deploy/server/check-nginx.sh
 
 默认 APK 分发关闭。登录控制台修改模式后，Nginx 用同一个 `updates/android/server.json` 的存在状态控制公开策略和新旧域名上的 APK 路由。关闭时 APK 请求返回 503，官网和新版应用提供外部下载入口。发布工具继续核对 APK 大小与 SHA-256，再按渠道原子推广清单。具体构件见 [发布指南](../../RELEASING.md)。
 
-## 验证与恢复
+## GitHub Actions 自动部署
 
-GitHub 手动部署工作流使用 `production` 环境的 `LUMATILE_DEPLOY_TARGET`、`LUMATILE_SSH_KNOWN_HOSTS` 和 `LUMATILE_DEPLOY_KEY`。部署账号按目标授予写入和执行权限，部署脚本由管理员维护。Android 推广还需要 Node.js 22 和仓库的发布工具目录，包含 `scripts/`、`electron/`、`config/`。服务端生产首次上线时可先用手动部署验证这条链路。
+- `main` 上官网或服务端相关变更通过 `Server artifacts` 检查后，自动部署官网构件和按摘要指定的后端镜像。旧构件的源码与 `main` 对应目录不一致时跳过自动部署。PR 只检查和构建构件。
+- Android 在对应渠道的签名校验和 GitHub Release 发布完成后，自动推广同一工作流的 APK 构件。Stable 与 Alpha 只更新自己的清单，沿用当前分发模式。Android 备用清单仍走 PR。桌面安装包继续由各平台 Release 工作流发布到 GitHub。
+- `Deploy LumaTile` 保留手动入口，可选择部署目标以及已通过验证的构件或镜像摘要。
+
+在 GitHub 的 **Settings → Environments → production** 配置：
+
+| 类型 | 名称 | 值 |
+| --- | --- | --- |
+| Secret | `LUMATILE_DEPLOY_KEY` | 专用部署账号的 SSH 私钥，对应公钥加入服务器的 `authorized_keys`。 |
+| Variable | `LUMATILE_DEPLOY_TARGET` | `lumatile-deploy@43.143.206.112` |
+| Variable | `LUMATILE_SSH_KNOWN_HOSTS` | 经现有可信 SSH 连接核对的服务器主机公钥记录，格式为 `43.143.206.112 ssh-ed25519 <主机公钥>`。 |
+
+生产环境若设置部署分支与标签白名单，放行 `main` 以及 Android 的 `android-v*` 和 `android-alpha-v*`。若设置必需审阅人，部署任务会等待审批。
+
+部署账号需要官网版本目录、Android 更新目录及部署锁的写权限。后端部署通过 `sudo -n /srv/apps/lumatile/deploy-portal.sh` 执行，由管理员维护 root 所有的脚本与 Compose 配置。GHCR 公共镜像可直接拉取，私有镜像由服务器配置只读拉取凭据。Android 推广还需要 Node.js 22 和仓库发布工具目录，包含 `scripts/`、`electron/`、`config/`。
+
+## 验证与恢复
 
 腾讯云首次部署使用 Python 官方镜像的腾讯云镜像仓库副本，按锁文件摘要验证依赖并离线安装。线上暂用本机构建镜像，首次 GHCR 部署完成后再以其摘要作为服务器部署基准。
 
