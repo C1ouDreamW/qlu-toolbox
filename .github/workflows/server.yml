@@ -2,10 +2,10 @@ name: Server artifacts
 
 on:
   pull_request:
-    paths: ['deploy/server/**', 'deploy/feedback/**', 'web/**', '.dockerignore', '.github/workflows/server.yml']
+    paths: ['deploy/server/**', 'deploy/feedback/**', 'web/**', '.dockerignore', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
   push:
     branches: [main]
-    paths: ['deploy/server/**', 'deploy/feedback/**', 'web/**', '.dockerignore', '.github/workflows/server.yml']
+    paths: ['deploy/server/**', 'deploy/feedback/**', 'web/**', '.dockerignore', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
   workflow_dispatch:
 
 permissions:
@@ -42,6 +42,8 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    outputs:
+      reference: ${{ steps.image.outputs.reference }}
     permissions:
       contents: read
       packages: write
@@ -50,6 +52,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Build and publish the backend image
+        id: image
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -57,4 +60,33 @@ jobs:
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker build -f deploy/server/Dockerfile -t "$image" .
           docker push "$image"
-          docker image inspect --format '{{index .RepoDigests 0}}' "$image" >> "$GITHUB_STEP_SUMMARY"
+          reference=$(docker image inspect --format '{{index .RepoDigests 0}}' "$image")
+          echo "reference=$reference" >> "$GITHUB_OUTPUT"
+          echo "$reference" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-web:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/deploy-server.yml
+    with:
+      target: web
+      run_id: ${{ format('{0}', github.run_id) }}
+      artifact: lumatile-web-${{ github.sha }}
+    secrets:
+      LUMATILE_DEPLOY_KEY: ${{ secrets.LUMATILE_DEPLOY_KEY }}
+
+  deploy-portal:
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/deploy-server.yml
+    with:
+      target: portal
+      image: ${{ needs.image.outputs.reference }}
+    secrets:
+      LUMATILE_DEPLOY_KEY: ${{ secrets.LUMATILE_DEPLOY_KEY }}

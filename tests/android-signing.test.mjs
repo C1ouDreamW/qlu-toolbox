@@ -104,6 +104,22 @@ test('Android release YAML separates no-secret build, signature-only credentials
   assert.equal(sign.steps.filter(step => /secrets\s*[.\[]/.test(JSON.stringify(step))).length, 2)
 })
 
+test('only verified main pushes deploy web and portal from the same workflow', async () => {
+  const workflow = yaml.load(await readFile(new URL('../.github/workflows/server.yml', import.meta.url), 'utf8'))
+  const deployment = yaml.load(await readFile(new URL('../.github/workflows/deploy-server.yml', import.meta.url), 'utf8'))
+  assert.ok(deployment.on.workflow_dispatch && deployment.on.workflow_call)
+  assert.equal(deployment.jobs.deploy.environment, 'production')
+  for (const [target, dependency] of [['web', 'verify'], ['portal', 'image']]) {
+    const job = workflow.jobs[`deploy-${target}`]
+    assert.equal(job.needs, dependency)
+    assert.equal(job.if, "github.event_name == 'push' && github.ref == 'refs/heads/main'")
+    assert.equal(job.uses, './.github/workflows/deploy-server.yml')
+    assert.equal(job.with.target, target)
+  }
+  assert.equal(workflow.jobs['deploy-web'].with.artifact, 'lumatile-web-${{ github.sha }}')
+  assert.equal(workflow.jobs['deploy-portal'].with.image, '${{ needs.image.outputs.reference }}')
+})
+
 test('a release tag must resolve to the build commit already contained in origin/main', async t => {
   const root = await mkdtemp(join(tmpdir(), 'lumatile-release-source-'))
   t.after(() => rm(root, { recursive: true, force: true }))

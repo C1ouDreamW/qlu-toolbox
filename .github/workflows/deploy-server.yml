@@ -17,20 +17,40 @@ on:
       image:
         description: GHCR digest reference for portal
         type: string
+  workflow_call:
+    inputs:
+      target:
+        required: true
+        type: string
+      run_id:
+        type: string
+      artifact:
+        type: string
+      image:
+        type: string
+    secrets:
+      LUMATILE_DEPLOY_KEY:
+        required: false
 
-permissions:
-  contents: read
-  actions: read
-
-concurrency:
-  group: production-${{ inputs.target }}
-  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'push' && github.ref_type == 'tag' &&
+       (inputs.target == 'android-stable' || inputs.target == 'android-alpha'))
     environment: production
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    concurrency:
+      group: production-${{ inputs.target }}
+      cancel-in-progress: false
     env:
       TARGET: ${{ inputs.target }}
       ARTIFACT: ${{ inputs.artifact }}
@@ -44,28 +64,60 @@ jobs:
         run: |
           [[ $RUN_ID =~ ^[0-9]+$ ]]
           read -r workflow branch conclusion event sha < <(
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '[.path,.head_branch,.conclusion,.event,.head_sha] | @tsv'
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '[.path,.head_branch,(.conclusion // "-"),.event,.head_sha] | @tsv'
           )
-          [[ $conclusion == success ]]
+          if [[ $RUN_ID != "$GITHUB_RUN_ID" && $conclusion != success ]]; then
+            echo 'The selected workflow run did not succeed.' >&2
+            exit 1
+          fi
+          workflow=${workflow%%@*}
           if [[ $TARGET == web ]]; then
             [[ $workflow == .github/workflows/server.yml && $branch == main && $event != pull_request && $ARTIFACT == "lumatile-web-$sha" ]]
-          else
+          elif [[ $TARGET == android-stable || $TARGET == android-alpha ]]; then
             channel=${TARGET#android-}
             [[ $workflow == .github/workflows/release-android.yml && $event == push && $ARTIFACT == update-source-android-"$channel"-*-"$RUN_ID"-* ]]
+          else
+            exit 1
+          fi
+      - name: Check that the built source still matches main
+        id: freshness
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ $TARGET == web ]]; then
+            paths='["web"]'
+          else
+            paths='["deploy/server", "deploy/feedback", ".dockerignore"]'
+          fi
+          tree() {
+            gh api "repos/$GITHUB_REPOSITORY/git/trees/$1?recursive=1" |
+              jq -ce --argjson paths "$paths" 'select(.truncated == false) |
+                [.tree[] | select(.path as $path | $paths | index($path)) | {path, sha}] | sort_by(.path)'
+          }
+          built=$(tree "$GITHUB_SHA")
+          current=$(tree main)
+          if [[ $built != "$current" ]]; then
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            echo 'Deployment skipped because main has newer source for this target.' >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/download-artifact@v4
-        if: inputs.target != 'portal'
+        if: inputs.target != 'portal' && steps.freshness.outputs.skip != 'true'
         with:
           name: ${{ inputs.artifact }}
           run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
           path: payload
       - name: Deploy selected artifact
+        if: steps.freshness.outputs.skip != 'true'
         env:
           SSH_TARGET: ${{ vars.LUMATILE_DEPLOY_TARGET }}
           SSH_KEY: ${{ secrets.LUMATILE_DEPLOY_KEY }}
           SSH_KNOWN_HOSTS: ${{ vars.LUMATILE_SSH_KNOWN_HOSTS }}
         run: |
+          : "${SSH_KEY:?Set the LUMATILE_DEPLOY_KEY secret in the production environment}"
+          : "${SSH_TARGET:?Set the LUMATILE_DEPLOY_TARGET variable in the production environment}"
+          : "${SSH_KNOWN_HOSTS:?Set the LUMATILE_SSH_KNOWN_HOSTS variable in the production environment}"
           [[ $SSH_TARGET =~ ^[a-z_][a-z0-9_-]*@[a-zA-Z0-9.-]+$ ]]
           umask 077
           ssh_dir=$(mktemp -d)
@@ -75,7 +127,9 @@ jobs:
           remote=(ssh -i "$ssh_dir/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" "$SSH_TARGET")
           if [[ $TARGET == portal ]]; then
             [[ $IMAGE =~ ^ghcr\.io/c1oudreamw/qlu-toolbox/server@sha256:[a-f0-9]{64}$ ]]
-            "${remote[@]}" "bash /srv/apps/lumatile/deploy-portal.sh '$IMAGE'"
+            "${remote[@]}" "sudo -n /srv/apps/lumatile/deploy-portal.sh '$IMAGE'"
+            curl -fsS --max-time 15 https://api.lumatile.cn/healthz
+            curl -fsS --max-time 15 -o /dev/null https://console.lumatile.cn/admin/login/
           else
             if [[ $TARGET == web ]]; then
               revision=${ARTIFACT#lumatile-web-}
