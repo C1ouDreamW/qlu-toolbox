@@ -12,13 +12,12 @@
 <body class="console">
 <a class="skip-link" href="#main">跳到主要内容</a>
 {% include "portal/topbar.html" %}
-<main id="main" class="workspace">
-  <header class="page-heading">
-    <h1>运营工作台</h1>
-    <a href="https://lumatile.cn/">访问官网 <span aria-hidden="true">↗</span></a>
-  </header>
-
+<main id="main" class="workspace" tabindex="-1">
   <section class="panel versions" aria-labelledby="versions-title">
+    <header class="page-heading">
+      <h1>运营工作台</h1>
+      <a class="outline-link" href="https://lumatile.cn/">访问官网 <span aria-hidden="true">↗</span></a>
+    </header>
     <h2 id="versions-title">线上版本</h2>
     <dl>
       <div><dt>Windows</dt><dd>{{ desktop.windows.version|default:"—" }}</dd></div>
@@ -28,10 +27,14 @@
     </dl>
   </section>
 
+  <nav class="workspace-jump" aria-label="工作台快捷入口">
+    <a class="outline-link" href="#distribution">Android 分发 ↓</a>
+    <a class="outline-link" href="#announcement">应用内公告 ↓</a>
+  </nav>
   <div class="dashboard-grid">
     <section class="panel feedback-panel" aria-labelledby="feedback-title">
       <div class="panel-heading">
-        <h2 id="feedback-title">用户反馈</h2>
+        <h2 id="feedback-title" tabindex="-1">用户反馈</h2>
         <p id="feedback-counts" class="muted" aria-live="polite"></p>
       </div>
       <form id="feedback-filter" class="form-grid">
@@ -39,20 +42,23 @@
           <select id="status"><option value="new">待处理</option><option value="resolved">已处理</option><option value="all">全部</option></select>
         </label>
         <label>搜索
-          <input id="search" type="search" placeholder="反馈内容、联系方式或编号">
+          <input id="search" type="search" maxlength="120" placeholder="内容、联系方式或编号">
         </label>
-        <button type="submit">查询</button>
+        <button class="primary" type="submit">搜索</button>
       </form>
       <p id="feedback-message" class="message" role="status">正在加载反馈…</p>
       <ul id="feedback" class="feedback-list"></ul>
-      <footer class="pagination" aria-label="反馈分页">
-        <button id="previous" type="button" disabled>上一页</button>
-        <button id="next" type="button" disabled>下一页</button>
-      </footer>
+      <nav class="pagination" aria-label="反馈分页" hidden>
+        <p id="feedback-range" class="muted" aria-live="polite"></p>
+        <div>
+          <button id="previous" type="button" disabled>上一页</button>
+          <button id="next" type="button" disabled>下一页</button>
+        </div>
+      </nav>
     </section>
 
     <div class="controls">
-      <section class="panel" aria-labelledby="distribution-title">
+      <section id="distribution" class="panel" aria-labelledby="distribution-title" tabindex="-1">
         <div class="panel-heading">
           <h2 id="distribution-title">Android 分发</h2>
           <span id="mode-state" class="badge">读取中</span>
@@ -64,10 +70,10 @@
         <p id="mode-message" class="message" role="status"></p>
       </section>
 
-      <section class="panel" aria-labelledby="announcement-title">
+      <section id="announcement" class="panel" aria-labelledby="announcement-title" tabindex="-1">
         <div class="panel-heading">
           <h2 id="announcement-title">应用内公告</h2>
-          <a href="{% url 'admin:portal_announcement_add' %}">新建草稿</a>
+          <a class="outline-link" href="{% url 'admin:portal_announcement_add' %}">新建草稿</a>
         </div>
         <div class="form-grid announcement-fields">
           <label>发布渠道
@@ -80,16 +86,18 @@
           </label>
         </div>
         {% if drafts %}
-        <details class="preview">
+        <details class="preview" open>
           <summary>预览所选草稿</summary>
           {% for draft in drafts %}
           <article data-draft="{{ draft.id }}" {% if not forloop.first %}hidden{% endif %}>
-            <h3>{{ draft.title }}</h3>
+            <h3>{{ draft.title }} <span class="badge"{% if draft.level == 'warning' %} data-active="true"{% endif %}>{{ draft.get_level_display }}</span></h3>
             <p>{{ draft.body|linebreaksbr }}</p>
-            {% if draft.expires_at %}<p class="muted">到期时间 {{ draft.expires_at }}</p>{% endif %}
+            {% if draft.url %}<p class="muted">详情链接 {{ draft.url }}</p>{% endif %}
+            {% if draft.expires_at %}<p class="muted">到期时间 <time datetime="{{ draft.expires_at|date:'c' }}">{{ draft.expires_at|date:'Y-m-d H:i' }}</time></p>{% endif %}
           </article>
           {% endfor %}
         </details>
+        {% else %}<p class="message">新建公告草稿后即可预览和发布。</p>
         {% endif %}
         <div class="actions">
           <button id="publish" class="primary" type="button" {% if not drafts %}disabled{% endif %}>发布公告</button>
