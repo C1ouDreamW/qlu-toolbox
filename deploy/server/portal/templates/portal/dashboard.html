@@ -1,41 +1,118 @@
+{% load static %}
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LumaTile 控制台</title><script src="/static/portal/dashboard.js" defer></script></head>
-<body>
-<h1>LumaTile 控制台</h1>
-<nav><a href="/admin/portal/announcement/">公告草稿</a> · <a href="/admin/portal/operation/">操作记录</a> · <a href="/stats/">统计</a></nav>
-<form hidden>{% csrf_token %}</form>
-<section>
-  <h2>官网桌面版本</h2>
-  <ul><li>Windows · {{ desktop.windows.version|default:"—" }}</li><li>macOS · {{ desktop.mac.version|default:"—" }}</li></ul>
-</section>
-<section>
-  <h2>Android 分发</h2>
-  <ul>{% for channel, version in android.items %}<li>{{ channel }} · {{ version }}</li>{% endfor %}</ul>
-  <label>分发方式
-    <select id="mode"><option value="website">官网外部下载</option><option value="server">开启服务器 APK 下载</option></select>
-  </label>
-  <button id="save-mode">保存</button>
-</section>
-<section>
-  <h2>发布公告</h2>
-  <label>渠道 <select id="channel"><option>stable</option><option>alpha</option></select></label>
-  <label>草稿 <select id="draft">{% for draft in drafts %}<option value="{{ draft.id }}">{{ draft.title }}</option>{% endfor %}</select></label>
-  <button id="publish" {% if not drafts %}disabled{% endif %}>发布</button>
-  <button id="withdraw">撤回当前公告</button>
-  {% for draft in drafts %}
-    <details><summary>预览 · {{ draft.title }}</summary><p>{{ draft.body|linebreaksbr }}</p>{% if draft.expires_at %}<p>到期时间 {{ draft.expires_at }}</p>{% endif %}</details>
-  {% endfor %}
-</section>
-<section>
-  <h2>反馈</h2>
-  <label>状态 <select id="status"><option value="new">待处理</option><option value="resolved">已处理</option><option value="all">全部</option></select></label>
-  <label>搜索 <input id="search" type="search"></label>
-  <button id="reload">查询</button>
-  <button id="previous" disabled>上一页</button>
-  <button id="next" disabled>下一页</button>
-  <ul id="feedback"></ul>
-</section>
-<p id="message" role="status"></p>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LumaTile 控制台</title>
+  <link rel="icon" href="{% static 'portal/logo.png' %}" type="image/png">
+  <link rel="stylesheet" href="{% static 'portal/console.css' %}">
+  <script src="{% static 'portal/dashboard.js' %}" defer></script>
+</head>
+<body class="console">
+<a class="skip-link" href="#main">跳到主要内容</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/"><img class="brand-icon" src="{% static 'portal/logo.png' %}" width="32" height="32" alt="">LumaTile</a>
+    <nav aria-label="控制台导航">
+      <a href="/" aria-current="page">工作台</a>
+      <a href="{% url 'admin:portal_announcement_changelist' %}">公告草稿</a>
+      <a href="{% url 'admin:portal_operation_changelist' %}">操作记录</a>
+      <a href="/stats/">访问统计</a>
+    </nav>
+    <form class="account" action="{% url 'admin:logout' %}" method="post">
+      {% csrf_token %}
+      <button type="submit" title="退出当前账号">退出登录</button>
+    </form>
+  </div>
+</header>
+<main id="main" class="workspace">
+  <header class="page-heading">
+    <h1>运营工作台</h1>
+    <a href="https://lumatile.cn/">访问官网 <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <section class="panel versions" aria-labelledby="versions-title">
+    <h2 id="versions-title">线上版本</h2>
+    <dl>
+      <div><dt>Windows</dt><dd>{{ desktop.windows.version|default:"—" }}</dd></div>
+      <div><dt>macOS</dt><dd>{{ desktop.mac.version|default:"—" }}</dd></div>
+      <div><dt>Android Stable</dt><dd>{{ android.stable|default:"—" }}</dd></div>
+      <div><dt>Android Alpha</dt><dd>{{ android.alpha|default:"—" }}</dd></div>
+    </dl>
+  </section>
+
+  <div class="dashboard-grid">
+    <section class="panel feedback-panel" aria-labelledby="feedback-title">
+      <div class="panel-heading">
+        <h2 id="feedback-title">用户反馈</h2>
+        <p id="feedback-counts" class="muted" aria-live="polite"></p>
+      </div>
+      <form id="feedback-filter" class="form-grid">
+        <label>状态
+          <select id="status"><option value="new">待处理</option><option value="resolved">已处理</option><option value="all">全部</option></select>
+        </label>
+        <label>搜索
+          <input id="search" type="search" placeholder="反馈内容、联系方式或编号">
+        </label>
+        <button type="submit">查询</button>
+      </form>
+      <p id="feedback-message" class="message" role="status">正在加载反馈…</p>
+      <ul id="feedback" class="feedback-list"></ul>
+      <footer class="pagination" aria-label="反馈分页">
+        <button id="previous" type="button" disabled>上一页</button>
+        <button id="next" type="button" disabled>下一页</button>
+      </footer>
+    </section>
+
+    <div class="controls">
+      <section class="panel" aria-labelledby="distribution-title">
+        <div class="panel-heading">
+          <h2 id="distribution-title">Android 分发</h2>
+          <span id="mode-state" class="badge">读取中</span>
+        </div>
+        <label>分发方式
+          <select id="mode" disabled><option value="website">官网外部下载</option><option value="server">服务器 APK 下载</option></select>
+        </label>
+        <div class="actions"><button id="save-mode" class="primary" type="button" disabled>保存策略</button></div>
+        <p id="mode-message" class="message" role="status"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="announcement-title">
+        <div class="panel-heading">
+          <h2 id="announcement-title">应用内公告</h2>
+          <a href="{% url 'admin:portal_announcement_add' %}">新建草稿</a>
+        </div>
+        <div class="form-grid announcement-fields">
+          <label>发布渠道
+            <select id="channel"><option value="stable">Stable</option><option value="alpha">Alpha</option></select>
+          </label>
+          <label>公告草稿
+            <select id="draft" {% if not drafts %}disabled{% endif %}>
+              {% for draft in drafts %}<option value="{{ draft.id }}">{{ draft.title }}</option>{% empty %}<option value="">暂无草稿</option>{% endfor %}
+            </select>
+          </label>
+        </div>
+        {% if drafts %}
+        <details class="preview">
+          <summary>预览所选草稿</summary>
+          {% for draft in drafts %}
+          <article data-draft="{{ draft.id }}" {% if not forloop.first %}hidden{% endif %}>
+            <h3>{{ draft.title }}</h3>
+            <p>{{ draft.body|linebreaksbr }}</p>
+            {% if draft.expires_at %}<p class="muted">到期时间 {{ draft.expires_at }}</p>{% endif %}
+          </article>
+          {% endfor %}
+        </details>
+        {% endif %}
+        <div class="actions">
+          <button id="publish" class="primary" type="button" {% if not drafts %}disabled{% endif %}>发布公告</button>
+          <button id="withdraw" type="button">撤回当前公告</button>
+        </div>
+        <p id="announcement-message" class="message" role="status"></p>
+      </section>
+    </div>
+  </div>
+</main>
 </body>
 </html>

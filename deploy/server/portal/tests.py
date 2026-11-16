@@ -19,6 +19,29 @@ class PortalTests(TestCase):
         self.enterContext(self.settings(FEEDBACK_DB=feedback, UPDATE_DIR=self.root / "updates"))
         self.staff = get_user_model().objects.create_user("maintainer", is_staff=True)
 
+    def test_console_login_and_logout_keep_the_dashboard_protected(self):
+        console = Client(enforce_csrf_checks=True, HTTP_HOST="console.lumatile.cn")
+        self.assertRedirects(console.get("/", secure=True), "/admin/login/?next=/", fetch_redirect_response=False)
+        login = console.get("/admin/login/?next=/", secure=True)
+        self.assertContains(login, 'name="next" value="/"')
+        self.assertContains(login, '/static/portal/console.css')
+        login_url = "/admin/login/?next=/"
+        referer = "https://console.lumatile.cn"
+        credentials = {"username": self.staff.username, "password": "local-test-password", "next": "/",
+                       "csrfmiddlewaretoken": console.cookies["csrftoken"].value}
+        invalid = console.post(login_url, credentials, secure=True, HTTP_REFERER=referer + login_url)
+        self.assertContains(invalid, 'role="alert"')
+        self.staff.set_password(credentials["password"])
+        self.staff.save(update_fields=["password"])
+        self.assertRedirects(console.post(login_url, credentials, secure=True, HTTP_REFERER=referer + login_url),
+                             "/", fetch_redirect_response=False)
+        self.assertContains(console.get("/", secure=True), "运营工作台")
+        self.assertEqual(console.post("/admin/logout/", secure=True).status_code, 403)
+        token = console.cookies["csrftoken"].value
+        self.assertEqual(console.post("/admin/logout/", {"csrfmiddlewaretoken": token}, secure=True,
+                                      HTTP_REFERER=referer + "/").status_code, 200)
+        self.assertEqual(console.get("/", secure=True).status_code, 302)
+
     def test_feedback_uses_existing_database_and_keeps_public_reads_private(self):
         form = {"type": "bug", "content": "合成反馈", "platform": "android", "appVersion": "2.0.4"}
         api = Client(HTTP_HOST="api.lumatile.cn")

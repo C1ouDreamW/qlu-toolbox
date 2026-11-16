@@ -1,0 +1,26 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 · LumaTile 控制台</title>
+  <link rel="icon" href="{% static 'portal/logo.png' %}" type="image/png">
+  <link rel="stylesheet" href="{% static 'portal/console.css' %}">
+</head>
+<body class="console login">
+<main class="panel login-panel">
+  <a class="brand" href="https://lumatile.cn/"><img class="brand-icon" src="{% static 'portal/logo.png' %}" width="40" height="40" alt="">LumaTile</a>
+  <h1>登录控制台</h1>
+  <p class="muted">请使用维护者账号登录。</p>
+  {% if form.non_field_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <form action="{{ app_path }}" method="post">
+    {% csrf_token %}
+    <div>{{ form.username.label_tag }} {{ form.username }} {{ form.username.errors }}</div>
+    <div>{{ form.password.label_tag }} {{ form.password }} {{ form.password.errors }}</div>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="primary" type="submit">登录</button>
+  </form>
+</main>
+</body>
+</html>

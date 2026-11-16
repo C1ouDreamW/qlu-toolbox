@@ -4,6 +4,7 @@ from .models import Announcement, Operation
 
 admin.site.site_header = "LumaTile 控制台"
 admin.site.site_url = "/"
+admin.site.login_template = "portal/login.html"
 
 
 @admin.register(Announcement)
