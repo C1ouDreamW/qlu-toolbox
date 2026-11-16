@@ -1,13 +1,12 @@
 :root {
-  color-scheme: light;
   --page: #f2f5fb;
   --surface: #fff;
   --text: #18283e;
   --muted: #526176;
   --line: #dee7f3;
   --blue: #0875f5;
-  --accent: #0064dc;
-  --accent-hover: #0054b8;
+  --action: #0064dc;
+  --action-hover: #0054b8;
   --yellow: #ffc739;
   --yellow-soft: #fff3cf;
   --yellow-ink: #694800;
@@ -17,60 +16,61 @@
   --nav-hover: #224575;
   --radius: 18px;
   --shadow: 0 12px 32px #182e5610;
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --console-font: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+:where(.console, .topbar) *, :where(.console, .topbar) *::before, :where(.console, .topbar) *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--page); color: var(--text); line-height: 1.55; }
-h1, h2, h3, p, dl, dd { margin: 0; }
-a { color: var(--accent); font-weight: 600; text-decoration: none; }
-a:hover { text-decoration: underline; }
-:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
-button, input, select { font: inherit; }
-button, input, select {
+.console { margin: 0; background: var(--page); color: var(--text); font-family: var(--console-font); line-height: 1.55; color-scheme: light; }
+.console :is(h1, h2, h3, p, dl, dd) { margin: 0; }
+.console a { color: var(--action); font-weight: 600; text-decoration: none; }
+.console a:hover { text-decoration: underline; }
+:where(.console, .console-admin) :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.console :is(button, input, select) {
+  font: inherit;
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--surface);
   color: var(--text);
 }
-button, select { cursor: pointer; }
-button { padding: 6px 14px; font-weight: 600; white-space: nowrap; }
-button:hover:not(:disabled) { border-color: #91a9ca; background: var(--page); }
-button:disabled, select:disabled { opacity: .55; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
-input, select { width: 100%; padding: 7px 11px; }
-label { display: grid; gap: 5px; min-width: 0; font-size: .875rem; font-weight: 600; }
-label input, label select { font-weight: 400; }
+.console :is(button, select) { cursor: pointer; }
+.console button { padding: 6px 14px; font-weight: 600; white-space: nowrap; }
+.console button:hover:not(:disabled) { border-color: #91a9ca; background: var(--page); }
+.console :is(button, select):disabled { opacity: .55; cursor: default; }
+.console button.primary { background: var(--action); border-color: var(--action); color: #fff; }
+.console button.primary:hover:not(:disabled) { background: var(--action-hover); border-color: var(--action-hover); }
+.console :is(input, select) { width: 100%; padding: 7px 11px; }
+.console label { display: grid; gap: 5px; min-width: 0; font-size: .875rem; font-weight: 600; }
+.console label :is(input, select) { font-weight: 400; }
 
-.skip-link { position: absolute; z-index: 1; padding: 8px 14px; background: var(--surface); transform: translateY(-120%); }
+.skip-link { position: absolute; z-index: 2; padding: 8px 14px; background: var(--surface); transform: translateY(-120%); }
 .skip-link:focus { transform: translateY(0); }
-.topbar { position: relative; z-index: 1; background: var(--nav); color: var(--nav-text); }
+.topbar { position: relative; z-index: 1; background: var(--nav); color: var(--nav-text); font-family: var(--console-font); line-height: 1.55; color-scheme: light; }
 .topbar :focus-visible { outline-color: var(--yellow); }
 .topbar-inner, .workspace { width: min(100% - 48px, 1280px); margin-inline: auto; }
 .topbar-inner { display: flex; gap: 26px; align-items: center; min-height: 64px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 750; letter-spacing: -.025em; white-space: nowrap; }
 .brand-icon { display: block; flex: none; border-radius: 9px; }
 .brand small { margin-inline-start: 4px; color: #b8cbed; font-size: .75rem; font-weight: 600; }
-.topbar a { color: inherit; }
+.topbar a:any-link { color: inherit; text-decoration: none; }
+.topbar .brand:hover { text-decoration: underline; }
 .console-nav { display: flex; align-items: center; gap: 4px; font-size: .88rem; }
 .console-nav a { display: block; padding: 9px 12px; border-radius: 8px; white-space: nowrap; }
 .console-nav a:hover { background: var(--nav-hover); text-decoration: none; }
-.console-nav a[aria-current] { color: var(--text); background: var(--yellow); }
+.console-nav a[aria-current]:any-link { color: var(--text); background: var(--yellow); }
 .account { position: relative; min-width: 0; margin-inline-start: auto; }
 .account summary { cursor: pointer; padding: 8px 11px; border: 1px solid #6e89af; border-radius: 9px; font-size: .875rem; white-space: nowrap; }
 .account summary span { display: inline-block; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .account-menu { position: absolute; inset: calc(100% + 6px) 0 auto auto; min-width: 142px; padding: 5px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-.account-menu a, .account-menu button { display: block; width: 100%; min-height: 0; padding: 8px 10px; border: 0; border-radius: 7px; text-align: left; font-size: .875rem; }
-.account-menu a:hover, .account-menu button:hover { background: var(--page); text-decoration: none; }
+.account-menu a, .account-menu button { background: transparent; color: var(--text); cursor: pointer; font: 600 .875rem var(--console-font); display: block; width: 100%; min-height: 0; padding: 8px 10px; border: 0; border-radius: 7px; text-align: left; }
+.account-menu a:hover, .account-menu button:hover:not(:disabled) { background: var(--page); text-decoration: none; }
 
 .workspace { padding-block: 30px 52px; }
 .page-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
-h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -.035em; line-height: 1.25; }
-h2 { font-size: 1.15rem; }
-h3 { font-size: 1rem; }
+.console h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -.035em; line-height: 1.25; }
+.console h2 { font-size: 1.15rem; }
+.console h3 { font-size: 1rem; }
 .outline-link { padding: 6px 10px; border: 1px solid #c4d7f2; border-radius: 8px; background: var(--surface); font-size: .85rem; white-space: nowrap; }
 .outline-link:hover { background: #eaf2ff; text-decoration: none; }
 .panel { min-width: 0; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
@@ -92,7 +92,7 @@ h3 { font-size: 1rem; }
 .pagination { justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 13px; }
 .pagination > div { display: flex; gap: 6px; }
 .preview { margin-top: 12px; background: var(--page); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; overflow-wrap: anywhere; }
-.preview summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .875rem; }
+.preview summary { cursor: pointer; color: var(--action); font-weight: 600; font-size: .875rem; }
 .preview article { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); }
 .preview p { margin-top: 5px; }
 .badge { display: inline-block; padding: 3px 9px; border-radius: 99px; background: var(--page); color: var(--muted); font-size: .78rem; font-weight: 650; }
@@ -107,7 +107,7 @@ h3 { font-size: 1rem; }
 .feedback-list { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
 .feedback-list:not(:empty) { margin-top: 12px; }
 .feedback-list li { display: grid; gap: 9px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
-.feedback-list li button { color: var(--accent); font-size: .85rem; }
+.feedback-list li button { color: var(--action); font-size: .85rem; }
 .feedback-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px; overflow-wrap: anywhere; }
 .feedback-meta time { margin-inline-start: auto; }
 .feedback-body { white-space: pre-wrap; overflow-wrap: anywhere; }

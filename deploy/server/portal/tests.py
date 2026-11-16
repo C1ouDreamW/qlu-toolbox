@@ -42,6 +42,30 @@ class PortalTests(TestCase):
                                       HTTP_REFERER=referer + "/").status_code, 200)
         self.assertEqual(console.get("/", secure=True).status_code, 302)
 
+    def test_console_admin_lists_keep_permissions_and_support_search(self):
+        drafts = "/admin/portal/announcement/"
+        operations = "/admin/portal/operation/"
+        console = Client(HTTP_HOST="console.lumatile.cn")
+        console.force_login(self.staff)
+        self.assertEqual(console.get(drafts, secure=True).status_code, 403)
+        self.assertEqual(console.get(operations, secure=True).status_code, 403)
+
+        self.staff.is_superuser = True
+        self.staff.save(update_fields=["is_superuser"])
+        Announcement.objects.create(title="维护提醒", body="合成正文", level="warning")
+        Announcement.objects.create(title="更新提醒", body="合成正文")
+        operation = Operation.objects.create(actor="maintainer", resource="stable-announcement", value="withdrawn")
+
+        results = console.get(drafts, {"q": "提醒", "level__exact": "warning"}, secure=True)
+        self.assertContains(results, 'aria-current="page"')
+        self.assertContains(results, "/static/portal/console-admin.css")
+        self.assertContains(results, "维护提醒")
+        self.assertNotContains(results, "更新提醒")
+        self.assertContains(console.get(operations, {"q": "withdrawn"}, secure=True), "stable-announcement")
+        detail = operations + f"{operation.pk}/change/"
+        self.assertContains(console.get(detail, secure=True), "操作时间")
+        self.assertEqual(console.post(detail, secure=True).status_code, 403)
+
     def test_feedback_uses_existing_database_and_keeps_public_reads_private(self):
         form = {"type": "bug", "content": "合成反馈", "platform": "android", "appVersion": "2.0.4"}
         api = Client(HTTP_HOST="api.lumatile.cn")

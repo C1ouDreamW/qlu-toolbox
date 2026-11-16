@@ -1,0 +1,100 @@
+.console-admin {
+  --primary: #174c97;
+  --secondary: #142f56;
+  --header-bg: var(--nav);
+  --breadcrumbs-bg: light-dark(#e6eefb, #1a2b45);
+  --breadcrumbs-fg: light-dark(#405676, #cbdcf6);
+  --breadcrumbs-link-fg: light-dark(#174c97, #b2d1ff);
+  --body-fg: light-dark(#18283e, #e4eefa);
+  --body-bg: light-dark(#fff, #152035);
+  --body-quiet-color: light-dark(#526176, #b7c5da);
+  --darkened-bg: light-dark(#f2f5fb, #1d2d47);
+  --hairline-color: light-dark(#dee7f3, #32445e);
+  --border-color: light-dark(#cedcef, #526681);
+  --link-fg: light-dark(#0064dc, #94c3ff);
+  --link-hover-color: light-dark(#0054b8, #c5dfff);
+  --link-selected-fg: light-dark(#614400, #ffe6a1);
+  --selected-bg: light-dark(#e4efff, #293d5c);
+  --selected-row: light-dark(#fff3cf, #443920);
+  --button-bg: #174c97;
+  --button-hover-bg: #142f56;
+  --default-button-bg: #0064dc;
+  --default-button-hover-bg: #0054b8;
+  --object-tools-bg: #0064dc;
+  --object-tools-hover-bg: #0054b8;
+  background: var(--darkened-bg);
+  font-family: var(--console-font);
+}
+
+.console-admin .skip-to-content-link { z-index: 2; }
+
+.console-admin .account-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0 0 10px;
+  border-top: 1px solid var(--line);
+}
+
+.console-admin .account-theme button { width: auto; margin: 0; }
+.console-admin .breadcrumbs { padding: 12px max(14px, calc((100% - 1280px) / 2)); }
+.console-admin .main > .content {
+  box-sizing: border-box;
+  max-width: min(100% - 48px, 1280px);
+  margin-inline: auto;
+}
+
+.console-admin #content {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 24px 0;
+  padding: clamp(16px, 3vw, 30px);
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--radius);
+  background: var(--body-bg);
+  box-shadow: var(--shadow);
+}
+
+.console-admin #content > h1 {
+  color: var(--body-fg);
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+
+.console-admin.dashboard #content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, .45fr);
+  align-items: start;
+  gap: 12px 24px;
+}
+
+.console-admin.dashboard #content > h1 { grid-column: 1 / -1; margin-bottom: 0; }
+.console-admin.dashboard #content-related { float: none; width: auto; margin: 0; }
+.console-admin.dashboard #content > .clear { display: none; }
+.console-admin .module caption, .console-admin .module h2 { font-weight: 650; }
+.console-admin .object-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; float: none; gap: 6px; margin: 0 0 12px; }
+.console-admin .object-tools li { float: none; height: auto; margin: 0; }
+.console-admin .object-tools a { padding: 8px 12px; font-size: .78rem; }
+.console-admin .object-tools .addlink { padding-inline-end: 26px; }
+.console-admin .submit-row, .console-admin #toolbar, .console-admin #changelist-filter { border-radius: 10px; }
+.console-admin #toolbar { border: 1px solid var(--hairline-color); }
+.console-admin #toolbar #searchbar { min-height: 32px; }
+.console-admin #toolbar input[type="submit"] { min-height: 36px; box-shadow: none; }
+.console-admin.change-list #changelist { min-height: 0; }
+.console-admin #changelist-filter h2 { border-radius: 10px 10px 0 0; }
+.console-admin #changelist-filter li.selected { background: var(--selected-row); }
+.console-admin #changelist-form tbody td, .console-admin #changelist-form tbody th { padding-block: 12px; }
+.console-admin.model-announcement #result_list .field-level { white-space: nowrap; }
+.console-admin .form-row { padding-block: 14px; }
+.console-admin .form-row textarea { min-height: 9rem; }
+.console-admin .form-row input, .console-admin .form-row textarea { max-width: 100%; }
+
+@media (max-width: 767px) {
+  .console-admin .main > .content { max-width: calc(100% - 28px); }
+  .console-admin #content { margin-block: 14px; }
+  .console-admin.dashboard #content { grid-template-columns: minmax(0, 1fr); }
+  .console-admin.change-list #changelist { display: flex; flex-direction: column; }
+  .console-admin #changelist-filter { box-sizing: border-box; flex: none; order: -1; width: 100%; margin: 0 0 12px; }
+  .console-admin #changelist .changelist-form-container { width: 100%; }
+}

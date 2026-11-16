@@ -23,6 +23,12 @@
           {% csrf_token %}
           <button type="submit">退出登录</button>
         </form>
+        {% if has_permission %}
+        <div class="account-theme">
+          <span>外观</span>
+          {% include "admin/color_theme_toggle.html" %}
+        </div>
+        {% endif %}
       </div>
     </details>
     {% endif %}

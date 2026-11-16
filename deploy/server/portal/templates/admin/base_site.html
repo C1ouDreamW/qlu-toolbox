@@ -1,0 +1,12 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} · {{ site_title }}{% endblock %}
+{% block bodyclass %}{{ block.super }} console-admin{% endblock %}
+{% block responsive %}
+  {{ block.super }}
+  <link rel="icon" href="{% static 'portal/logo.png' %}" type="image/png">
+  <link rel="stylesheet" href="{% static 'portal/console.css' %}">
+  <link rel="stylesheet" href="{% static 'portal/console-admin.css' %}">
+{% endblock %}
+{% block header %}{% include "portal/topbar.html" %}{% endblock %}
