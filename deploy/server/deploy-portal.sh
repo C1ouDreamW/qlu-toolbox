@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-image=${1:?用法：deploy-portal.sh IMAGE@sha256:DIGEST}
+if [[ $# != 1 ]]; then
+  printf '用法：deploy-portal.sh IMAGE@sha256:DIGEST\n' >&2
+  exit 2
+fi
+image=$1
 [[ $image =~ ^ghcr\.io/c1oudreamw/qlu-toolbox/server@sha256:[a-f0-9]{64}$ ]]
 cd /srv/apps/lumatile
 exec 9>.portal-deploy.lock
