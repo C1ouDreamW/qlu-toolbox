@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  --page: #f5f8fd;
+  --page: #f2f5fb;
   --surface: #fff;
   --text: #18283e;
   --muted: #526176;
@@ -12,10 +12,11 @@
   --yellow-soft: #fff3cf;
   --yellow-ink: #694800;
   --danger: #a12f34;
-  --nav: #122d53;
+  --nav: #142f56;
   --nav-text: #ebf3ff;
   --nav-hover: #224575;
-  --radius: 16px;
+  --radius: 18px;
+  --shadow: 0 12px 32px #182e5610;
   font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
 }
 
@@ -46,19 +47,24 @@ label input, label select { font-weight: 400; }
 
 .skip-link { position: absolute; z-index: 1; padding: 8px 14px; background: var(--surface); transform: translateY(-120%); }
 .skip-link:focus { transform: translateY(0); }
-.topbar { background: var(--nav); color: var(--nav-text); }
+.topbar { position: relative; z-index: 1; background: var(--nav); color: var(--nav-text); }
 .topbar :focus-visible { outline-color: var(--yellow); }
-.topbar-inner, .workspace { width: min(100% - 48px, 1200px); margin-inline: auto; }
-.topbar-inner { display: flex; gap: 30px; align-items: center; min-height: 66px; }
-.brand { display: inline-flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 750; letter-spacing: -.025em; }
-.brand-icon { display: block; flex: none; border-radius: 8px; }
+.topbar-inner, .workspace { width: min(100% - 48px, 1280px); margin-inline: auto; }
+.topbar-inner { display: flex; gap: 26px; align-items: center; min-height: 64px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 750; letter-spacing: -.025em; white-space: nowrap; }
+.brand-icon { display: block; flex: none; border-radius: 9px; }
+.brand small { margin-inline-start: 4px; color: #b8cbed; font-size: .75rem; font-weight: 600; }
 .topbar a { color: inherit; }
-.topbar nav { display: flex; align-items: center; gap: 4px; font-size: .88rem; }
-.topbar nav a { padding: 8px 11px; border-radius: 8px; }
-.topbar nav a[aria-current] { color: var(--text); background: var(--yellow); }
-.account { margin-inline-start: auto; }
-.account button { background: transparent; color: var(--nav-text); border-color: #627c9e; }
-.account button:hover:not(:disabled) { background: var(--nav-hover); }
+.console-nav { display: flex; align-items: center; gap: 4px; font-size: .88rem; }
+.console-nav a { display: block; padding: 9px 12px; border-radius: 8px; white-space: nowrap; }
+.console-nav a:hover { background: var(--nav-hover); text-decoration: none; }
+.console-nav a[aria-current] { color: var(--text); background: var(--yellow); }
+.account { position: relative; min-width: 0; margin-inline-start: auto; }
+.account summary { cursor: pointer; padding: 8px 11px; border: 1px solid #6e89af; border-radius: 9px; font-size: .875rem; white-space: nowrap; }
+.account summary span { display: inline-block; max-width: 11ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.account-menu { position: absolute; inset: calc(100% + 6px) 0 auto auto; min-width: 142px; padding: 5px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.account-menu a, .account-menu button { display: block; width: 100%; min-height: 0; padding: 8px 10px; border: 0; border-radius: 7px; text-align: left; font-size: .875rem; }
+.account-menu a:hover, .account-menu button:hover { background: var(--page); text-decoration: none; }
 
 .workspace { padding-block: 36px 52px; }
 .page-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
@@ -97,22 +103,43 @@ h3 { font-size: 1rem; }
 .feedback-list .actions { justify-content: space-between; align-items: center; margin-top: 0; }
 .feedback-list .actions .muted { min-width: 0; overflow-wrap: anywhere; }
 
-.login { min-height: 100vh; display: grid; place-items: center; padding: 20px; background: radial-gradient(ellipse at top, #dbeaff 0, var(--page) 65%); }
-.login-panel { width: min(100%, 410px); padding: clamp(22px, 6vw, 36px); }
-.login-panel h1 { margin-top: 24px; }
-.login-panel .muted { margin-top: 6px; }
-.login-panel form { display: grid; gap: 16px; margin-top: 22px; }
-.login-panel label { margin-bottom: 5px; }
+.login { min-height: 100svh; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse at top, #dfeaff 0, var(--page) 70%); }
+.login-shell { display: grid; grid-template-columns: .9fr 1fr; width: min(100%, 830px); border-radius: 24px; background: var(--surface); box-shadow: 0 24px 80px #182e5625; }
+.login-brand { isolation: isolate; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 7px; padding: clamp(28px, 6vw, 52px); border-radius: 24px 0 0 24px; background: linear-gradient(145deg, var(--nav), #174c97); color: #fff; }
+.login-brand::after { position: absolute; z-index: -1; inset: auto -56px -83px auto; width: 225px; aspect-ratio: 1; border: 28px solid #ffc739b8; border-radius: 48px; transform: rotate(-20deg); content: ""; }
+.login-brand .brand-icon { margin-bottom: 13px; }
+.login-brand-name { font-size: clamp(1.65rem, 5vw, 2.5rem); font-weight: 750; line-height: 1.2; }
+.login-brand-product { color: #d0e1ff; font-size: 1rem; }
+.login-brand a { margin-top: auto; padding-top: 22px; color: #ffdb78; font-size: .9rem; }
+.login-brand :focus-visible { outline-color: var(--yellow); }
+.login-panel { min-width: 0; padding: clamp(28px, 6vw, 52px); }
+.login-panel .muted { margin-top: 8px; }
+.login-panel form { display: grid; gap: 16px; margin-top: 24px; }
+.login-panel form button { margin-top: 4px; min-height: 46px; }
+.login-panel label { margin-bottom: 6px; }
 .login-panel .errorlist { margin: 6px 0 0; padding-left: 20px; color: var(--danger); }
+.login-panel .message.error { padding: 8px 12px; border-radius: 9px; background: #fff0ef; }
+.login-panel .message .errorlist { margin: 0; padding: 0; list-style: none; }
 
+@media (max-width: 700px) {
+  .topbar-inner { flex-wrap: wrap; gap: 0 10px; padding-block: 10px; }
+  .console-nav { order: 1; width: 100%; margin-top: 8px; flex-wrap: wrap; }
+  .console-nav a { padding: 7px 9px; }
+}
 @media (max-width: 800px) {
   .dashboard-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .topbar-inner, .workspace { width: calc(100% - 28px); }
-  .topbar-inner { flex-wrap: wrap; gap: 0 10px; padding-block: 10px; }
-  .topbar nav { order: 1; width: 100%; margin-top: 7px; flex-wrap: wrap; }
-  .topbar nav a { padding: 7px 9px; }
+  .login { padding: 14px; }
+  .login-shell { grid-template-columns: 1fr; }
+  .login-brand { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px 12px; border-radius: 24px 24px 0 0; padding: 20px; }
+  .login-brand::after { display: none; }
+  .login-brand .brand-icon { width: 40px; height: 40px; margin: 0; }
+  .login-brand-name { font-size: 1.18rem; }
+  .login-brand-product { display: none; }
+  .login-brand a { margin: 0; padding: 0; }
+  .login-panel { padding: 24px 20px; }
   .workspace { padding-top: 24px; }
   .panel { padding: 15px; }
   .versions dl { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }

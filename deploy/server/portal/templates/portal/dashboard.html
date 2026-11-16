@@ -11,21 +11,7 @@
 </head>
 <body class="console">
 <a class="skip-link" href="#main">跳到主要内容</a>
-<header class="topbar">
-  <div class="topbar-inner">
-    <a class="brand" href="/"><img class="brand-icon" src="{% static 'portal/logo.png' %}" width="32" height="32" alt="">LumaTile</a>
-    <nav aria-label="控制台导航">
-      <a href="/" aria-current="page">工作台</a>
-      <a href="{% url 'admin:portal_announcement_changelist' %}">公告草稿</a>
-      <a href="{% url 'admin:portal_operation_changelist' %}">操作记录</a>
-      <a href="/stats/">访问统计</a>
-    </nav>
-    <form class="account" action="{% url 'admin:logout' %}" method="post">
-      {% csrf_token %}
-      <button type="submit" title="退出当前账号">退出登录</button>
-    </form>
-  </div>
-</header>
+{% include "portal/topbar.html" %}
 <main id="main" class="workspace">
   <header class="page-heading">
     <h1>运营工作台</h1>

@@ -9,18 +9,25 @@
   <link rel="stylesheet" href="{% static 'portal/console.css' %}">
 </head>
 <body class="console login">
-<main class="panel login-panel">
-  <a class="brand" href="https://lumatile.cn/"><img class="brand-icon" src="{% static 'portal/logo.png' %}" width="40" height="40" alt="">LumaTile</a>
-  <h1>登录控制台</h1>
-  <p class="muted">请使用维护者账号登录。</p>
-  {% if form.non_field_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-  <form action="{{ app_path }}" method="post">
-    {% csrf_token %}
-    <div>{{ form.username.label_tag }} {{ form.username }} {{ form.username.errors }}</div>
-    <div>{{ form.password.label_tag }} {{ form.password }} {{ form.password.errors }}</div>
-    <input type="hidden" name="next" value="{{ next }}">
-    <button class="primary" type="submit">登录</button>
-  </form>
+<main class="login-shell">
+  <aside class="login-brand">
+    <img class="brand-icon" src="{% static 'portal/logo.png' %}" width="64" height="64" alt="">
+    <p class="login-brand-name">一格有光</p>
+    <p class="login-brand-product" lang="en">LumaTile</p>
+    <a href="https://lumatile.cn/">访问官网 <span aria-hidden="true">↗</span></a>
+  </aside>
+  <section class="login-panel" aria-labelledby="login-title">
+    <h1 id="login-title">登录控制台</h1>
+    <p class="muted">请使用维护者账号登录。</p>
+    {% if form.non_field_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <form action="{{ app_path }}" method="post">
+      {% csrf_token %}
+      <div>{{ form.username.label_tag }} {{ form.username }} {{ form.username.errors }}</div>
+      <div>{{ form.password.label_tag }} {{ form.password }} {{ form.password.errors }}</div>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button class="primary" type="submit">登录</button>
+    </form>
+  </section>
 </main>
 </body>
 </html>
