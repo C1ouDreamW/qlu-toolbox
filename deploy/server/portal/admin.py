@@ -1,20 +1,30 @@
 from django.contrib import admin
+from django.utils.html import format_html
 
 from .models import Announcement, Operation
 
 admin.site.site_header = "LumaTile 控制台"
 admin.site.site_title = "LumaTile 控制台"
+admin.site.index_title = "站点管理"
 admin.site.enable_nav_sidebar = False
 admin.site.login_template = "portal/login.html"
 
 
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ("title", "level", "expires_at", "id")
+    list_display = ("title", "level_badge", "expires_at", "id")
     list_filter = ("level",)
     search_fields = ("title", "body")
     search_help_text = "按公告标题或正文搜索"
     ordering = ("-id",)
+    fieldsets = (
+        ("公告内容", {"fields": ("title", "body")}),
+        ("发布选项", {"fields": ("level", "url", "expires_at")}),
+    )
+
+    @admin.display(description="级别", ordering="level")
+    def level_badge(self, obj):
+        return format_html('<span class="admin-badge" data-level="{}">{}</span>', obj.level, obj.get_level_display())
 
 
 @admin.register(Operation)

@@ -22,6 +22,7 @@
   --default-button-hover-bg: #0054b8;
   --object-tools-bg: #0064dc;
   --object-tools-hover-bg: #0054b8;
+  --admin-tint: light-dark(#e4efff, #203a61);
   background: var(--darkened-bg);
   font-family: var(--console-font);
 }
@@ -37,64 +38,173 @@
 }
 
 .console-admin .account-theme button { width: auto; margin: 0; }
-.console-admin .breadcrumbs { padding: 12px max(14px, calc((100% - 1280px) / 2)); }
+.console-admin .breadcrumbs {
+  padding: 11px max(24px, calc((100% - 1280px) / 2));
+  overflow-wrap: anywhere;
+}
 .console-admin .main > .content {
   box-sizing: border-box;
-  max-width: min(100% - 48px, 1280px);
+  width: min(100% - 48px, 1280px);
+  flex: 0 1 auto;
+  min-width: 0;
   margin-inline: auto;
 }
 
 .console-admin #content {
   box-sizing: border-box;
   width: 100%;
-  margin: 24px 0;
-  padding: clamp(16px, 3vw, 30px);
+  margin: 24px 0 44px;
+  padding: clamp(14px, 2.3vw, 26px);
   border: 1px solid var(--hairline-color);
   border-radius: var(--radius);
   background: var(--body-bg);
   box-shadow: var(--shadow);
 }
 
-.console-admin #content > h1 {
+.console-admin .admin-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 24px;
+  margin-bottom: 18px;
+  padding: clamp(15px, 2vw, 24px);
+  border: 1px solid var(--hairline-color);
+  border-inline-start: 4px solid var(--yellow);
+  border-radius: 12px;
+  background: linear-gradient(115deg, var(--admin-tint), var(--body-bg));
+  overflow-wrap: anywhere;
+}
+.console-admin .admin-heading h1 {
+  margin: 0;
   color: var(--body-fg);
   font-size: clamp(1.45rem, 3vw, 2rem);
   font-weight: 750;
   letter-spacing: -.025em;
+  line-height: 1.25;
 }
+.console-admin .admin-heading p { margin: 7px 0 0; color: var(--body-quiet-color); }
+.console-admin a:is(.admin-secondary, .admin-primary) {
+  display: inline-block;
+  padding: 9px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--body-bg);
+  font-weight: 650;
+}
+.console-admin a.admin-secondary:hover { background: var(--admin-tint); }
+.console-admin a.admin-primary { background: var(--default-button-bg); border-color: transparent; color: #fff; }
+.console-admin a.admin-primary:hover { background: var(--default-button-hover-bg); }
 
 .console-admin.dashboard #content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, .45fr);
   align-items: start;
-  gap: 12px 24px;
+  gap: 18px;
 }
-
-.console-admin.dashboard #content > h1 { grid-column: 1 / -1; margin-bottom: 0; }
-.console-admin.dashboard #content-related { float: none; width: auto; margin: 0; }
+.console-admin.dashboard .admin-heading { grid-column: 1 / -1; margin: 0; }
+.console-admin.dashboard #content-related { float: none; width: auto; margin: 0; border-radius: 12px; }
 .console-admin.dashboard #content > .clear { display: none; }
-.console-admin .module caption, .console-admin .module h2 { font-weight: 650; }
-.console-admin .object-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; float: none; gap: 6px; margin: 0 0 12px; }
+.console-admin .module :is(.fieldset-heading, h2),
+.console-admin .module caption {
+  padding: 10px 14px;
+  background: var(--admin-tint);
+  color: var(--body-fg);
+  font-weight: 650;
+  text-transform: none;
+}
+.console-admin .module caption a { color: inherit; }
+.console-admin.dashboard .module th, .console-admin.dashboard .module td { padding: 12px 14px; }
+.console-admin .object-tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  float: none;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.console-admin .object-tools:not(:has(li)) { display: none; }
 .console-admin .object-tools li { float: none; height: auto; margin: 0; }
-.console-admin .object-tools a { padding: 8px 12px; font-size: .78rem; }
+.console-admin .object-tools a { padding: 10px 12px; border-radius: 8px; font-size: .825rem; }
 .console-admin .object-tools .addlink { padding-inline-end: 26px; }
-.console-admin .submit-row, .console-admin #toolbar, .console-admin #changelist-filter { border-radius: 10px; }
-.console-admin #toolbar { border: 1px solid var(--hairline-color); }
-.console-admin #toolbar #searchbar { min-height: 32px; }
-.console-admin #toolbar input[type="submit"] { min-height: 36px; box-shadow: none; }
-.console-admin.change-list #changelist { min-height: 0; }
-.console-admin #changelist-filter h2 { border-radius: 10px 10px 0 0; }
-.console-admin #changelist-filter li.selected { background: var(--selected-row); }
-.console-admin #changelist-form tbody td, .console-admin #changelist-form tbody th { padding-block: 12px; }
-.console-admin.model-announcement #result_list .field-level { white-space: nowrap; }
-.console-admin .form-row { padding-block: 14px; }
+.console-admin :is(#toolbar, #changelist-filter, #changelist-form, fieldset.module, #content-related) {
+  border: 1px solid var(--hairline-color);
+  border-radius: 12px;
+}
+.console-admin #toolbar { padding: 10px 12px; }
+.console-admin #changelist-search > div:first-child { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.console-admin #changelist-search .clear { display: none; }
+.console-admin #changelist-search .help { margin-top: 5px; }
+.console-admin #toolbar #searchbar { flex: 1 1 110px; width: auto; min-width: 0; min-height: 38px; padding-inline: 10px; }
+.console-admin #toolbar input[type="submit"] {
+  min-height: 38px;
+  padding-inline: 14px;
+  border-color: transparent;
+  border-radius: 8px;
+  background: var(--default-button-bg);
+  color: #fff;
+  box-shadow: none;
+}
+.console-admin #toolbar input[type="submit"]:hover { background: var(--default-button-hover-bg); }
+.console-admin.change-list #changelist { min-height: 0; gap: 14px; }
+.console-admin #changelist-filter { flex-basis: 208px; margin: 0; }
+.console-admin #changelist-filter h2 { border-radius: 11px 11px 0 0; }
+.console-admin #changelist-filter details summary { cursor: pointer; font-weight: 650; }
+.console-admin #changelist-filter li a { padding: 6px 8px; border-radius: 6px; }
+.console-admin #changelist-filter li.selected { margin: 0; padding: 0; border: 0; }
+.console-admin #changelist-filter li.selected a { background: var(--selected-row); font-weight: 650; }
+.console-admin #changelist-form .results { border: 0; border-radius: 11px 11px 0 0; }
+.console-admin #changelist-form :is(tbody td, tbody th) { padding-block: 13px; overflow-wrap: anywhere; }
+.console-admin #changelist-form tbody tr:not(.selected, :has(.action-select:checked)):hover { background: var(--selected-bg); }
+.console-admin #changelist-form #result_list { margin: 0; }
+.console-admin #changelist .actions :is(select, .button) { min-height: 32px; }
+.console-admin #changelist .paginator { margin: 0; padding: 12px; border: 0; border-radius: 0 0 11px 11px; }
+.console-admin .admin-table-hint { display: none; }
+.console-admin .admin-empty { padding: 24px 14px; border-bottom: 1px solid var(--hairline-color); text-align: center; }
+.console-admin .admin-empty h2 { margin: 0; font-size: 1rem; }
+.console-admin .admin-empty p { margin: 6px 0; color: var(--body-quiet-color); }
+.console-admin .admin-empty a { margin-top: 8px; }
+.console-admin .admin-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: var(--admin-tint);
+  color: var(--link-fg);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.console-admin .admin-badge[data-level="warning"] { background: var(--selected-row); color: var(--link-selected-fg); }
+.console-admin.model-operation #result_list :is(.field-resource, .field-value) { font-family: var(--font-family-monospace); }
+.console-admin fieldset.module { box-sizing: border-box; min-width: 0; }
+.console-admin fieldset > .fieldset-heading { border: 0; border-radius: 11px 11px 0 0; }
+.console-admin .form-row { padding: 13px 14px; }
+.console-admin .form-row:last-child { border-bottom: 0; }
+.console-admin .form-row :is(input, select, textarea) { box-sizing: border-box; max-width: 100%; }
+.console-admin .form-row :is(input:not([type="checkbox"], [type="radio"]), select) { min-height: 38px; }
 .console-admin .form-row textarea { min-height: 9rem; }
-.console-admin .form-row input, .console-admin .form-row textarea { max-width: 100%; }
+.console-admin.model-announcement :is(.field-title, .field-body, .field-url) :is(input, textarea) { width: min(100%, 44rem); }
+.console-admin .submit-row { margin: 14px 0 0; border-radius: 12px; }
+.console-admin .submit-row input { min-height: 40px; border-radius: 8px; }
+.console-admin .submit-row input:not(.default) { border: 1px solid var(--border-color); background: var(--body-bg); color: var(--link-fg); }
+.console-admin .submit-row input:not(.default):hover { background: var(--admin-tint); }
+.console-admin .form-row .readonly { min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 767px) {
-  .console-admin .main > .content { max-width: calc(100% - 28px); }
-  .console-admin #content { margin-block: 14px; }
+  .console-admin .breadcrumbs { padding-inline: 14px; }
+  .console-admin .main > .content { width: calc(100% - 28px); }
+  .console-admin #content { margin-block: 14px 28px; }
   .console-admin.dashboard #content { grid-template-columns: minmax(0, 1fr); }
-  .console-admin.change-list #changelist { display: flex; flex-direction: column; }
-  .console-admin #changelist-filter { box-sizing: border-box; flex: none; order: -1; width: 100%; margin: 0 0 12px; }
-  .console-admin #changelist .changelist-form-container { width: 100%; }
+  .console-admin.change-list #changelist { flex-direction: column; align-items: stretch; }
+  .console-admin #changelist-filter { box-sizing: border-box; flex: none; order: -1; width: 100%; }
+  .console-admin #changelist-filter details ul { display: flex; flex-wrap: wrap; gap: 3px; padding-bottom: 6px; }
+  .console-admin #changelist-filter details li { margin: 0; }
+  .console-admin #changelist-filter details a { background: var(--body-bg); }
+  .console-admin .aligned .form-row > div { width: 100%; }
+}
+
+@media (max-width: 560px) {
+  .console-admin.model-operation #result_list { min-width: 510px; }
+  .console-admin .admin-table-hint { display: block; margin: 0; padding: 8px 12px; color: var(--body-quiet-color); font-size: .8rem; }
+  .console-admin #changelist-search .quiet { flex: 1 1 100%; margin: 0; width: auto; }
 }

@@ -52,7 +52,8 @@ class PortalTests(TestCase):
 
         self.staff.is_superuser = True
         self.staff.save(update_fields=["is_superuser"])
-        Announcement.objects.create(title="维护提醒", body="合成正文", level="warning")
+        self.assertContains(console.get(drafts, secure=True), "暂无公告草稿")
+        draft = Announcement.objects.create(title="维护提醒", body="合成正文", level="warning")
         Announcement.objects.create(title="更新提醒", body="合成正文")
         operation = Operation.objects.create(actor="maintainer", resource="stable-announcement", value="withdrawn")
 
@@ -60,7 +61,15 @@ class PortalTests(TestCase):
         self.assertContains(results, 'aria-current="page"')
         self.assertContains(results, "/static/portal/console-admin.css")
         self.assertContains(results, "维护提醒")
+        self.assertContains(results, 'data-level="warning">重要')
         self.assertNotContains(results, "更新提醒")
+        empty = console.get(drafts, {"q": "没有匹配的草稿"}, secure=True)
+        self.assertContains(empty, f'href="{drafts}">重置查询')
+        for path, title in [("add/", "新建公告草稿"), (f"{draft.pk}/change/", "编辑公告草稿")]:
+            form = console.get(drafts + path, secure=True)
+            self.assertContains(form, f"<h1>{title}</h1>")
+            self.assertContains(form, "发布选项")
+            self.assertContains(form, 'href="/#announcement"')
         self.assertContains(console.get(operations, {"q": "withdrawn"}, secure=True), "stable-announcement")
         detail = operations + f"{operation.pk}/change/"
         self.assertContains(console.get(detail, secure=True), "操作时间")
