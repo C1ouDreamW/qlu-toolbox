@@ -83,6 +83,8 @@
 .versions dd { font-size: 1.35rem; font-weight: 750; font-variant-numeric: tabular-nums; }
 .workspace-jump { display: none; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); gap: 18px; align-items: start; }
+.dashboard-grid :is(section, #feedback-title) { scroll-margin-top: 14px; }
+.dashboard-grid .panel:is(:target, :has(#feedback-title:target)) { border-color: var(--blue); }
 .controls { display: grid; gap: 18px; }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 14px; }
 .form-grid { display: grid; grid-template-columns: minmax(90px, .5fr) minmax(140px, 1fr) auto; align-items: end; gap: 10px; }
@@ -144,6 +146,7 @@
 }
 @media (max-width: 800px) {
   .workspace-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .workspace-jump a { display: inline-flex; align-items: center; min-height: 42px; }
   .dashboard-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
