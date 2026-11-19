@@ -183,12 +183,21 @@ class WatermarkTests(unittest.TestCase):
 
         self.assertIn('href="/#feedback-title"', page)
         self.assertIn('href="#daily"', page)
-        self.assertIn('<details class="card daily-detail" id="daily">', page)
+        self.assertIn('<details class="card daily-detail" open>', page)
+        self.assertIn('<summary id="daily">每日明细', page)
+        self.assertIn(f"逐日统计范围 · {today}", page)
+        self.assertIn('class="gridline"', page)
         self.assertIn("<strong>2</strong> 条待处理", page)
         self.assertIn("已处理 3 条 · 近 7 天新增 1 条", page)
         self.assertIn("架构分布（近 30 天）", page)
         self.assertIn("arm64", page)
         self.assertIn(f'<time datetime="{today}">{today}</time>', page)
+
+    def test_empty_report_has_useful_fallback(self):
+        page = collect.render_html(collect.collect_report(self.conn))
+        self.assertIn("暂无逐日数据", page)
+        self.assertIn("统计周期内暂无可绘制的数据", page)
+        self.assertIn("暂无每日数据", page)
 
 
 class AnnouncementSchemaTests(unittest.TestCase):

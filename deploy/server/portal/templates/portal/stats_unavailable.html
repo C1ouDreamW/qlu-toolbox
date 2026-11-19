@@ -13,12 +13,16 @@
 <a class="skip-link" href="#main">跳到主要内容</a>
 {% include "portal/topbar.html" %}
 <main id="main" class="workspace" tabindex="-1">
-  <section class="panel">
-    <header class="page-heading">
-      <h1>访问统计</h1>
-      <a class="outline-link" href="/">返回工作台</a>
-    </header>
+  <header class="panel versions">
+    <h1>访问统计</h1>
+  </header>
+  <section class="panel" aria-labelledby="report-state">
+    <h2 id="report-state">报告暂不可用</h2>
     <p class="message" data-state="empty">统计报告尚未生成，请稍后刷新。</p>
+    <div class="actions">
+      <a class="outline-link" href="/stats/">刷新报告</a>
+      <a class="outline-link" href="/">返回工作台</a>
+    </div>
   </section>
 </main>
 </body>

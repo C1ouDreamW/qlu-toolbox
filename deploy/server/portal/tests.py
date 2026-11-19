@@ -86,6 +86,7 @@ class PortalTests(TestCase):
         with self.settings(STATS_DIR=self.root):
             missing = console.get("/stats/", secure=True)
             self.assertContains(missing, "统计报告尚未生成", status_code=404)
+            self.assertContains(missing, 'href="/stats/">刷新报告', status_code=404)
             self.assertContains(missing, "返回工作台", status_code=404)
             self.assertEqual(missing.headers["Cache-Control"], "no-store")
             (self.root / "stats.html").write_text("<h1>合成报告</h1>", encoding="utf-8")

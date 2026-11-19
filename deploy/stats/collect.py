@@ -414,29 +414,43 @@ def collect_report(conn: sqlite3.Connection, days: int = 30) -> dict:
     }
 
 
+def svg_scale(max_value: int, left: int, right: int, top: int, bottom: int) -> str:
+    ticks = [(bottom, 0)]
+    if max_value:
+        ticks.append((top, max_value))
+    return "".join(
+        f'<path class="gridline" d="M{left} {y}H{right}"/>'
+        f'<text class="axis" x="{left - 8}" y="{y}" dy=".35em" text-anchor="end">{value:,}</text>'
+        for y, value in ticks
+    )
+
+
 def svg_line(values: list[int], labels: list[str], color: str, title: str) -> str:
-    width, height, pad = 640, 180, 30
+    width, height = 520, 184
     max_value = max(values, default=0)
-    count = max(len(values), 1)
-    step = (width - pad * 2) / max(count - 1, 1)
+    left, right, top, bottom = max(58, len(f"{max_value:,}") * 10 + 16), width - 32, 18, height - 30
+    count = len(values)
+    step = (right - left) / max(count - 1, 1)
     points = [
-        (pad + i * step, height - pad - (value / max_value) * (height - pad * 2) if max_value else height - pad)
+        ((left + right) / 2 if count == 1 else left + i * step,
+         bottom - value / max_value * (bottom - top) if max_value else bottom)
         for i, value in enumerate(values)
     ]
     polyline = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
-    area = f"{pad},{height - pad} " + polyline + f" {pad + (count - 1) * step:.1f},{height - pad}"
+    area = f"{left},{bottom} {polyline} {right},{bottom}" if count > 1 else ""
     dots = "".join(
-        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{color}" tabindex="0">'
+        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{color}">'
         f'<title>{html.escape(label)}：{value}</title></circle>'
         for (x, y), label, value in zip(points, labels, values)
     )
-    every = max(count // 6, 1)
+    every = max((count + 5) // 6, 1)
     text_points = " ".join(
-        f'<text x="{x:.1f}" y="{height - 8}" font-size="14" fill="#526176" text-anchor="middle">{label[5:]}</text>'
+        f'<text class="axis" x="{x:.1f}" y="{height - 6}" text-anchor="middle">{html.escape(label[5:])}</text>'
         for i, ((x, _), label) in enumerate(zip(points, labels))
         if i % every == 0
     )
     return f"""<svg viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(title)}">
+      {svg_scale(max_value, left, right, top, bottom)}
       <polyline fill="{color}22" stroke="none" points="{area}" />
       <polyline fill="none" stroke="{color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="{polyline}" />
       {dots}
@@ -445,31 +459,35 @@ def svg_line(values: list[int], labels: list[str], color: str, title: str) -> st
 
 
 def svg_bars(values: list[int], labels: list[str], color: str, title: str) -> str:
-    width, height, pad = 640, 180, 30
+    width, height = 520, 184
     max_value = max(values, default=0)
+    left, right, top, bottom = max(58, len(f"{max_value:,}") * 10 + 16), width - 32, 18, height - 30
     count = max(len(values), 1)
-    step = (width - pad * 2) / count
+    step = (right - left) / count
+    bar_width = min(step * .76, 40)
     bars = []
-    for i, value in enumerate(values):
-        bar_height = (value / max_value) * (height - pad * 2) if max_value else 0
-        x = pad + i * step + step * 0.12
+    for i, (value, label) in enumerate(zip(values, labels)):
+        bar_height = value / max_value * (bottom - top) if max_value else 0
+        x = left + (i + .5) * step - bar_width / 2
         bars.append(
-            f'<rect x="{x:.1f}" y="{height - pad - bar_height:.1f}" width="{step * 0.76:.1f}" '
-            f'height="{bar_height:.1f}" rx="2" fill="{color}"><title>{labels[i]}：{value}</title></rect>'
+            f'<rect x="{x:.1f}" y="{bottom - bar_height:.1f}" width="{bar_width:.1f}" '
+            f'height="{bar_height:.1f}" rx="2" fill="{color}"><title>{html.escape(label)}：{value}</title></rect>'
         )
     text_points = " ".join(
-        f'<text x="{pad + i * step + step / 2:.1f}" y="{height - 8}" font-size="14" fill="#526176" '
-        f'text-anchor="middle">{label[5:]}</text>'
+        f'<text class="axis" x="{left + (i + .5) * step:.1f}" y="{height - 6}" '
+        f'text-anchor="middle">{html.escape(label[5:])}</text>'
         for i, label in enumerate(labels)
-        if i % max(count // 6, 1) == 0
+        if i % max((count + 5) // 6, 1) == 0
     )
-    return f"""<svg viewBox="0 0 {width} {height}" role="img" aria-label="{title}">
+    return f"""<svg viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(title)}">
+      {svg_scale(max_value, left, right, top, bottom)}
       {''.join(bars)}
       {text_points}
     </svg>"""
 
 
 def dist_table(title: str, rows: list[dict], total: int | None = None) -> str:
+    title = html.escape(title)
     if not rows:
         return f'<section class="card"><h3>{title}</h3><p class="muted">暂无数据</p></section>'
     max_count = max(1, max(row["count"] for row in rows))
@@ -481,7 +499,7 @@ def dist_table(title: str, rows: list[dict], total: int | None = None) -> str:
     )
     suffix = f'<p class="muted">合计 {total}</p>' if total is not None else ""
     return f"""<section class="card"><h3>{title}</h3>
-      <table><tbody>{body}</tbody></table>{suffix}</section>"""
+      <table aria-label="{title}"><tbody>{body}</tbody></table>{suffix}</section>"""
 
 
 def daily_table(report: dict) -> str:
@@ -495,10 +513,10 @@ def daily_table(report: dict) -> str:
     )
     if not rows:
         rows = '<tr><td colspan="5" class="empty">暂无每日数据</td></tr>'
-    return f"""<details class="card daily-detail" id="daily">
-      <summary>每日明细 <span>{len(report['days'])} 天</span></summary>
+    return f"""<details class="card daily-detail" open>
+      <summary id="daily">每日明细 <span>{len(report['days'])} 天 · 最近日期在前</span></summary>
       <div class="table-scroll" tabindex="0" role="region" aria-label="每日统计数据"><table>
-        <thead><tr><th>日期</th><th>日活</th><th>新增安装</th><th>更新检查</th><th>下载</th></tr></thead>
+        <thead><tr><th scope="col">日期</th><th scope="col">日活</th><th scope="col">新增安装</th><th scope="col">更新检查</th><th scope="col">自建源下载</th></tr></thead>
         <tbody>{rows}</tbody>
       </table></div>
     </details>"""
@@ -507,10 +525,19 @@ def daily_table(report: dict) -> str:
 def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
     labels = report["days"]
     totals = report["totals"]
-    dau_chart = svg_line(report["dau"], labels, "#0064dc", "日活")
-    download_chart = svg_bars(report["downloads"], labels, "#d29412", "每日下载")
-    check_chart = svg_line(report["raw_checks"], labels, "#a36a00", "更新检查")
-    new_chart = svg_bars(report["new_installs"], labels, "#4b92ec", "新增安装")
+    if labels:
+        dau_chart = svg_line(report["dau"], labels, "#0064dc", "日活")
+        download_chart = svg_bars(report["downloads"], labels, "#d29412", "每日下载")
+        check_chart = svg_line(report["raw_checks"], labels, "#a36a00", "更新检查")
+        new_chart = svg_bars(report["new_installs"], labels, "#4b92ec", "新增安装")
+        trends = f"""<div class="chart-grid">
+          <section class="card"><h3>日活 · 去重安装</h3>{dau_chart}</section>
+          <section class="card"><h3>每日新增安装</h3>{new_chart}</section>
+          <section class="card"><h3>更新检查 · 含旧版客户端</h3>{check_chart}</section>
+          <section class="card"><h3>自建源每日下载</h3>{download_chart}</section>
+        </div>"""
+    else:
+        trends = '<p class="card empty">统计周期内暂无可绘制的数据。</p>'
 
     card_rows = [
         ("识别的安装", totals["installs"], "累计去重"),
@@ -538,6 +565,9 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
         )
     range_days = report["range_days"]
     generated_at = report["generated_at"]
+    coverage = labels[0] if labels else "暂无逐日数据"
+    if len(labels) > 1:
+        coverage += f" 至 {labels[-1]}"
     github_title = (
         f'GitHub 下载（{report["github_snapshot_day"]} 快照）'
         if report["github_snapshot_day"] else "GitHub 下载（暂无快照）"
@@ -570,18 +600,21 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
   h1 {{ font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -.035em; line-height: 1.25; margin: 0 0 8px; }}
   h2 {{ font-size: 1.15rem; margin: 0; }} h3 {{ font-size: 1rem; margin: 0 0 14px; }}
   p {{ margin: 0; }} a {{ color: var(--blue); }}
-  .masthead {{ display: flex; justify-content: space-between; gap: 12px 24px; align-items: flex-start; flex-wrap: wrap;
-    margin-bottom: 14px; padding: 22px; border: 1px solid #cedff8; border-radius: 18px; background: linear-gradient(115deg, #e4efff, #f5f8ff); }}
+  .masthead {{ display: flex; justify-content: space-between; gap: 12px 24px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 14px; padding: 22px; border: 1px solid #cedff8; border-inline-start: 4px solid var(--yellow);
+    border-radius: 18px; background: linear-gradient(115deg, #e4efff, #f5f8ff); }}
   .updated, .stamp {{ color: var(--muted); font-size: .85rem; }}
   .stamp {{ border: 1px solid #c4d7f2; border-radius: 8px; background: var(--paper); padding: 6px 10px; }}
-  .report-nav {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }}
+  .report-nav {{ position: sticky; z-index: 1; top: 0; display: flex; gap: 8px; padding-block: 8px;
+    margin-bottom: 10px; background: var(--canvas); }}
   .report-nav a {{ border: 1px solid #c4d7f2; border-radius: 8px; background: var(--paper); padding: 6px 10px;
     font-size: .85rem; font-weight: 600; text-decoration: none; }}
-  .report-nav a:hover {{ background: #eaf2ff; }}
-  .cards {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }}
+  .report-nav a:hover, .report-nav a:focus-visible {{ background: #e4efff; }}
+  main :is(#overview, #trends, #daily, #breakdown), main a {{ scroll-margin-top: 56px; }}
+  .cards {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; }}
   .stat {{ min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }}
   .stat:first-child {{ background: #fff9e7; border-color: #efd588; }}
-  .stat-num {{ margin: 5px 0 3px; font-size: clamp(1.15rem, 3vw, 1.8rem); font-weight: 750; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }}
+  .stat-num {{ margin: 5px 0 3px; font-size: clamp(1.35rem, 3vw, 1.95rem); font-weight: 750; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }}
   .stat-label, .stat-note, .section-label {{ color: var(--muted); font-size: .85rem; }}
   .stat-label, .section-label {{ font-weight: 650; }}
   .feedback-panel {{ display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px;
@@ -593,10 +626,13 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
   .button {{ border-radius: 8px; background: var(--blue); color: #fff; padding: 8px 12px; font-size: .85rem; font-weight: 650; text-decoration: none; }}
   .button:hover {{ background: #0054b8; }}
   .section-head {{ display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin: 26px 0 12px; }}
-  .section-head p {{ color: var(--muted); font-size: .85rem; }}
+  .section-head :is(p, a) {{ font-size: .85rem; }}
+  .section-head p {{ color: var(--muted); }}
   .chart-grid, .dist-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }}
   .card {{ min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }}
-  svg {{ display: block; width: 100%; height: auto; overflow: visible; }} svg circle:focus {{ stroke: var(--nav); stroke-width: 2; }}
+  svg {{ display: block; width: 100%; height: auto; overflow: visible; }}
+  .axis {{ fill: var(--muted); font-size: 17px; font-variant-numeric: tabular-nums; }}
+  .gridline {{ stroke: var(--line); stroke-dasharray: 4 3; }}
   table {{ width: 100%; border-collapse: collapse; font-size: .85rem; font-variant-numeric: tabular-nums; }}
   th {{ color: var(--muted); text-align: left; }}
   td, th {{ padding: 8px; border-bottom: 1px solid var(--line); }} tbody tr:last-child td {{ border-bottom: 0; }}
@@ -605,11 +641,12 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
   .bar-cell {{ width: 42%; }} .bar {{ height: 7px; border-radius: 99px; background: #4b92ec; }}
   .num {{ font-weight: 650; }}
   .muted {{ color: var(--muted); font-size: .85rem; margin-top: 8px; }}
-  .daily-detail {{ margin-top: 12px; padding: 0; }} .daily-detail summary {{ cursor: pointer; padding: 14px 16px; font-weight: 650; }}
+  .daily-detail {{ margin-top: 24px; padding: 0; }} .daily-detail summary {{ cursor: pointer; padding: 14px 16px; font-weight: 650; }}
   .daily-detail summary span {{ float: right; color: var(--muted); font-size: .85rem; font-weight: 400; }}
   .daily-detail[open] summary {{ border-bottom: 1px solid var(--line); }}
-  .table-scroll {{ max-height: 420px; overflow: auto; padding: 0 12px 12px; }}
-  .table-scroll th {{ position: sticky; top: 0; background: var(--paper); white-space: nowrap; }}
+  .table-scroll {{ max-height: 340px; overflow: auto; border-radius: 0 0 14px 14px; }}
+  .table-scroll th {{ position: sticky; top: 0; background: #e4efff; white-space: nowrap; }}
+  .table-scroll tbody tr:nth-child(even) {{ background: var(--canvas); }}
   .table-scroll time {{ white-space: nowrap; }}
   .empty {{ color: var(--muted); text-align: center !important; }}
   footer {{ margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }}
@@ -620,8 +657,12 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
     .topbar a {{ padding: 7px 9px; }}
     main {{ padding-top: 22px; }}
     .masthead {{ padding: 16px; }}
+    .report-nav a {{ flex: 1 1 auto; padding-inline: 5px; text-align: center; white-space: nowrap; }}
     .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
     .chart-grid, .dist-grid {{ grid-template-columns: 1fr; }}
+  }}
+  @media (max-width: 420px) {{
+    .table-scroll :is(td, th) {{ padding-inline: 4px; font-size: .75rem; }}
   }}
 </style></head><body>
 <a class="skip-link" href="#main">跳到主要内容</a>
@@ -633,21 +674,16 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
   </nav>
 </header>
 <main id="main" tabindex="-1">
-<header class="masthead"><div><h1>访问统计</h1>
-<p class="updated">匿名观测安装、更新与下载状态。</p></div>
+<header class="masthead" id="overview"><div><h1>访问统计</h1>
+<p class="updated">逐日统计范围 · {html.escape(coverage)}</p></div>
 <p class="stamp">生成于 <time datetime="{generated_at}">{generated_at.replace("T", " ", 1)}</time></p></header>
 <nav class="report-nav" aria-label="报告目录">
-  <a href="#trends">趋势图</a><a href="#daily">每日明细</a><a href="#breakdown">构成与下载</a>
+  <a href="#overview">概览</a><a href="#trends">趋势图</a><a href="#daily">每日明细</a><a href="#breakdown">构成与下载</a>
 </nav>
 <div class="cards">{cards}</div>
 {feedback_panel}
-<div class="section-head" id="trends"><h2>最近 {range_days} 天趋势</h2><p>逐日数值见每日明细</p></div>
-<div class="chart-grid">
-  <section class="card"><h3>日活 · 去重安装</h3>{dau_chart}</section>
-  <section class="card"><h3>每日新增安装</h3>{new_chart}</section>
-  <section class="card"><h3>更新检查 · 含旧版客户端</h3>{check_chart}</section>
-  <section class="card"><h3>自建源每日下载</h3>{download_chart}</section>
-</div>
+<div class="section-head" id="trends"><h2>最近 {range_days} 天趋势</h2><a href="#daily">查看逐日数值 ↓</a></div>
+{trends}
 {daily_table(report)}
 <div class="section-head" id="breakdown"><h2>构成与下载</h2><p>安装分布按随机安装编号去重</p></div>
 <div class="dist-grid">
