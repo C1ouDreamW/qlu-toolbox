@@ -123,11 +123,16 @@
 .login-brand-product { color: #d0e1ff; font-size: 1rem; }
 .login-brand a { margin-top: auto; padding-top: 22px; color: #ffdb78; font-size: .9rem; }
 .login-brand :focus-visible { outline-color: var(--yellow); }
-.login-panel { min-width: 0; padding: clamp(28px, 6vw, 52px); }
+.login-panel { min-width: 0; align-self: center; padding: clamp(28px, 6vw, 52px); }
 .login-panel .muted { margin-top: 8px; }
 .login-panel form { display: grid; gap: 16px; margin-top: 24px; }
-.login-panel form button { margin-top: 4px; min-height: 46px; }
+.login-panel form > button { margin-top: 4px; min-height: 46px; }
 .login-panel label { margin-bottom: 6px; }
+.password-input { display: flex; gap: 6px; }
+.password-input input { min-width: 0; }
+.password-input button { color: var(--action); font-size: .8rem; padding-inline: 9px; }
+.login-panel a.auth-action { display: block; margin-top: 24px; padding: 10px 14px; border-radius: 9px; background: var(--action); color: #fff; text-align: center; }
+.login-panel a.auth-action:hover { background: var(--action-hover); text-decoration: none; }
 .login-panel .errorlist { margin: 6px 0 0; padding-left: 20px; color: var(--danger); }
 .login-panel .message.error { padding: 8px 12px; border-radius: 9px; background: #fff0ef; }
 .login-panel .message .errorlist { margin: 0; padding: 0; list-style: none; }

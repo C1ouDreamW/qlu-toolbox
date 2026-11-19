@@ -25,6 +25,8 @@ class PortalTests(TestCase):
         login = console.get("/admin/login/?next=/", secure=True)
         self.assertContains(login, 'name="next" value="/"')
         self.assertContains(login, '/static/portal/console.css')
+        self.assertContains(login, '/static/portal/login.js')
+        self.assertContains(login, 'aria-controls="id_password" hidden')
         login_url = "/admin/login/?next=/"
         referer = "https://console.lumatile.cn"
         credentials = {"username": self.staff.username, "password": "local-test-password", "next": "/",
@@ -38,8 +40,9 @@ class PortalTests(TestCase):
         self.assertContains(console.get("/", secure=True), "运营工作台")
         self.assertEqual(console.post("/admin/logout/", secure=True).status_code, 403)
         token = console.cookies["csrftoken"].value
-        self.assertEqual(console.post("/admin/logout/", {"csrfmiddlewaretoken": token}, secure=True,
-                                      HTTP_REFERER=referer + "/").status_code, 200)
+        logged_out = console.post("/admin/logout/", {"csrfmiddlewaretoken": token}, secure=True,
+                                  HTTP_REFERER=referer + "/")
+        self.assertContains(logged_out, 'href="/admin/login/?next=/">重新登录')
         self.assertEqual(console.get("/", secure=True).status_code, 302)
 
     def test_console_admin_lists_keep_permissions_and_support_search(self):

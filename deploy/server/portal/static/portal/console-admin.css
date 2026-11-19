@@ -189,6 +189,9 @@
 .console-admin .submit-row input:not(.default) { border: 1px solid var(--border-color); background: var(--body-bg); color: var(--link-fg); }
 .console-admin .submit-row input:not(.default):hover { background: var(--admin-tint); }
 .console-admin .form-row .readonly { min-width: 0; overflow-wrap: anywhere; }
+.console-admin:has(#id_old_password, .account-result) .main > .content { max-width: 760px; }
+.console-admin .account-result { padding: 4px 0; }
+.console-admin .account-result p { margin: 0 0 12px; }
 
 @media (max-width: 767px) {
   .console-admin .breadcrumbs { padding-inline: 14px; }
