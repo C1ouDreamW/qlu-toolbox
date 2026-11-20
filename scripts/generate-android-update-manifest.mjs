@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { assertStableVersion, isArtifactUrl } from '../electron/update-contract.mjs'
+import { assertStableVersion, isArtifactUrl } from '../packages/release-contract/update-contract.mjs'
 
 const [apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag, notesPathArg, downloadBaseUrl] = process.argv.slice(2)
 if (![apkPathArg, outputPathArg, versionCodeArg, versionName, repository, tag, notesPathArg].every(Boolean)) {

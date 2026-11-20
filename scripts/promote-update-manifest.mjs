@@ -2,7 +2,7 @@ import { mkdir, open, readFile, rename, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assertPromotion, manifestTarget, sha256, validatePlatformManifest } from './release-artifacts.mjs'
-import { validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
 
 export async function promoteManifest({ platform, manifest, data, bridgeVersion = null, channel = 'stable' }) {
   const next = validatePlatformManifest(platform, manifest, bridgeVersion, channel)

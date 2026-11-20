@@ -8,7 +8,7 @@ const repositoryDir = resolve(mobileDir, '../..')
 const compatibility = JSON.parse(await readFile(resolve(mobileDir, 'webview-compatibility.json'), 'utf8'))
 const outputDir = resolve(process.argv[2] || resolve(mobileDir, 'android/app/build/generated/webviewAssets'))
 const entries = [
-  [resolve(repositoryDir, 'assets/qlu-schedule-dom.js'), 'qlu-schedule-dom.js'],
+  [resolve(repositoryDir, 'packages/school-web/qlu-schedule-dom.js'), 'qlu-schedule-dom.js'],
   [resolve(mobileDir, 'webview-scripts/credit-capture.js'), 'credit-capture.js'],
   [resolve(mobileDir, 'webview-scripts/credit-plan-observer.js'), 'credit-plan-observer.js'],
   [resolve(mobileDir, 'webview-scripts/schedule-export-interceptor.js'), 'schedule-export-interceptor.js'],

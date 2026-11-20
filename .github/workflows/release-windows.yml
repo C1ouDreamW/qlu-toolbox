@@ -58,7 +58,7 @@ jobs:
       - name: Test and build Windows application
         shell: bash
         run: |
-          uv run --locked python -B -m unittest discover -s tests -v
+          uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v
           npm run test:release
           npm run build:backend
           npm run build
@@ -69,7 +69,7 @@ jobs:
       - name: Prepare installer and portable ZIP
         shell: pwsh
         run: |
-          $info = Get-Content lumatile/build-info.json -Raw | ConvertFrom-Json
+          $info = Get-Content apps/desktop/python/lumatile/build-info.json -Raw | ConvertFrom-Json
           $version = $info.version
           $prefix = if ($info.channel -eq 'alpha') { 'LumaTile-Alpha' } else { 'LumaTile' }
           $productName = $info.productName

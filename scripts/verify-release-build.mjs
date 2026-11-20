@@ -8,9 +8,9 @@ import { parseArgs } from 'node:util'
 import { assertWindowsProductVersion, assertWindowsX64, repositoryRoot, taggedRelease } from './release-artifacts.mjs'
 import { sha256 } from './release-artifacts.mjs'
 import { rehearsalIdentity } from './rehearse-release.mjs'
-import { validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
 import { assertAndroidApkIdentity } from './android-apk-verification.mjs'
-import { validateBuildInformation } from '../electron/channel-contract.mjs'
+import { validateBuildInformation } from '../packages/release-contract/channel-contract.mjs'
 
 const { values, positionals } = parseArgs({ options: { rehearsal: { type: 'boolean' } }, allowPositionals: true })
 const [platform, ...args] = positionals

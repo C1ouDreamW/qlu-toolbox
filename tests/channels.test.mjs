@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { assertChannelVersion, buildInformation, channelIdentity, compareChannelVersions, validateBuildInformation } from '../electron/channel-contract.mjs'
+import { assertChannelVersion, buildInformation, channelIdentity, compareChannelVersions, validateBuildInformation } from '../packages/release-contract/channel-contract.mjs'
 import { releaseVersion, resolveRelease, validateReleaseConfig } from '../scripts/release-config.mjs'
 
 function versions() {

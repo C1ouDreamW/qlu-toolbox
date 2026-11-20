@@ -9,18 +9,21 @@ import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { buildInformation } from '../electron/channel-contract.mjs'
-import { configureDesktopIdentity, readDesktopBuildInformation } from '../dist-electron/build-info.js'
+import { buildInformation } from '../packages/release-contract/channel-contract.mjs'
+import { configureDesktopIdentity, readDesktopBuildInformation } from '../dist-electron/apps/desktop/electron/build-info.js'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 
 test('desktop startup validates native target and keeps Debug userData separate before acquiring the instance lock', async t => {
   const directory = await mkdtemp(path.join(tmpdir(), 'lumatile-desktop-channel-'))
   t.after(() => rm(directory, { recursive: true, force: true }))
+  const sourceDir = path.join(directory, 'apps/desktop/python/lumatile')
+  await mkdir(sourceDir, { recursive: true })
   await mkdir(path.join(directory, 'lumatile'))
   const information = buildInformation({ platform: 'macos', target: 'macos-arm64', channel: 'debug', version: '2.1.0-debug.0', buildNumber: 1 })
   const file = path.join(directory, 'lumatile/build-info.json')
-  await writeFile(file, JSON.stringify(information))
+  const sourceFile = path.join(sourceDir, 'build-info.json')
+  await writeFile(sourceFile, JSON.stringify(information))
   assert.equal(readDesktopBuildInformation(directory, false, 'darwin', 'arm64').channel, 'debug')
   assert.throws(() => readDesktopBuildInformation(directory, false, 'darwin', 'x64'))
   const calls = []
@@ -29,6 +32,7 @@ test('desktop startup validates native target and keeps Debug userData separate 
   configureDesktopIdentity(app, information)
   assert.deepEqual(calls, [['name', 'LumaTile Debug'], ['userData', path.join('/appdata', 'LumaTile-Debug')]])
   const stable = buildInformation({ platform: 'macos', target: 'macos-arm64', channel: 'stable', version: '2.0.4', buildNumber: 3 })
+  await writeFile(sourceFile, JSON.stringify(stable))
   await writeFile(file, JSON.stringify(stable))
   assert.throws(() => readDesktopBuildInformation(directory, false, 'darwin', 'arm64'), /npm run dev/)
   assert.equal(readDesktopBuildInformation(directory, true, 'darwin', 'arm64').channel, 'stable')
@@ -66,7 +70,7 @@ function startBridge({ platform = 'darwin', packaged = false, env = {} } = {}) {
   child.stderr = new PassThrough()
   child.kill = () => {}
   let launched
-  const { PythonBridge } = loadElectronModule('electron/bridge.ts', {
+  const { PythonBridge } = loadElectronModule('apps/desktop/electron/bridge.ts', {
     electron: { app: { isPackaged: packaged, getAppPath: () => '/workspace' } },
     'node:child_process': { spawn: (...args) => { launched = args; return child } },
     'node:path': path,
@@ -83,7 +87,7 @@ test('development honors the branded Python override before the legacy override'
     LUMATILE_PYTHON: '/custom/new-python', QLU_PYTHON: '/custom/old-python',
   } })
   assert.equal(program, '/custom/new-python')
-  assert.deepEqual(Array.from(args), [path.join('/workspace', 'main.py'), '--bridge'])
+  assert.deepEqual(Array.from(args), [path.join('/workspace', 'apps/desktop/python/main.py'), '--bridge'])
 })
 
 test('development still accepts the legacy Python override', () => {
@@ -115,7 +119,7 @@ test('preload exposes the LumaTile API and forwards requests and events', async 
   const sent = []
   ipc.invoke = async (...args) => args
   ipc.send = (...args) => sent.push(args)
-  loadElectronModule('electron/preload.cts', {
+  loadElectronModule('apps/desktop/electron/preload.cts', {
     electron: {
       contextBridge: { exposeInMainWorld: (name, api) => exposed.set(name, api) },
       ipcRenderer: ipc,
@@ -139,7 +143,7 @@ test('preload exposes the LumaTile API and forwards requests and events', async 
 })
 
 function restoreStartupTheme(initial, { readError = false, writeError = false } = {}) {
-  const html = readFileSync(path.join(root, 'index.html'), 'utf8')
+  const html = readFileSync(path.join(root, 'apps/desktop/index.html'), 'utf8')
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1]
   assert.ok(script, 'The startup theme script must run before the renderer mounts')
   const values = new Map(Object.entries(initial))

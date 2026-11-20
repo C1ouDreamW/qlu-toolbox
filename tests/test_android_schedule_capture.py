@@ -3,21 +3,26 @@ import json
 from pathlib import Path
 from test_schedule_capture_e2e import CONTENT, PAGES, ScheduleCaptureEndToEndTests
 
+MOBILE = Path(__file__).resolve().parents[1] / 'apps/mobile'
+
+
 class AndroidScheduleCaptureTests(ScheduleCaptureEndToEndTests):
     def test_android_packages_the_shared_dom_capture(self):
-        activity = Path('apps/mobile/android/app/src/main/java/io/github/c1oudreamw/lumatile/ScheduleImportActivity.kt').read_text(encoding='utf-8')
-        plugin = Path('apps/mobile/android/app/src/main/java/io/github/c1oudreamw/lumatile/SchedulePlugin.kt').read_text(encoding='utf-8')
-        gradle = Path('apps/mobile/android/app/build.gradle').read_text(encoding='utf-8')
-        build_script = Path('apps/mobile/scripts/build-webview-assets.mjs').read_text(encoding='utf-8')
+        native_sources = MOBILE / 'android/app/src/main/java/io/github/c1oudreamw/lumatile'
+        activity = (native_sources / 'ScheduleImportActivity.kt').read_text(encoding='utf-8')
+        plugin = (native_sources / 'SchedulePlugin.kt').read_text(encoding='utf-8')
+        gradle = (MOBILE / 'android/app/build.gradle').read_text(encoding='utf-8')
+        build_script = (MOBILE / 'scripts/build-webview-assets.mjs').read_text(encoding='utf-8')
         self.assertIn('assets.open("qlu-schedule-dom.js")', activity)
         self.assertIn('SOURCE_QLU_DOM', activity)
         self.assertIn('SOURCE_QLU_DOM', plugin)
         self.assertIn('buildWebViewAssets', gradle)
-        self.assertIn('assets/qlu-schedule-dom.js', build_script)
+        self.assertIn('packages/school-web/qlu-schedule-dom.js', gradle)
+        self.assertIn('packages/school-web/qlu-schedule-dom.js', build_script)
 
     def test_android_script_captures_native_ajax_and_frames(self):
         from playwright.sync_api import sync_playwright
-        script = Path('apps/mobile/webview-scripts/schedule-export-interceptor.js').read_text(encoding='utf-8')
+        script = (MOBILE / 'webview-scripts/schedule-export-interceptor.js').read_text(encoding='utf-8')
         PAGES['/xhr'] = '''<script>setTimeout(()=>{const x=new XMLHttpRequest();x.open('POST','/jwglxt/kbcx/xskbcx_cxDcExcelXskb.html');x.responseType='arraybuffer';x.send('xnm=2026');},600)</script>'''
         PAGES['/request-submit'] = '''<form method="post" action="/jwglxt/kbcx/xskbcx_cxDcExcelXskb.html"></form><script>setTimeout(()=>document.querySelector('form').requestSubmit(),600)</script>'''
         with sync_playwright() as pw:

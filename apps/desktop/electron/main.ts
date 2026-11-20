@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PythonBridge } from './bridge.js'
 import { checkGithubUpdate, verifyBootstrapVersion } from './updates.js'
-import { API_ORIGIN, desktopTarget, validateMigrationPolicy } from './update-contract.mjs'
+import { API_ORIGIN, desktopTarget, validateMigrationPolicy } from '../../../packages/release-contract/update-contract.mjs'
 import { configureDesktopIdentity, readDesktopBuildInformation } from './build-info.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -122,8 +122,7 @@ function createWindow() {
     backgroundColor: windowBackgroundColor(),
     icon: path.join(
       app.getAppPath(),
-      'assets',
-      process.platform === 'win32' ? 'lumatile.ico' : 'lumatile.png',
+      process.platform === 'win32' ? 'apps/desktop/assets/lumatile.ico' : 'packages/branding/lumatile.png',
     ),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -135,7 +134,7 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => mainWindow?.show())
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (devUrl) void mainWindow.loadURL(devUrl)
-  else void mainWindow.loadFile(path.join(__dirname, '..', 'dist-renderer', 'index.html'))
+  else void mainWindow.loadFile(path.join(app.getAppPath(), 'dist-renderer', 'index.html'))
 }
 
 function registerIpc() {

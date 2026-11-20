@@ -56,7 +56,7 @@ jobs:
           node scripts/prepare-release.mjs --platform macos --verify
       - name: Test and build macOS application
         run: |
-          uv run --locked python -B -m unittest discover -s tests -v
+          uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v
           npm run test:release
           npm run build:backend
           npm run build
@@ -64,8 +64,8 @@ jobs:
           npx electron-builder --mac dmg --arm64 --publish never
       - name: Verify mounted DMG, signature, architecture and runtime versions
         run: |
-          version=$(node -p "require('./lumatile/build-info.json').version")
-          product_name=$(node -p "require('./lumatile/build-info.json').productName")
+          version=$(node -p "require('./apps/desktop/python/lumatile/build-info.json').version")
+          product_name=$(node -p "require('./apps/desktop/python/lumatile/build-info.json').productName")
           prefix=LumaTile
           if [ "$LUMATILE_BUILD_CHANNEL" = alpha ]; then prefix=LumaTile-Alpha; fi
           mount_dir=$(mktemp -d)

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { checkDesktopUpdate, checkGithubUpdate, verifyBootstrapVersion } from '../dist-electron/updates.js'
-import { artifactFileNames, compareVersions, desktopTarget, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { checkDesktopUpdate, checkGithubUpdate, verifyBootstrapVersion } from '../dist-electron/apps/desktop/electron/updates.js'
+import { artifactFileNames, compareVersions, desktopTarget, validateDesktopManifest, validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
 
 const windows = desktopTarget('win32', 'x64')
 const macos = desktopTarget('darwin', 'arm64')

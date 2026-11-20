@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assertPromotion } from './release-artifacts.mjs'
-import { validateAndroidManifest } from '../electron/android-update-contract.mjs'
+import { validateAndroidManifest } from '../packages/release-contract/android-update-contract.mjs'
 
 // Called in a separate checkout of the latest main; never changes the other channel.
 export async function prepareAndroidBackup({ checkout, manifest, channel }) {

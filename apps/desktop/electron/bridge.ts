@@ -24,7 +24,7 @@ export class PythonBridge {
     const program = development
       ? (process.env.LUMATILE_PYTHON || process.env.QLU_PYTHON || pythonExecutable)
       : path.join(process.resourcesPath, 'backend', workerExecutable)
-    const args = development ? [path.join(app.getAppPath(), 'main.py'), '--bridge'] : ['--bridge']
+    const args = development ? [path.join(app.getAppPath(), 'apps/desktop/python/main.py'), '--bridge'] : ['--bridge']
     this.process = spawn(program, args, {
       cwd: development ? app.getAppPath() : process.resourcesPath,
       windowsHide: true,

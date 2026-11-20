@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { GITHUB_REPOSITORY } from '../electron/update-contract.mjs'
+import { GITHUB_REPOSITORY } from '../packages/release-contract/update-contract.mjs'
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 

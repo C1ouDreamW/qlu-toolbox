@@ -9,7 +9,7 @@ import { prepareRelease } from '../scripts/prepare-release.mjs'
 import { assertStableVersion, extractReleaseNotes, hostReleasePlatform, resolveRelease, validateReleaseConfig } from '../scripts/release-config.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const files = ['package.json', 'package-lock.json', 'apps/mobile/package.json', 'lumatile/__init__.py', 'pyproject.toml', 'uv.lock']
+const files = ['package.json', 'package-lock.json', 'apps/mobile/package.json', 'apps/desktop/python/lumatile/__init__.py', 'pyproject.toml', 'uv.lock']
 const versions = () => ({ schemaVersion: 1, windows: { version: '2.0.5' }, macos: { version: '2.0.6' }, android: { version: '2.0.7', versionCode: 16 } })
 const readJson = async file => JSON.parse(await readFile(file, 'utf8'))
 const writeJson = (file, value) => writeFile(file, `${JSON.stringify(value, null, 2)}\n`)
@@ -81,8 +81,8 @@ test('check is read-only; verify rejects stale carriers without changing them', 
   const dir = await fixture(t)
   const before = await snapshot(dir)
   const result = await prepareRelease({ root: dir, platform: 'macos', tag: 'mac-v2.0.6', check: true })
-  assert.deepEqual(result.files, ['package.json', 'package-lock.json', 'lumatile/__init__.py', 'lumatile/build-info.json'])
-  await assert.rejects(readFile(join(dir, 'lumatile/build-info.json')), /ENOENT/)
+  assert.deepEqual(result.files, ['package.json', 'package-lock.json', 'apps/desktop/python/lumatile/__init__.py', 'apps/desktop/python/lumatile/build-info.json'])
+  await assert.rejects(readFile(join(dir, 'apps/desktop/python/lumatile/build-info.json')), /ENOENT/)
   assert.deepEqual(await snapshot(dir), before)
   await assert.rejects(prepareRelease({ root: dir, platform: 'macos', verify: true }), /stale/)
   assert.deepEqual(await snapshot(dir), before)
@@ -99,7 +99,7 @@ test('one checkout prepares distinct desktop versions while preserving Android a
     await prepareRelease({ root: dir, platform })
     assert.equal((await readJson(join(dir, 'package.json'))).version, version)
     assert.equal((await readJson(join(dir, 'package.json'))).description, 'User edit retained')
-    assert.match(await readFile(join(dir, 'lumatile/__init__.py'), 'utf8'), new RegExp(`__version__ = "${version.replaceAll('.', '\\.')}"`))
+    assert.match(await readFile(join(dir, 'apps/desktop/python/lumatile/__init__.py'), 'utf8'), new RegExp(`__version__ = "${version.replaceAll('.', '\\.')}"`))
     const lock = await readJson(join(dir, 'package-lock.json'))
     assert.equal(lock.version, version)
     assert.equal(lock.packages[''].version, version)
@@ -149,7 +149,7 @@ test('bad identity, missing notes and invalid carriers fail before any mutation'
 
 test('missing Python version fails without partially updating package and lockfile', async t => {
   const dir = await fixture(t)
-  await writeFile(join(dir, 'lumatile/__init__.py'), '"""User file without a version."""\n')
+  await writeFile(join(dir, 'apps/desktop/python/lumatile/__init__.py'), '"""User file without a version."""\n')
   const before = await snapshot(dir)
   await assert.rejects(prepareRelease({ root: dir, platform: 'windows' }), /__version__/)
   assert.deepEqual(await snapshot(dir), before)
@@ -165,7 +165,7 @@ test('preparation keeps Alpha and Debug installer identities, executables and wo
   for (const channel of ['alpha', 'debug', 'stable']) {
     await prepareRelease({ root: dir, platform: 'macos', channel })
     const pkg = await readJson(join(dir, 'package.json'))
-    const info = await readJson(join(dir, 'lumatile/build-info.json'))
+    const info = await readJson(join(dir, 'apps/desktop/python/lumatile/build-info.json'))
     assert.equal(pkg.build.appId, info.applicationId)
     assert.equal(pkg.build.productName, info.productName)
     assert.equal(pkg.build.mac.executableName, info.productName, 'A shared executableName also forces a shared .app / installer directory')

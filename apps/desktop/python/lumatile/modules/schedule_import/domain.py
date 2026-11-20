@@ -36,8 +36,9 @@ class ImportOptions:
 
 @lru_cache(maxsize=1)
 def build_dom_capture_script() -> str:
-    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[3]))
-    return (root / "assets" / "qlu-schedule-dom.js").read_text(encoding="utf-8")
+    bundle_root = getattr(sys, "_MEIPASS", None)
+    assets = Path(bundle_root) / "assets" if bundle_root else Path(__file__).resolve().parents[6] / "packages/school-web"
+    return (assets / "qlu-schedule-dom.js").read_text(encoding="utf-8")
 
 
 def is_schedule_page(url: str) -> bool:

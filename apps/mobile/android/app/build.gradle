@@ -56,7 +56,7 @@ def buildWebViewAssets = tasks.register('buildWebViewAssets', Exec) {
     workingDir rootProject.file('../../..')
     commandLine 'node', 'apps/mobile/scripts/build-webview-assets.mjs', generatedWebViewAssetsDir.absolutePath
     inputs.file webViewCompatibilityFile
-    inputs.file rootProject.file('../../../assets/qlu-schedule-dom.js')
+    inputs.file rootProject.file('../../../packages/school-web/qlu-schedule-dom.js')
     inputs.dir rootProject.file('../webview-scripts')
     inputs.file rootProject.file('../scripts/build-webview-assets.mjs')
     outputs.dir generatedWebViewAssetsDir

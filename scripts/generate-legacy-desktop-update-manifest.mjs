@@ -1,6 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { assertStableVersion, isArtifactUrl } from '../electron/update-contract.mjs'
+import { assertStableVersion, isArtifactUrl } from '../packages/release-contract/update-contract.mjs'
 
 const [artifactsArg, outputArg, version, baseUrl, notesArg] = process.argv.slice(2)
 if (![artifactsArg, outputArg, version, baseUrl, notesArg].every(Boolean)) {

@@ -8,20 +8,20 @@
   ],
   "author": "C1ouDreamW",
   "description": "一格有光：面向齐鲁工业大学学生的非官方本地校园效率工具",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/apps/desktop/electron/main.js",
   "type": "module",
   "scripts": {
     "doctor": "node scripts/doctor.mjs",
     "release:prepare": "node scripts/prepare-release.mjs",
     "test:release": "node --test tests/release.test.mjs tests/desktop-manifest.test.mjs tests/release-pipeline.test.mjs tests/rehearsal.test.mjs tests/android-signing.test.mjs tests/channels.test.mjs tests/detach-dmg.test.mjs",
     "predev": "node scripts/prepare-release.mjs --platform host",
-    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
-    "typecheck": "vue-tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
+    "dev": "concurrently -k \"vite --config apps/desktop/vite.config.ts --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "typecheck": "vue-tsc -p apps/desktop/tsconfig.json --noEmit && tsc -p apps/desktop/electron/tsconfig.json --noEmit",
     "test:mobile": "vitest run --config apps/mobile/vitest.config.ts",
     "test:desktop": "npm run build:electron && node --test tests/desktop.test.mjs tests/updates.test.mjs",
-    "build:renderer": "vite build",
-    "build:electron": "tsc -p electron/tsconfig.json",
-    "build:backend": "uv run --locked pyinstaller --noconfirm --distpath backend-dist --workpath backend-build LumaTileWorker.spec",
+    "build:renderer": "vite build --config apps/desktop/vite.config.ts",
+    "build:electron": "tsc -p apps/desktop/electron/tsconfig.json",
+    "build:backend": "uv run --locked pyinstaller --noconfirm --distpath backend-dist --workpath backend-build apps/desktop/python/LumaTileWorker.spec",
     "build": "npm run typecheck && npm run build:renderer && npm run build:electron",
     "dist": "node scripts/prepare-release.mjs --platform windows && npm run build:backend && npm run build && electron-builder --win dir --x64",
     "dist:zip": "node scripts/prepare-release.mjs --platform windows && npm run build:backend && npm run build && electron-builder --win zip --x64",
@@ -63,13 +63,20 @@
     },
     "files": [
       "dist-renderer/**/*",
-      "dist-electron/**/*",
+      "dist-electron/apps/desktop/electron/**/*",
+      "dist-electron/packages/release-contract/**/*",
       "package.json",
       "config/release-migration.json",
-      "assets/**/*"
+      "apps/desktop/assets/**/*",
+      "packages/branding/lumatile.png",
+      {
+        "from": "apps/desktop/python/lumatile",
+        "to": "lumatile",
+        "filter": ["build-info.json"]
+      }
     ],
     "win": {
-      "icon": "assets/lumatile.ico",
+      "icon": "apps/desktop/assets/lumatile.ico",
       "target": ["nsis"],
       "artifactName": "LumaTile_v${version}_${arch}.${ext}",
       "extraResources": [
@@ -80,11 +87,11 @@
       ]
     },
     "mac": {
-      "icon": "assets/lumatile.icns",
+      "icon": "apps/desktop/assets/lumatile.icns",
       "category": "public.app-category.education",
       "identity": "-",
-      "entitlements": "installer-assets/entitlements.mac.plist",
-      "entitlementsInherit": "installer-assets/entitlements.mac.plist",
+      "entitlements": "apps/desktop/installer-assets/entitlements.mac.plist",
+      "entitlementsInherit": "apps/desktop/installer-assets/entitlements.mac.plist",
       "target": ["dmg"],
       "artifactName": "LumaTile_v${version}_${arch}.${ext}",
       "extraResources": [
@@ -111,12 +118,12 @@
       "deleteAppDataOnUninstall": false,
       "installerLanguages": ["zh_CN"],
       "displayLanguageSelector": false,
-      "installerIcon": "assets/lumatile.ico",
-      "uninstallerIcon": "assets/lumatile.ico",
-      "installerHeader": "installer-assets/installerHeader.bmp",
-      "installerSidebar": "installer-assets/installerSidebar.bmp",
-      "uninstallerSidebar": "installer-assets/installerSidebar.bmp",
-      "include": "installer-assets/installer.nsh"
+      "installerIcon": "apps/desktop/assets/lumatile.ico",
+      "uninstallerIcon": "apps/desktop/assets/lumatile.ico",
+      "installerHeader": "apps/desktop/installer-assets/installerHeader.bmp",
+      "installerSidebar": "apps/desktop/installer-assets/installerSidebar.bmp",
+      "uninstallerSidebar": "apps/desktop/installer-assets/installerSidebar.bmp",
+      "include": "apps/desktop/installer-assets/installer.nsh"
     }
   }
 }

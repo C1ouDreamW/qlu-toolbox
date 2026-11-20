@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { assertAndroidApkIdentity, assertAndroidApkMetadata } from './android-apk-verification.mjs'
 import { sha256 } from './release-artifacts.mjs'
-import { channelIdentity } from '../electron/channel-contract.mjs'
+import { channelIdentity } from '../packages/release-contract/channel-contract.mjs'
 import { assertReleaseRun } from './release-source.mjs'
 
 export function toolEnvironment(env = process.env) {

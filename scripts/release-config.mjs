@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { assertChannelVersion } from '../electron/channel-contract.mjs'
-export { assertStableVersion } from '../electron/update-contract.mjs'
+import { assertChannelVersion } from '../packages/release-contract/channel-contract.mjs'
+export { assertStableVersion } from '../packages/release-contract/update-contract.mjs'
 
 export const RELEASE_TARGETS = Object.freeze({
   windows: { target: 'windows-x64', prefix: 'win-v' },
