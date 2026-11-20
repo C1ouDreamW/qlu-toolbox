@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~dp0..\..\.." || exit /b 1
 
 set "UV_CACHE_DIR=%CD%\.uv-cache"
 set "npm_config_cache=%CD%\.npm-cache"
