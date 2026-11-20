@@ -83,9 +83,22 @@ Windows 也可运行[免安装目录构建脚本](apps/desktop/scripts/build.bat
 
 PR CI 和构建演练只使用 Debug / 临时密钥；同仓库与 fork PR 均不接收 Alpha 或正式长期签名 Secret。Alpha 是独立的长期测试应用，需要单独的版本、包身份、更新源及 Android 签名；把 Debug 包重新命名或把 Alpha 包覆盖到 Stable 都不构成发布。流程与停点见[签名规则](docs/release-security.md)。
 
-三端普通 CI 负责测试、Debug 打包和包内身份校验。Alpha / Stable 按平台标签发布，命令与现有签名规则见 [发布指南](docs/releasing.md)；不要求提交额外的验收或晋级批准记录。
-
 修改桌面 Python 依赖时在根目录使用 `uv add` 或 `uv remove`。服务端 Python 依赖在 `apps/server/` 管理。修改前端依赖请使用 `npm install`，并一并提交相应的锁文件。
+
+### CI 按改动范围执行
+
+| 改动 | 运行的检查 |
+| --- | --- |
+| 桌面源码、桌面 Python 依赖 | Windows 和 macOS 的测试、Debug 打包及包内身份校验 |
+| Windows 安装素材或脚本、macOS 图标或权限文件 | 对应桌面平台的检查 |
+| Android 应用源码或构建入口 | Android 的测试、Debug 打包及包内身份校验 |
+| 双端共享包、根 npm 锁文件 | Windows、macOS 和 Android 检查 |
+| 发布工具、渠道配置、工作流 | 对应的发布工具测试、工作流检查和受影响的客户端构建 |
+| 官网、后端 | 各自的验证和 `main` 自动部署，详见[生产服务说明](deploy/server/README.md#github-actions-自动部署) |
+
+一次提交触及多个范围时，相关任务都会运行。客户端 PR 保留原有检查名称，无关任务在工作流内跳过。需要完整重跑客户端检查时，可手动运行 `CI`。
+
+Alpha / Stable 按平台标签发布，命令与签名规则见[发布指南](docs/releasing.md)。发布流程不要求提交额外的验收或晋级批准记录。
 
 ## 代码与数据要求
 
