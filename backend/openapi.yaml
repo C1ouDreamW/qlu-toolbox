@@ -5,6 +5,126 @@ info:
 servers:
   - url: https://api.lumatile.cn
 paths:
+  /v1/auth/session:
+    get:
+      operationId: getConsoleSession
+      description: 返回当前维护者会话并签发 CSRF 令牌。
+      responses:
+        '200': { $ref: '#/components/responses/ConsoleSession' }
+    post:
+      operationId: createConsoleSession
+      security: [{ csrf: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              additionalProperties: false
+              properties:
+                username: { type: string, minLength: 1, maxLength: 150 }
+                password: { type: string, format: password, minLength: 1, maxLength: 1024 }
+      responses:
+        '200': { $ref: '#/components/responses/ConsoleSession' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deleteConsoleSession
+      security: [{ csrf: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/ConsoleSession' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /v1/auth/password:
+    post:
+      operationId: changeConsolePassword
+      security: [{ staffSession: [], csrf: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_password, new_password1, new_password2]
+              additionalProperties: false
+              properties:
+                old_password: { type: string, format: password }
+                new_password1: { type: string, format: password }
+                new_password2: { type: string, format: password }
+      responses:
+        '200': { $ref: '#/components/responses/ConsoleSession' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /v1/overview:
+    get:
+      operationId: getConsoleOverview
+      security: [{ staffSession: [] }]
+      responses:
+        '200': { description: Windows、macOS 和 Android 各渠道的线上版本 }
+        '403': { $ref: '#/components/responses/Problem' }
+  /v1/announcement-drafts:
+    get:
+      operationId: listAnnouncementDrafts
+      security: [{ staffSession: [] }]
+      responses:
+        '200': { description: 公告草稿列表 }
+        '403': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createAnnouncementDraft
+      security: [{ staffSession: [], csrf: [] }]
+      requestBody: { $ref: '#/components/requestBodies/AnnouncementDraft' }
+      responses:
+        '201': { description: 已创建的公告草稿 }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /v1/announcement-drafts/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: integer } }
+    get:
+      operationId: getAnnouncementDraft
+      security: [{ staffSession: [] }]
+      responses:
+        '200': { description: 公告草稿 }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: updateAnnouncementDraft
+      security: [{ staffSession: [], csrf: [] }]
+      requestBody: { $ref: '#/components/requestBodies/AnnouncementDraft' }
+      responses:
+        '200': { description: 更新后的公告草稿 }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deleteAnnouncementDraft
+      security: [{ staffSession: [], csrf: [] }]
+      responses:
+        '204': { description: 公告草稿已删除 }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/statistics:
+    get:
+      operationId: getStatistics
+      security: [{ staffSession: [] }]
+      responses:
+        '200': { description: 最近生成的匿名统计报表 JSON }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
+  /v1/operations:
+    get:
+      operationId: listOperations
+      security: [{ staffSession: [] }]
+      parameters:
+        - { in: query, name: offset, schema: { type: integer, minimum: 0 } }
+        - { in: query, name: q, schema: { type: string, maxLength: 120 } }
+      responses:
+        '200': { description: 最近的分发策略和发布操作及下一页偏移量 }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
   /v1/feedback-submissions:
     post:
       operationId: createFeedbackSubmission
@@ -40,7 +160,6 @@ paths:
         '429': { $ref: '#/components/responses/Problem' }
         '503': { $ref: '#/components/responses/Problem' }
     get:
-      servers: [{ url: https://console.lumatile.cn }]
       operationId: listFeedbackSubmissions
       security: [{ staffSession: [] }]
       parameters:
@@ -75,7 +194,6 @@ paths:
         '400': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
   /v1/feedback-submissions/{id}:
-    servers: [{ url: https://console.lumatile.cn }]
     parameters:
       - { in: path, name: id, required: true, schema: { type: string } }
     get:
@@ -104,7 +222,6 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
   /v1/distribution-policies/android:
-    servers: [{ url: https://console.lumatile.cn }]
     get:
       operationId: getAndroidDistributionPolicy
       security: [{ staffSession: [] }]
@@ -129,7 +246,6 @@ paths:
         '400': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
   /v1/channels/{channel}/active-announcement:
-    servers: [{ url: https://console.lumatile.cn }]
     parameters:
       - { in: path, name: channel, required: true, schema: { enum: [stable, alpha] } }
     get:
@@ -165,6 +281,21 @@ paths:
         '204': { description: 已撤回 }
         '403': { $ref: '#/components/responses/Problem' }
 components:
+  requestBodies:
+    AnnouncementDraft:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [title, body, level, url, expiresAt]
+            additionalProperties: false
+            properties:
+              title: { type: string, minLength: 1, maxLength: 120 }
+              body: { type: string, minLength: 1 }
+              level: { enum: [info, warning] }
+              url: { type: string, description: HTTPS 地址或空字符串 }
+              expiresAt: { type: [string, 'null'], format: date-time }
   schemas:
     Feedback:
       type: object
@@ -183,6 +314,24 @@ components:
     staffSession: { type: apiKey, in: cookie, name: sessionid }
     csrf: { type: apiKey, in: header, name: X-CSRFToken }
   responses:
+    ConsoleSession:
+      description: 当前维护者、页面权限和用于后续写操作的 CSRF 令牌
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [user, permissions, csrfToken]
+            properties:
+              user: { type: [string, 'null'] }
+              permissions:
+                type: object
+                required: [addDraft, editDraft, deleteDraft, viewOperations]
+                properties:
+                  addDraft: { type: boolean }
+                  editDraft: { type: boolean }
+                  deleteDraft: { type: boolean }
+                  viewOperations: { type: boolean }
+              csrfToken: { type: string }
     Feedback:
       description: 反馈资源
       content:

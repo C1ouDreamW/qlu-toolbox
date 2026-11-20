@@ -7,10 +7,11 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY manage.py ./
 COPY jobs.py ./
+COPY config ./config
 COPY portal ./portal
 COPY feedback/server.py ./feedback/server.py
 COPY stats/collect.py ./stats/collect.py
 RUN mkdir -p /data /updates /static && chown 10001:10001 /data /updates /static
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 USER 10001:10001
-CMD ["sh", "-ec", "python manage.py migrate --noinput && python manage.py init_feedback && python manage.py collectstatic --noinput && exec gunicorn --no-control-socket --bind 0.0.0.0:8080 --worker-class gthread --threads 4 --access-logfile - portal.wsgi:application"]
+CMD ["sh", "-ec", "python manage.py migrate --noinput && python manage.py init_feedback && python manage.py collectstatic --noinput && exec gunicorn --no-control-socket --bind 0.0.0.0:8080 --worker-class gthread --threads 4 --access-logfile - config.wsgi:application"]

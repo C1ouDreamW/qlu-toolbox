@@ -3,82 +3,26 @@ import hmac
 import json
 import sqlite3
 from contextlib import closing
-from functools import wraps
-from http import HTTPStatus
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
-from django.core.exceptions import RequestDataTooBig, ValidationError
+from django.core.exceptions import RequestDataTooBig
 from django.db import DatabaseError
-from django.http import FileResponse, HttpResponse, JsonResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from feedback.server import (
-    ADMIN_STATUSES, FEEDBACK_ID_RE, MAX_BODY_BYTES, list_feedback, rate_limited,
+    ADMIN_STATUSES, FEEDBACK_ID_RE, list_feedback, rate_limited,
     save_feedback, update_feedback_status, validate_feedback,
 )
 
+from .http import methods, payload, problem, response, staff_api
 from .models import Announcement, Operation
 from .publication import DOWNLOAD_URL, distribution_policy, policy_path, write_json
-
-
-def response(value, status=200, **headers):
-    result = JsonResponse(value, status=status, headers=headers)
-    result["Cache-Control"] = "no-store"
-    return result
-
-
-def problem(status, code, detail, **headers):
-    result = response({"type": "about:blank", "title": HTTPStatus(status).phrase,
-                       "status": status, "code": code, "detail": detail}, status, **headers)
-    result["Content-Type"] = "application/problem+json"
-    return result
-
-
-def csrf_failure(request, reason=""):
-    if request.path.startswith("/v1/"):
-        return problem(403, "csrf_failed", "请求缺少有效的 CSRF 凭据")
-    from django.views.csrf import csrf_failure as default_failure
-    return default_failure(request, reason=reason)
-
-
-def methods(request, *allowed):
-    if request.method not in allowed:
-        return problem(405, "method_not_allowed", "此资源不支持该请求方法", Allow=", ".join(allowed))
-    return None
-
-
-def payload(request):
-    if request.content_type != "application/json":
-        raise ValueError("请求体必须是 JSON")
-    try:
-        raw = request.body
-        if len(raw) > MAX_BODY_BYTES:
-            raise RequestDataTooBig()
-        value = json.loads(raw)
-    except (UnicodeError, json.JSONDecodeError) as error:
-        raise ValueError("请求体必须是有效 JSON") from error
-    if not isinstance(value, dict):
-        raise ValueError("请求体必须是 JSON 对象")
-    return value
-
-
-def staff_api(view):
-    @wraps(view)
-    def wrapped(request, *args, **kwargs):
-        if not request.user.is_active or not request.user.is_staff:
-            return problem(403, "forbidden", "需要维护者权限")
-        try:
-            return view(request, *args, **kwargs)
-        except RequestDataTooBig:
-            return problem(413, "payload_too_large", "请求体过大")
-        except (ValueError, ValidationError) as error:
-            return problem(400, "invalid_request", str(error))
-    return wrapped
 
 
 def cors(request, result):
@@ -93,7 +37,7 @@ def cors(request, result):
 
 @csrf_exempt
 def submit_feedback(request, legacy=False):
-    if not legacy and request.get_host() == "console.lumatile.cn":
+    if not legacy and (request.method == "GET" or request.get_host() == "console.lumatile.cn"):
         # Console collection is read-only. Writes use the CSRF-protected item resource.
         return feedback_collection(request)
 
@@ -121,7 +65,7 @@ def submit_feedback(request, legacy=False):
     else:
         result = response({"id": item_id}, 201)
         if not legacy:
-            result["Location"] = f"https://console.lumatile.cn/v1/feedback-submissions/{item_id}"
+            result["Location"] = f"https://api.lumatile.cn/v1/feedback-submissions/{item_id}"
     return cors(request, result)
 
 
@@ -163,7 +107,7 @@ def feedback_item(request, item_id):
     if request.method == "PATCH":
         value = payload(request)
         status = value.get("status")
-        if set(value) != {"status"} or status not in ADMIN_STATUSES:
+        if set(value) != {"status"} or not isinstance(status, str) or status not in ADMIN_STATUSES:
             raise ValueError("状态取值无效")
         if not FEEDBACK_ID_RE.fullmatch(item_id) or not update_feedback_status(item_id, status, settings.FEEDBACK_DB):
             return problem(404, "not_found", "反馈不存在")
