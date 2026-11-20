@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, posix } from 'node:path'
 import test from 'node:test'
 import yaml from 'js-yaml'
 import { assertUnsignedReceipt, signAndroidRelease, toolEnvironment } from '../scripts/android-signing.mjs'
@@ -109,20 +109,46 @@ test('Android release YAML separates no-secret build, signature-only credentials
   assert.deepEqual(Object.keys(deploy.secrets), ['LUMATILE_DEPLOY_KEY'])
 })
 
-test('only verified main pushes deploy web and portal from the same workflow', async () => {
-  const workflow = yaml.load(await readFile(new URL('../.github/workflows/server.yml', import.meta.url), 'utf8'))
+test('website and portal changes trigger independent CI and verified main deployments', async () => {
+  const server = yaml.load(await readFile(new URL('../.github/workflows/server.yml', import.meta.url), 'utf8'))
+  const website = yaml.load(await readFile(new URL('../.github/workflows/website.yml', import.meta.url), 'utf8'))
   const deployment = yaml.load(await readFile(new URL('../.github/workflows/deploy-server.yml', import.meta.url), 'utf8'))
   assert.ok(deployment.on.workflow_dispatch && deployment.on.workflow_call)
   assert.equal(deployment.jobs.deploy.environment, 'production')
-  for (const [target, dependency] of [['web', 'verify'], ['portal', 'image']]) {
+  for (const [workflow, target, dependency] of [[website, 'web', 'verify'], [server, 'portal', 'image']]) {
     const job = workflow.jobs[`deploy-${target}`]
     assert.equal(job.needs, dependency)
     assert.equal(job.if, "github.event_name == 'push' && github.ref == 'refs/heads/main'")
     assert.equal(job.uses, './.github/workflows/deploy-server.yml')
     assert.equal(job.with.target, target)
+    assert.deepEqual(workflow.on.push.branches, ['main'])
+    assert.deepEqual(workflow.on.push.paths, workflow.on.pull_request.paths)
   }
-  assert.equal(workflow.jobs['deploy-web'].with.artifact, 'lumatile-web-${{ github.sha }}')
-  assert.equal(workflow.jobs['deploy-portal'].with.image, '${{ needs.image.outputs.reference }}')
+  assert.equal(website.jobs['deploy-web'].with.artifact, 'lumatile-web-${{ github.sha }}')
+  assert.ok(website.jobs.verify.steps.some(step => step.with?.name === website.jobs['deploy-web'].with.artifact))
+  assert.equal(server.jobs['deploy-portal'].with.image, '${{ needs.image.outputs.reference }}')
+  assert.equal(server.jobs['deploy-web'], undefined)
+  assert.equal(website.jobs.image, undefined)
+  assert.equal(website.jobs['deploy-portal'], undefined)
+  assert.match(deployment.jobs.deploy.steps[0].run, /\$workflow == \.github\/workflows\/website\.yml/)
+  const matches = (workflow, path) => workflow.on.push.paths.reduce((included, pattern) => {
+    const exclude = pattern.startsWith('!')
+    return posix.matchesGlob(path, exclude ? pattern.slice(1) : pattern) ? !exclude : included
+  }, false)
+  for (const [path, backend, web] of [
+    ['apps/server/portal/views.py', true, false],
+    ['apps/server/tests/test_feedback_server.py', true, false],
+    ['deploy/server/nginx/website.conf', true, false],
+    ['apps/website/frontend/index.html', false, true],
+    ['deploy/server/deploy-web.sh', false, true],
+    ['deploy/server/promote-android.sh', false, false],
+    ['.github/workflows/deploy-server.yml', true, true],
+    ['apps/mobile/src/App.vue', false, false],
+    ['deploy/server/README.md', false, false],
+    ['apps/website/README.md', false, false],
+  ]) {
+    assert.deepEqual([matches(server, path), matches(website, path)], [backend, web], path)
+  }
 })
 
 test('a release tag must resolve to the build commit already contained in origin/main', async t => {

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 import sqlite3
 import tempfile
@@ -11,11 +10,7 @@ import urllib.request
 from contextlib import closing
 from pathlib import Path
 
-MODULE_PATH = Path(__file__).parents[1] / "apps" / "server" / "feedback" / "server.py"
-SPEC = importlib.util.spec_from_file_location("feedback_server", MODULE_PATH)
-assert SPEC and SPEC.loader
-feedback_server = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(feedback_server)
+from feedback import server as feedback_server
 
 
 def valid_feedback() -> dict[str, str]:

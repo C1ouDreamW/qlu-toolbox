@@ -1,17 +1,11 @@
 from contextlib import closing
 from datetime import datetime
-import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
 
-def load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+from stats import collect as stats
 
-stats = load("stats", Path(__file__).resolve().parents[1] / "apps/server/stats/collect.py")
 
 class ReleaseRegressionTests(unittest.TestCase):
     def test_statistics_escape_labels_and_keep_manifest_only_days(self):

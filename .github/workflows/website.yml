@@ -1,0 +1,55 @@
+name: Website artifacts
+
+on:
+  pull_request:
+    paths:
+      - 'apps/website/**'
+      - '!apps/website/README.md'
+      - 'deploy/server/deploy-web.sh'
+      - '.github/workflows/website.yml'
+      - '.github/workflows/deploy-server.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/website/**'
+      - '!apps/website/README.md'
+      - 'deploy/server/deploy-web.sh'
+      - '.github/workflows/website.yml'
+      - '.github/workflows/deploy-server.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Website verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test apps/website/tests/downloads.test.mjs
+      - run: bash -n deploy/server/deploy-web.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumatile-web-${{ github.sha }}
+          path: apps/website/frontend
+          if-no-files-found: error
+
+  deploy-web:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/deploy-server.yml
+    with:
+      target: web
+      run_id: ${{ format('{0}', github.run_id) }}
+      artifact: lumatile-web-${{ github.sha }}
+    secrets:
+      LUMATILE_DEPLOY_KEY: ${{ secrets.LUMATILE_DEPLOY_KEY }}

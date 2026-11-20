@@ -11,6 +11,7 @@
 ```bash
 LUMATILE_SECRET_KEY=local-tests uv run --python 3.12 --directory apps/server --locked python manage.py test portal
 uv run --python 3.12 --directory apps/server --locked python -m unittest test_jobs
+uv run --python 3.12 --directory apps/server --locked python -B -m unittest discover -s tests -v
 node --test apps/website/tests/downloads.test.mjs
 bash deploy/server/check-compose.sh
 ```
@@ -52,7 +53,8 @@ docker compose logs jobs
 
 ## GitHub Actions 自动部署
 
-- `main` 上官网或服务端相关变更通过 `Server artifacts` 检查后，自动部署官网构件和按摘要指定的后端镜像。旧构件的源码与 `main` 对应目录不一致时跳过自动部署。PR 只检查和构建构件。
+- 官网改动运行 `Website artifacts`，验证静态站，并在推送到 `main` 后部署官网构件。后端、Compose 和 Nginx 改动运行 `Server artifacts`，通过服务端检查后构建并部署镜像。共享部署工作流有改动时，两条流程都会验证。
+- 自动部署会检查构件的对应源码与 `main` 是否一致。PR 运行受影响的验证，官网 PR 也会生成静态构件。
 - Android 在对应渠道的签名校验和 GitHub Release 发布完成后，自动推广同一工作流的 APK 构件。Stable 与 Alpha 只更新自己的清单，沿用当前分发模式。Android 备用清单仍走 PR。桌面安装包继续由各平台 Release 工作流发布到 GitHub。
 - `Deploy LumaTile` 保留手动入口，可选择部署目标以及已通过验证的构件或镜像摘要。
 

@@ -72,7 +72,9 @@ jobs:
           fi
           workflow=${workflow%%@*}
           if [[ $TARGET == web ]]; then
-            [[ $workflow == .github/workflows/server.yml && $branch == main && $event != pull_request && $ARTIFACT == "lumatile-web-$sha" ]]
+            # Keep successful website artifacts from before the workflow split available for manual redeploys.
+            [[ $workflow == .github/workflows/website.yml || ( $workflow == .github/workflows/server.yml && $GITHUB_EVENT_NAME == workflow_dispatch ) ]] || exit 1
+            [[ $branch == main && $event != pull_request && $ARTIFACT == "lumatile-web-$sha" ]]
           elif [[ $TARGET == android-stable || $TARGET == android-alpha ]]; then
             channel=${TARGET#android-}
             [[ $workflow == .github/workflows/release-android.yml && $event == push && $ARTIFACT == update-source-android-"$channel"-*-"$RUN_ID"-* ]]
@@ -85,15 +87,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ $TARGET == web ]]; then
-            paths='["apps/website"]'
-          else
-            paths='["apps/server", "deploy/server"]'
-          fi
           tree() {
             gh api "repos/$GITHUB_REPOSITORY/git/trees/$1?recursive=1" |
-              jq -ce --argjson paths "$paths" 'select(.truncated == false) |
-                [.tree[] | select(.path as $path | $paths | index($path)) | {path, sha}] | sort_by(.path)'
+              jq -ce --arg target "$TARGET" 'select(.truncated == false) |
+                [.tree[] | select(
+                  if $target == "web" then .path == "apps/website/frontend"
+                  else .type == "blob" and (.path |
+                    (startswith("apps/server/") or startswith("deploy/server/") or . == "scripts/publish_announcement.py") and
+                    . != "apps/server/README.md" and . != "deploy/server/README.md" and
+                    . != "deploy/server/deploy-web.sh" and . != "deploy/server/promote-android.sh")
+                  end
+                ) | {path, mode, sha}] | sort_by(.path)'
           }
           built=$(tree "$GITHUB_SHA")
           current=$(tree main)
