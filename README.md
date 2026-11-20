@@ -346,8 +346,8 @@ Release APK 必须配置长期正式签名，具体环境变量和密钥库要�
 | --- | --- |
 | [`apps/desktop/`](apps/desktop/) | Windows 和 macOS 应用。Vue 界面在 `src/`，Electron 主进程和 preload 在 `electron/`，本地 Python Bridge 和 Worker 在 `python/`，打包素材在 `assets/` 和 `installer-assets/`。 |
 | [`apps/mobile/`](apps/mobile/) | Android 应用。Vue、Web Worker 在 `src/`，Capacitor 原生工程和 Kotlin 代码在 `android/`。 |
-| [`apps/website/`](apps/website/) | 官网。静态页面和下载逻辑在 `frontend/`，官网测试在 `tests/`。 |
-| [`apps/server/`](apps/server/) | 线上服务。Django API 和控制台在 `portal/`，定时任务入口是 `jobs.py`。目录内还有反馈、统计、OpenAPI 和 Dockerfile。 |
+| [`frontend/website/`](frontend/website/) | 官网。静态页面和下载逻辑在 `frontend/`，官网测试在 `tests/`。 |
+| [`backend/`](backend/) | 线上服务。Django API 和控制台在 `portal/`，定时任务入口是 `jobs.py`。目录内还有反馈、统计、OpenAPI 和 Dockerfile。 |
 | [`packages/`](packages/) | 共享数据契约、学业规则、课表交互、更新说明、发布契约、教务页面脚本和品牌素材。 |
 | [`deploy/`](deploy/) | 生产 Compose、Nginx、部署脚本以及旧更新源的部署资料。 |
 | [`config/`](config/)、[`changelogs/`](changelogs/) | 平台版本、发布渠道配置和三端变更日志。 |
@@ -357,7 +357,7 @@ Release APK 必须配置长期正式签名，具体环境变量和密钥库要�
 | [`updates/`](updates/) | Android 客户端使用的 GitHub 备用更新清单，公开路径为 `updates/android.json`。 |
 | [`.github/`](.github/) | CI、客户端发布、官网和服务端部署工作流及贡献模板。 |
 
-根目录的 npm 和 uv 配置提供客户端开发、测试和打包命令。线上服务使用 `apps/server/` 内独立的 Python 依赖配置，部署入口见[生产服务说明](deploy/server/README.md)。
+根目录的 npm 和 uv 配置提供客户端开发、测试和打包命令。线上服务使用 `backend/` 内独立的 Python 依赖配置，部署入口见[生产服务说明](deploy/server/README.md)。
 
 桌面端和 Android 端使用不同的自动化与文件处理实现，但目标是在学年、学期、导出字段、课程分组和 GPA 结果上保持一致。移动端共享规则集中在 `packages/academic-core`；桌面端对应规则位于 Python 领域模块。
 

@@ -3,11 +3,11 @@ name: Server artifacts
 on:
   pull_request:
     paths:
-      - 'apps/server/**'
+      - 'backend/**'
       - 'deploy/server/**'
       - '!deploy/server/deploy-web.sh'
       - '!deploy/server/promote-android.sh'
-      - '!apps/server/README.md'
+      - '!backend/README.md'
       - '!deploy/server/README.md'
       - 'scripts/publish_announcement.py'
       - '.github/workflows/server.yml'
@@ -15,11 +15,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'apps/server/**'
+      - 'backend/**'
       - 'deploy/server/**'
       - '!deploy/server/deploy-web.sh'
       - '!deploy/server/promote-android.sh'
-      - '!apps/server/README.md'
+      - '!backend/README.md'
       - '!deploy/server/README.md'
       - 'scripts/publish_announcement.py'
       - '.github/workflows/server.yml'
@@ -41,10 +41,10 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: '3.12'
-      - run: uv run --directory apps/server --locked python manage.py test portal
-      - run: uv run --directory apps/server --locked python manage.py makemigrations --check --dry-run
-      - run: uv run --directory apps/server --locked python -m unittest test_jobs
-      - run: uv run --directory apps/server --locked python -B -m unittest discover -s tests -v
+      - run: uv run --directory backend --locked python manage.py test portal
+      - run: uv run --directory backend --locked python manage.py makemigrations --check --dry-run
+      - run: uv run --directory backend --locked python -m unittest test_jobs
+      - run: uv run --directory backend --locked python -B -m unittest discover -s tests -v
       - run: bash deploy/server/check-compose.sh
 
   image:
@@ -67,7 +67,7 @@ jobs:
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}/server:${GITHUB_SHA}"
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker build -t "$image" apps/server
+          docker build -t "$image" backend
           docker push "$image"
           reference=$(docker image inspect --format '{{index .RepoDigests 0}}' "$image")
           echo "reference=$reference" >> "$GITHUB_OUTPUT"

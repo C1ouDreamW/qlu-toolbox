@@ -10,7 +10,7 @@
 
 1. 将本目录复制到服务器，例如 `/opt/lumatile-update`。
 2. 将已核验的 `releases/<tag>/` 放入 `data/releases/`，再分别推广目标清单；不要将下载构件整体覆盖 `data/` 或 `stable/`。
-   从仓库运行时，反馈镜像默认从 `apps/server/feedback/` 构建。如果服务器使用扁平目录、反馈服务位于本目录的 `feedback/`，请在 `.env` 中设置 `FEEDBACK_BUILD_CONTEXT=./feedback`。
+   从仓库运行时，反馈镜像默认从 `backend/feedback/` 构建。如果服务器使用扁平目录、反馈服务位于本目录的 `feedback/`，请在 `.env` 中设置 `FEEDBACK_BUILD_CONTEXT=./feedback`。
 3. 确认 `/etc/nginx/lumatile-stats.htpasswd` 已存在（统计页方案创建）；若路径不同，在 `.env` 中设置 `ADMIN_HTPASSWD`。文件缺失时 `/admin/` 鉴权会失败，但其余路由不受影响。
 4. 运行 `docker compose up -d`。
 5. 将 `host-nginx.conf.example` 合并到宿主机 Nginx，并为域名签发证书。
