@@ -109,13 +109,14 @@ test('Android release YAML separates no-secret build, signature-only credentials
   assert.deepEqual(Object.keys(deploy.secrets), ['LUMATILE_DEPLOY_KEY'])
 })
 
-test('website and portal changes trigger independent CI and verified main deployments', async () => {
+test('website, console and portal changes trigger independent CI and verified main deployments', async () => {
   const server = yaml.load(await readFile(new URL('../.github/workflows/server.yml', import.meta.url), 'utf8'))
   const website = yaml.load(await readFile(new URL('../.github/workflows/website.yml', import.meta.url), 'utf8'))
+  const console = yaml.load(await readFile(new URL('../.github/workflows/console.yml', import.meta.url), 'utf8'))
   const deployment = yaml.load(await readFile(new URL('../.github/workflows/deploy-server.yml', import.meta.url), 'utf8'))
   assert.ok(deployment.on.workflow_dispatch && deployment.on.workflow_call)
   assert.equal(deployment.jobs.deploy.environment, 'production')
-  for (const [workflow, target, dependency] of [[website, 'web', 'verify'], [server, 'portal', 'image']]) {
+  for (const [workflow, target, dependency] of [[website, 'web', 'verify'], [console, 'console', 'verify'], [server, 'portal', 'image']]) {
     const job = workflow.jobs[`deploy-${target}`]
     assert.equal(job.needs, dependency)
     assert.equal(job.if, "github.event_name == 'push' && github.ref == 'refs/heads/main'")
@@ -126,28 +127,34 @@ test('website and portal changes trigger independent CI and verified main deploy
   }
   assert.equal(website.jobs['deploy-web'].with.artifact, 'lumatile-web-${{ github.sha }}')
   assert.ok(website.jobs.verify.steps.some(step => step.with?.name === website.jobs['deploy-web'].with.artifact))
+  assert.equal(console.jobs['deploy-console'].with.artifact, 'lumatile-console-${{ github.sha }}')
+  assert.ok(console.jobs.verify.steps.some(step => step.with?.name === console.jobs['deploy-console'].with.artifact))
   assert.equal(server.jobs['deploy-portal'].with.image, '${{ needs.image.outputs.reference }}')
   assert.equal(server.jobs['deploy-web'], undefined)
   assert.equal(website.jobs.image, undefined)
   assert.equal(website.jobs['deploy-portal'], undefined)
+  assert.equal(console.jobs.image, undefined)
   assert.match(deployment.jobs.deploy.steps[0].run, /\$workflow == \.github\/workflows\/website\.yml/)
+  assert.match(deployment.jobs.deploy.steps[0].run, /\$workflow == \.github\/workflows\/console\.yml/)
   const matches = (workflow, path) => workflow.on.push.paths.reduce((included, pattern) => {
     const exclude = pattern.startsWith('!')
     return posix.matchesGlob(path, exclude ? pattern.slice(1) : pattern) ? !exclude : included
   }, false)
-  for (const [path, backend, web] of [
-    ['backend/portal/views.py', true, false],
-    ['backend/tests/test_feedback_server.py', true, false],
-    ['deploy/server/nginx/website.conf', true, false],
-    ['frontend/website/public/index.html', false, true],
-    ['deploy/server/deploy-web.sh', false, true],
-    ['deploy/server/promote-android.sh', false, false],
-    ['.github/workflows/deploy-server.yml', true, true],
-    ['apps/mobile/src/App.vue', false, false],
-    ['deploy/server/README.md', false, false],
-    ['frontend/website/README.md', false, false],
+  for (const [path, backend, web, admin] of [
+    ['backend/portal/views.py', true, false, false],
+    ['backend/tests/test_feedback_server.py', true, false, false],
+    ['deploy/server/nginx/website.conf', true, false, false],
+    ['frontend/website/public/index.html', false, true, false],
+    ['frontend/console/public/index.html', false, false, true],
+    ['deploy/server/deploy-console.sh', false, false, true],
+    ['deploy/server/deploy-web.sh', false, true, true],
+    ['deploy/server/promote-android.sh', false, false, false],
+    ['.github/workflows/deploy-server.yml', true, true, true],
+    ['apps/mobile/src/App.vue', false, false, false],
+    ['deploy/server/README.md', false, false, false],
+    ['frontend/website/README.md', false, false, false],
   ]) {
-    assert.deepEqual([matches(server, path), matches(website, path)], [backend, web], path)
+    assert.deepEqual([matches(server, path), matches(website, path), matches(console, path)], [backend, web, admin], path)
   }
 })
 

@@ -13,6 +13,7 @@ export LUMATILE_IMAGE="$project:local"
 export LUMATILE_SECRET_KEY=local-compose-tests
 export LUMATILE_DATA_ROOT="$scratch/data"
 export LUMATILE_WEB_DIR="$scratch/web"
+export LUMATILE_CONSOLE_DIR="$scratch/console"
 export LUMATILE_STATIC_DIR="$scratch/static"
 export LUMATILE_TLS_DIR="$scratch/tls"
 export LUMATILE_ACME_DIR="$scratch/acme"
@@ -31,13 +32,14 @@ cleanup() {
 }
 trap 'cleanup "$?"' EXIT
 
-mkdir -p "$scratch/data/updates/"{android,releases/test} "$scratch/web/current" "$scratch/tls" "$scratch/acme" "$LUMATILE_NGINX_LOG_DIR"
+mkdir -p "$scratch/data/updates/"{android,releases/test} "$scratch/web/current" "$scratch/console/current" "$scratch/tls" "$scratch/acme" "$LUMATILE_NGINX_LOG_DIR"
 chmod 0755 "$LUMATILE_NGINX_LOG_DIR"
 "${root_command[@]}" install -d -o 10001 -g 10001 -m 0700 "$scratch/data/"{feedback,stats,stats/report,backups}
 "${root_command[@]}" install -d -o 10001 -g 101 -m 2770 "$scratch/data/logs"
 "${root_command[@]}" install -d -o 10001 -g 10001 -m 0755 "$scratch/static"
 printf 'test apk payload' > "$scratch/data/updates/releases/test/test.apk"
 printf '%s\n' '<!doctype html><title>LumaTile Compose smoke test</title>' > "$scratch/web/current/index.html"
+printf '%s\n' '<!doctype html><title>LumaTile Console smoke test</title>' > "$scratch/console/current/index.html"
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=lumatile.cn \
   -addext 'subjectAltName=DNS:lumatile.cn,DNS:www.lumatile.cn,DNS:api.lumatile.cn,DNS:console.lumatile.cn,DNS:lumatile.ishua.cloud' \
   -keyout "$scratch/tls/key.pem" -out "$scratch/tls/cert.pem" >/dev/null 2>&1
@@ -71,6 +73,12 @@ request() {
 
 test "$(request api.lumatile.cn /healthz -f)" = ok
 request console.lumatile.cn /admin/login/ -f -o /dev/null
+request console.lumatile.cn / -f | grep -Fq '<title>LumaTile Console smoke test</title>'
+request api.lumatile.cn /v1/auth/session -f -H 'Origin: https://console.lumatile.cn' -D "$scratch/console-headers" | grep -q '"csrfToken"'
+grep -Eiq '^access-control-allow-origin: https://console\.lumatile\.cn[[:space:]]*$' "$scratch/console-headers"
+grep -Eiq '^access-control-allow-credentials: true[[:space:]]*$' "$scratch/console-headers"
+test "$(request api.lumatile.cn /v1/operations -o /dev/null -w '%{http_code}')" = 403
+test "$(request console.lumatile.cn /v1/auth/session -o /dev/null -w '%{http_code}')" = 404
 request lumatile.cn /download/ -f | grep -Fq '<title>LumaTile Compose smoke test</title>'
 request api.lumatile.cn /android/distribution.json -f | grep -q '"website"'
 test "$(request api.lumatile.cn /android/distribution.json -H 'Host: updates.lumatile.cn' -o /dev/null -w '%{http_code}')" = 404

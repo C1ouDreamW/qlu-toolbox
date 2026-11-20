@@ -7,9 +7,9 @@ on:
         description: Production target
         required: true
         type: choice
-        options: [web, portal, android-stable, android-alpha]
+        options: [web, console, portal, android-stable, android-alpha]
       run_id:
-        description: Workflow run containing the website or Android artifact
+        description: Workflow run containing the website, console or Android artifact
         type: string
       artifact:
         description: Exact artifact name for web or Android
@@ -75,6 +75,8 @@ jobs:
             # Keep successful website artifacts from before the workflow split available for manual redeploys.
             [[ $workflow == .github/workflows/website.yml || ( $workflow == .github/workflows/server.yml && $GITHUB_EVENT_NAME == workflow_dispatch ) ]] || exit 1
             [[ $branch == main && $event != pull_request && $ARTIFACT == "lumatile-web-$sha" ]]
+          elif [[ $TARGET == console ]]; then
+            [[ $workflow == .github/workflows/console.yml && $branch == main && $event != pull_request && $ARTIFACT == "lumatile-console-$sha" ]]
           elif [[ $TARGET == android-stable || $TARGET == android-alpha ]]; then
             channel=${TARGET#android-}
             [[ $workflow == .github/workflows/release-android.yml && $event == push && $ARTIFACT == update-source-android-"$channel"-*-"$RUN_ID"-* ]]
@@ -92,10 +94,12 @@ jobs:
               jq -ce --arg target "$TARGET" 'select(.truncated == false) |
                 [.tree[] | select(
                   if $target == "web" then .path == "frontend/website/public"
+                  elif $target == "console" then .path == "frontend/console/public"
                   else .type == "blob" and (.path |
                     (startswith("backend/") or startswith("deploy/server/") or . == "scripts/publish_announcement.py") and
                     . != "backend/README.md" and . != "deploy/server/README.md" and
-                    . != "deploy/server/deploy-web.sh" and . != "deploy/server/promote-android.sh")
+                    . != "deploy/server/deploy-web.sh" and . != "deploy/server/deploy-console.sh" and
+                    . != "deploy/server/promote-android.sh")
                   end
                 ) | {path, mode, sha}] | sort_by(.path)'
           }
@@ -139,6 +143,10 @@ jobs:
               revision=${ARTIFACT#lumatile-web-}
               [[ $revision =~ ^[a-f0-9]{40}$ ]]
               command="LUMATILE_WEB_CHECK_URL=https://lumatile.cn/download/ bash /srv/apps/lumatile/deploy-web.sh \"\$stage\" '$revision'"
+            elif [[ $TARGET == console ]]; then
+              revision=${ARTIFACT#lumatile-console-}
+              [[ $revision =~ ^[a-f0-9]{40}$ ]]
+              command="bash /srv/apps/lumatile/deploy-console.sh \"\$stage\" '$revision'"
             else
               channel=${TARGET#android-}
               [[ $channel == stable || $channel == alpha ]]

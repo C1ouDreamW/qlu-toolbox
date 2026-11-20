@@ -28,6 +28,7 @@ services:
       - ${LUMATILE_ACME_DIR:-/var/www/letsencrypt}:/var/www/letsencrypt:ro
       - ${LUMATILE_WEB_DIR:-/srv/www/lumatile}:/srv/www/lumatile:ro
       - ${LUMATILE_STATIC_DIR:-/srv/www/lumatile-console}:/srv/www/lumatile-console:ro
+      - ${LUMATILE_CONSOLE_DIR:-/srv/www/lumatile-console-ui}:/srv/www/lumatile-console-ui:ro
       - ${LUMATILE_UPDATE_DIR:-${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/updates}:/srv/data/lumatile/updates:ro
       - ${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/logs:/logs
     healthcheck:

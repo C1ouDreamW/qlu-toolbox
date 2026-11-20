@@ -10,7 +10,6 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import RequestDataTooBig
 from django.db import DatabaseError
 from django.http import FileResponse, HttpResponse
-from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -177,29 +176,11 @@ def active_announcement(request, channel):
 
 
 @staff_member_required(login_url=settings.LOGIN_URL)
-def dashboard(request):
-    android = {}
-    for channel in ("stable", "alpha"):
-        try:
-            android[channel] = json.loads((settings.UPDATE_DIR / channel / "android.json").read_text())["versionName"]
-        except (OSError, KeyError, ValueError, TypeError):
-            android[channel] = "—"
-    try:
-        desktop = json.loads((settings.WEBSITE_DIR / "desktop-releases.json").read_text())
-    except (OSError, ValueError):
-        desktop = {}
-    drafts = Announcement.objects.order_by("-id")
-    return render(request, "portal/dashboard.html", {"android": android, "desktop": desktop, "drafts": drafts})
-
-
-@staff_member_required(login_url=settings.LOGIN_URL)
 def stats(request):
     try:
         report = (settings.STATS_DIR / "stats.html").open("rb")
     except FileNotFoundError:
-        result = render(request, "portal/stats_unavailable.html", status=404)
-        result["Cache-Control"] = "no-store"
-        return result
+        return HttpResponse("统计报告尚未生成", status=404, headers={"Cache-Control": "no-store"})
     return FileResponse(report, content_type="text/html; charset=utf-8", headers={"Cache-Control": "no-store"})
 
 

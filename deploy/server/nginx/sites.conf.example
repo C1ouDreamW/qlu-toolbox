@@ -55,6 +55,10 @@ server {
         add_header Cache-Control "no-store" always;
         return 413 '{"type":"about:blank","title":"Request Entity Too Large","status":413,"code":"payload_too_large","detail":"请求体过大"}';
     }
+    location ^~ /v1/ {
+        client_max_body_size 16k;
+        include /etc/nginx/lumatile/proxy.conf;
+    }
     location / { return 404; }
 }
 
@@ -63,6 +67,28 @@ server {
     server_name console.lumatile.cn;
     ssl_certificate /etc/letsencrypt/live/lumatile.cn/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/lumatile.cn/privkey.pem;
-    location /static/ { alias /srv/www/lumatile-console/; }
-    location / { include /etc/nginx/lumatile/proxy.conf; }
+    root /srv/www/lumatile-console-ui/current;
+    include /etc/nginx/mime.types;
+    types { text/javascript mjs; }
+    charset utf-8;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://api.lumatile.cn; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+    add_header Cache-Control no-cache always;
+
+    location = / { try_files /index.html @console_admin; }
+    location / { try_files $uri =404; }
+
+    # Django 自带的维护入口使用独立会话，供账号维护和首次部署过渡。
+    location ^~ /static/ { alias /srv/www/lumatile-console/; }
+    location ^~ /admin/ {
+        add_header X-Content-Type-Options nosniff always;
+        include /etc/nginx/lumatile/proxy.conf;
+    }
+    location = /stats/ { return 302 /#stats; }
+    location @console_admin {
+        add_header X-Content-Type-Options nosniff always;
+        include /etc/nginx/lumatile/proxy.conf;
+    }
 }

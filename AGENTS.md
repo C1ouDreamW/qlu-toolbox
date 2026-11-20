@@ -14,7 +14,8 @@
 | `apps/desktop/electron/` | `main.ts` 主进程、`preload.cts` 权限接口、`bridge.ts` Python IPC 客户端与更新逻辑 |
 | `apps/desktop/python/` | `main.py`、`lumatile/bridge.py` 负责本地 Bridge / Worker 入口与任务调度。`lumatile/core/` 和 `lumatile/modules/` 保存桌面领域规则、存储和 Playwright 自动化。PyInstaller spec 同在此目录。 |
 | `apps/mobile/src/`、`apps/mobile/android/` | 移动 Vue / Web Worker；Capacitor 8、Kotlin、Room、受限教务 WebView 与原生插件 |
-| `frontend/website/`、`backend/` | 静态官网；Django API 与控制台、反馈与统计、定时任务、OpenAPI 和后端 Dockerfile |
+| `frontend/website/`、`frontend/console/` | 公开官网和维护者控制台，各自从 `public/` 部署静态构件 |
+| `backend/` | 共享 Django API、认证、数据和定时任务。项目配置在 `config/`，业务与迁移在 `portal/`。 |
 | `packages/` | `contracts` 数据契约、`academic-core` 学业规则、`schedule-ui` 课表交互逻辑、`update-notes` 更新说明解析、`release-contract` 版本和更新协议、`school-web` 共用教务脚本、`branding` 品牌素材 |
 | `tests/` | 客户端 Python unittest 与仓库级 Node.js 测试。服务端回归放在 `backend/tests/`，Vitest 测试与移动端和共享包源码就近存放。 |
 | `config/`、`changelogs/`、`scripts/`、`.github/workflows/` | 平台渠道配置、变更日志、开发和发布脚本、CI 与部署工作流 |
@@ -57,6 +58,7 @@
 - Python 沿用现有分工：`domain.py` 放领域规则与校验，`service.py` 编排浏览器和文件操作，`worker.py` 处理任务入口与事件；仅在任务需要时增加对应文件，不为每个工具补齐空层。
 - 修改 IPC 方法或事件时，沿实际调用链同步受影响的 preload、类型、调用方、Python 分发与测试。Bridge / Worker 的 stdout 用于逐行 JSON 协议，诊断信息写 stderr，不能混入普通日志。
 - 移动端通过已有 Capacitor 插件访问原生能力；教务页面留在无通用 JavaScript Bridge 的独立 WebView，不能导航到拥有 Capacitor 权限的主 WebView 中。
+- 控制台静态前端从 `console.lumatile.cn` 请求 `api.lumatile.cn/v1/`。管理操作使用 API 域名的 Django 会话 Cookie、精确的跨域来源和 CSRF 校验，后端接口自行验证维护者权限。
 - 共享 TypeScript 领域规则放在 `packages/academic-core`，契约放在 `packages/contracts`，不引入 Electron、Capacitor 或 UI 依赖。桌面仍有 Python 对应规则；变更学年、学期、导出字段、GPA 或学分规则时核对双端语义与现有合成样本，不顺带迁移整套实现。
 - Vue 使用 `<script setup lang="ts">`、Composition API；保持 TypeScript `strict`。沿用文件局部风格；Android 原生源码使用 Kotlin。
 - 修改依赖使用 npm 或 `uv add` / `uv remove`，同步对应 `package-lock.json` 或 `uv.lock`；不要引入另一套包管理器。遵守 `.gitattributes` 换行规则，避免无关格式化。

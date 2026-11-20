@@ -1,96 +1,5 @@
-const field = id => document.getElementById(id)
-const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value
-
-async function resource(url, method = 'GET', data) {
-  const response = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-    body: data === undefined ? undefined : JSON.stringify(data),
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.detail || `请求失败 (${response.status})`)
-  }
-  if (response.status !== 204) return response.json()
-}
-
-function showMessage(id, text, state = '') {
-  const message = field(id)
-  message.dataset.state = state
-  message.classList.toggle('error', state === 'error')
-  message.textContent = text
-}
-
-async function runAction(message, button, action) {
-  button.disabled = true
-  showMessage(message, '处理中…', 'loading')
-  try {
-    showMessage(message, await action(), 'success')
-  } catch (error) {
-    showMessage(message, error.message, 'error')
-  } finally {
-    button.disabled = false
-  }
-}
-
-const distribution = '/v1/distribution-policies/android'
-const mode = field('mode')
-const saveMode = field('save-mode')
-let savedMode
-
-mode.onchange = () => { saveMode.disabled = mode.value === savedMode }
-
-function showPolicy(policy) {
-  savedMode = policy.mode
-  mode.value = savedMode
-  const state = field('mode-state')
-  state.dataset.active = String(policy.mode === 'server')
-  state.textContent = policy.mode === 'server' ? '自建下载已开启' : '外部下载模式'
-}
-
-async function loadPolicy() {
-  try {
-    showPolicy(await resource(distribution))
-    mode.disabled = false
-  } catch (error) {
-    field('mode-state').textContent = '读取失败'
-    showMessage('mode-message', error.message, 'error')
-  }
-}
-
-saveMode.onclick = () => runAction('mode-message', saveMode, async () => {
-  mode.disabled = true
-  try {
-    showPolicy(await resource(distribution, 'PUT', { mode: mode.value }))
-    return '分发策略已保存'
-  } finally {
-    mode.disabled = false
-  }
-}).finally(mode.onchange)
-
-const channel = field('channel')
-const draft = field('draft')
-const publish = field('publish')
-const withdraw = field('withdraw')
-const announcement = () => `/v1/channels/${channel.value}/active-announcement`
-draft.onchange = () => {
-  for (const preview of document.querySelectorAll('[data-draft]')) {
-    preview.hidden = preview.dataset.draft !== draft.value
-  }
-}
-
-function changeAnnouncement(button, method, data, confirmation) {
-  const other = button === publish ? withdraw : publish
-  const wasDisabled = other.disabled
-  other.disabled = true
-  return runAction('announcement-message', button, async () => {
-    await resource(announcement(), method, data)
-    return confirmation
-  }).finally(() => { other.disabled = wasDisabled })
-}
-
-publish.onclick = () => changeAnnouncement(publish, 'PUT', { draftId: Number(draft.value) }, `已发布至 ${channel.selectedOptions[0].textContent}`)
-withdraw.onclick = () => changeAnnouncement(withdraw, 'DELETE', undefined, `已撤回 ${channel.selectedOptions[0].textContent} 公告`)
+import { resource } from './api.mjs'
+import { field, showMessage, textElement } from './ui.mjs'
 
 const feedback = '/v1/feedback-submissions'
 const status = field('status')
@@ -102,13 +11,6 @@ const feedbackDate = new Intl.DateTimeFormat('zh-CN', {
 })
 const query = () => feedback + '?' + new URLSearchParams({ status: status.value, q: search.value.trim(), limit: 10 })
 let feedbackRequest = 0
-
-function textElement(tag, className, value) {
-  const element = document.createElement(tag)
-  element.className = className
-  element.textContent = value
-  return element
-}
 
 function feedbackRow(item, url, request) {
   const row = document.createElement('li')
@@ -148,7 +50,7 @@ function feedbackRow(item, url, request) {
   return row
 }
 
-async function loadFeedback(url = query(), restoreFocus = false, confirmation = '') {
+export async function loadFeedback(url = query(), restoreFocus = false, confirmation = '') {
   const request = ++feedbackRequest
   const list = field('feedback')
   list.setAttribute('aria-busy', 'true')
@@ -195,5 +97,3 @@ field('feedback-filter').onsubmit = event => {
 }
 status.onchange = () => loadFeedback()
 search.oninput = () => { if (!search.value) void loadFeedback() }
-void loadPolicy()
-void loadFeedback()
