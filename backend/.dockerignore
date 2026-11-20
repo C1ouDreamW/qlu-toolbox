@@ -4,6 +4,8 @@
 !jobs.py
 !pyproject.toml
 !uv.lock
+!config/
+!config/**
 !portal/
 !portal/**
 !feedback/server.py
