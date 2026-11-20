@@ -48,7 +48,7 @@ for domain in lumatile.cn lumatile.ishua.cloud; do
   ln -s ../../key.pem "$directory/privkey.pem"
 done
 
-docker build -f "$root/deploy/server/Dockerfile" -t "$LUMATILE_IMAGE" "$root"
+docker build -f "$root/apps/server/Dockerfile" -t "$LUMATILE_IMAGE" "$root"
 
 host_log="$LUMATILE_NGINX_LOG_DIR/lumatile.access.log"
 printf '%s\n' '- - - [20/Nov/2026:00:00:00 +0800] "GET /beacon/desktop?id=host-test HTTP/1.1" 204 0' > "$host_log"
