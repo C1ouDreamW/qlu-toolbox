@@ -666,8 +666,8 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
 <header class="topbar">
   <nav aria-label="控制台导航">
     <a class="brand" href="/">LumaTile <small>控制台</small></a>
-    <a href="/">工作台</a><a href="/admin/portal/announcement/">公告草稿</a>
-    <a href="/admin/portal/operation/">操作记录</a><a href="/stats/" aria-current="page">访问统计</a>
+    <a href="/">工作台</a><a href="/#publish">公告草稿</a>
+    <a href="/#operations">操作记录</a><a href="/stats/" aria-current="page">访问统计</a>
   </nav>
 </header>
 <main id="main" tabindex="-1">

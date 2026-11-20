@@ -21,9 +21,9 @@ bash deploy/server/check-compose.sh
 
 ## 启用独立控制台
 
-1. 在宿主机创建 `/srv/www/lumatile-console-ui/`，由部署账号写入 `releases/` 并切换 `current` 符号链接。Nginx 可读取此目录。Django Admin 的静态目录仍由 `LUMATILE_STATIC_DIR` 管理。
-2. 上传 `deploy-console.sh` 和配套的 `deploy-web.sh` 到 `/srv/apps/lumatile/`。共享宿主机 Nginx 参考 [站点配置](nginx/sites.conf.example)更新两处路由。API 主机的 `/v1/` 转发到宿主机 `127.0.0.1:18080`，Console 主机从 `/srv/www/lumatile-console-ui/current` 提供静态站，`/admin/` 保持转发给 Django。校验 Nginx 配置后重载。独占服务器使用[独立 Compose](compose.standalone.yaml)的 Console 只读挂载和所附站点配置。
-3. 部署新后端镜像，确认 `https://api.lumatile.cn/v1/auth/session` 返回匿名会话，并且 `https://console.lumatile.cn` 的预检请求通过。Django Admin 可在静态构件上线前处理账号维护。
+1. 在宿主机创建 `/srv/www/lumatile-console-ui/`，由部署账号写入 `releases/` 并切换 `current` 符号链接。Nginx 可读取此目录。
+2. 上传 `deploy-console.sh` 和配套的 `deploy-web.sh` 到 `/srv/apps/lumatile/`。共享宿主机 Nginx 参考 [站点配置](nginx/sites.conf.example)更新两处路由。API 主机的 `/v1/` 转发到宿主机 `127.0.0.1:18080`，Console 主机从 `/srv/www/lumatile-console-ui/current` 提供静态站。`/admin` 和 `/admin/` 下的路径返回 404。校验 Nginx 配置后重载。独占服务器使用[独立 Compose](compose.standalone.yaml)的 Console 只读挂载和所附站点配置。
+3. 部署新后端镜像，确认 `https://api.lumatile.cn/v1/auth/session` 返回匿名会话，并且 `https://console.lumatile.cn` 的预检请求通过。
 4. 运行 `Console artifacts` 生成构件，再用 `Deploy LumaTile` 的 `console` 目标选择该构件。自动部署也会先检查 API，入口检查失败时恢复上一版。首次切换后，维护者在新界面重新登录，私人会话 Cookie 由 API 域名签发。
 
 使用自定义 Console 根目录时，让宿主机 Nginx 或 Compose 与 `deploy-console.sh` 使用同一个 `LUMATILE_CONSOLE_DIR`。服务端只对 Console 的 HTTPS 来源开放携带会话凭据的跨域请求。
@@ -31,9 +31,16 @@ bash deploy/server/check-compose.sh
 ## 现有腾讯云共享入口
 
 1. 在 `/srv/apps/lumatile/` 放置 `compose.yaml`、部署脚本和权限为 `0600` 的 `.env`。按 [示例](.env.example) 配置后端镜像摘要，沿用原 Django 密钥。私有镜像使用只读 GHCR 凭据。
-2. 准备或恢复 `/srv/data/lumatile/{feedback,stats,updates,backups}` 和 `/srv/www/{lumatile,lumatile-console}`。`feedback`、`stats`、`stats/report` 和 `backups` 由 UID/GID 10001 管理，目录权限为 `0700`。升级时备份并调整已有统计数据与备份的所有者。控制台静态目录和更新目录由 UID 10001 写入，公开文件及其父目录允许 Nginx 读取和遍历。
+2. 准备或恢复 `/srv/data/lumatile/{feedback,stats,updates,backups}` 和 `/srv/www/{lumatile,lumatile-console-ui}`。`feedback`、`stats`、`stats/report` 和 `backups` 由 UID/GID 10001 管理，目录权限为 `0700`。升级时备份并调整已有统计数据与备份的所有者。更新目录由 UID 10001 写入，公开文件及其父目录允许 Nginx 读取和遍历。
 3. 首次切换前，停用旧的 LumaTile 统计、备份定时器，收集最后一批旧任务日志并留存一致性快照。宿主机 Nginx、Certbot 和现有站点配置继续使用。Portal 仍发布到 `127.0.0.1:18080`。`jobs` 通过只读挂载读取宿主机 `lumatile.access.log` 和轮转后的 `lumatile.access.log.1`，默认使用 Ubuntu `adm` 的 GID 4。其他主机可设置 `LUMATILE_NGINX_LOG_DIR` 和 `LUMATILE_NGINX_LOG_GID`。
-4. 更新配置、脚本和镜像后，运行 `docker compose pull` 和 `docker compose up -d --wait`，检查 18080 和原 HTTPS 域名。首次运行可通过 `docker compose exec portal python manage.py createsuperuser` 创建维护者账号。
+4. 更新配置、脚本和镜像后，运行 `docker compose pull` 和 `docker compose up -d --wait`，检查 18080 和原 HTTPS 域名。
+
+维护者平时在 Console 修改自己的密码。首次创建账号或紧急重置密码时，在部署目录运行对应命令。把 `maintainer` 换成实际用户名。
+
+```bash
+docker compose exec portal python manage.py createsuperuser
+docker compose exec portal python manage.py changepassword maintainer
+```
 
 `jobs` 每天北京时间 00:25 统计、01:25 备份，重启后会补跑到期任务。统计库和任务日期都保存在 `stats/`。SQLite 快照保留 14 天。可以立即核对任务：
 
@@ -58,7 +65,7 @@ docker compose logs jobs
 
 1. 预先在新机准备 Compose、镜像和证书。记录原镜像摘要与站点配置。趁源站继续服务时先同步较大的 `updates/releases/` 和官网版本目录。
 2. 切换窗口暂停发布并停止源站的 LumaTile 入口。共享入口模式下，只停用 LumaTile 站点，手动收集最后一批日志并保存一致性快照。宿主机日志按 inode 记录进度，历史数据通过统计库迁移。独立模式下，用 `docker compose stop nginx` 停止入口，手动运行一次统计和备份，保留数据目录中的每日访问日志。两种模式均用 `docker compose stop portal jobs` 停止写入后同步数据。
-3. 保留目录权限和符号链接，迁移 `/srv/apps/lumatile/`、`/srv/data/lumatile/`、`/srv/www/lumatile/`、`/srv/www/lumatile-console-ui/` 和 TLS 证书目录。新机使用同一镜像摘要执行 `docker compose up -d --wait`，核对健康检查、登录、官网、公告与分发策略后切换 DNS。Django Admin 资源由 Portal 重新生成。
+3. 保留目录权限和符号链接，迁移 `/srv/apps/lumatile/`、`/srv/data/lumatile/`、`/srv/www/lumatile/`、`/srv/www/lumatile-console-ui/` 和 TLS 证书目录。新机使用同一镜像摘要执行 `docker compose up -d --wait`，核对健康检查、登录、官网、公告与分发策略后切换 DNS。
 4. 保留原机数据和配置供回滚。容器内数据库快照包含业务库、反馈库、统计库及当时生效的公告和分发策略。完整迁移还需要 APK、清单、官网和 Console 的静态构件及访问日志。
 
 ## GitHub Actions 自动部署

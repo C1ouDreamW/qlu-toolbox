@@ -19,55 +19,15 @@ class PortalTests(TestCase):
         self.enterContext(self.settings(FEEDBACK_DB=feedback, UPDATE_DIR=self.root / "updates"))
         self.staff = get_user_model().objects.create_user("maintainer", is_staff=True)
 
-    def test_fallback_admin_keeps_login_required(self):
+    def test_retired_admin_routes_are_unavailable(self):
         console = Client(HTTP_HOST="console.lumatile.cn")
-        self.assertRedirects(console.get("/", secure=True), "/admin/", fetch_redirect_response=False)
-        self.assertRedirects(console.get("/admin/", secure=True), "/admin/login/?next=/admin/",
-                             fetch_redirect_response=False)
-        console.force_login(self.staff)
-        self.assertContains(console.get("/admin/", secure=True), "LumaTile 控制台")
-
-    def test_console_admin_lists_keep_permissions_and_support_search(self):
-        drafts = "/admin/portal/announcement/"
-        operations = "/admin/portal/operation/"
-        console = Client(HTTP_HOST="console.lumatile.cn")
-        console.force_login(self.staff)
-        self.assertEqual(console.get(drafts, secure=True).status_code, 403)
-        self.assertEqual(console.get(operations, secure=True).status_code, 403)
-
         self.staff.is_superuser = True
         self.staff.save(update_fields=["is_superuser"])
-        self.assertContains(console.get(drafts, secure=True), "公告草稿")
-        draft = Announcement.objects.create(title="维护提醒", body="合成正文", level="warning")
-        Announcement.objects.create(title="更新提醒", body="合成正文")
-        operation = Operation.objects.create(actor="maintainer", resource="stable-announcement", value="withdrawn")
-
-        results = console.get(drafts, {"q": "提醒", "level__exact": "warning"}, secure=True)
-        self.assertContains(results, "维护提醒")
-        self.assertNotContains(results, "更新提醒")
-        for path in ("add/", f"{draft.pk}/change/"):
-            form = console.get(drafts + path, secure=True)
-            self.assertContains(form, "公告草稿")
-            self.assertContains(form, "发布选项")
-        self.assertContains(console.get(operations, {"q": "withdrawn"}, secure=True), "stable-announcement")
-        detail = operations + f"{operation.pk}/change/"
-        self.assertContains(console.get(detail, secure=True), "操作时间")
-        self.assertEqual(console.post(detail, secure=True).status_code, 403)
-
-    def test_stats_requires_login_and_offers_navigation_without_a_report(self):
-        console = Client(HTTP_HOST="console.lumatile.cn")
-        self.assertRedirects(console.get("/stats/", secure=True), "/admin/login/?next=/stats/",
-                             fetch_redirect_response=False)
+        self.assertEqual(console.get("/admin/login/", secure=True).status_code, 404)
         console.force_login(self.staff)
-        with self.settings(STATS_DIR=self.root):
-            missing = console.get("/stats/", secure=True)
-            self.assertContains(missing, "统计报告尚未生成", status_code=404)
-            self.assertEqual(missing.headers["Cache-Control"], "no-store")
-            (self.root / "stats.html").write_text("<h1>合成报告</h1>", encoding="utf-8")
-            report = console.get("/stats/", secure=True)
-            self.assertEqual(report.status_code, 200)
-            self.assertEqual(b"".join(report.streaming_content).decode(), "<h1>合成报告</h1>")
-            self.assertEqual(report.headers["Cache-Control"], "no-store")
+        for path in ("/", "/admin", "/admin/", "/admin/login/", "/admin/portal/announcement/", "/stats/"):
+            with self.subTest(path=path):
+                self.assertEqual(console.get(path, secure=True).status_code, 404)
 
     def test_feedback_uses_existing_database_and_keeps_public_reads_private(self):
         form = {"type": "bug", "content": "合成反馈", "platform": "android", "appVersion": "2.0.4"}

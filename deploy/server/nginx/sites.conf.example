@@ -77,18 +77,9 @@ server {
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://api.lumatile.cn; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
     add_header Cache-Control no-cache always;
 
-    location = / { try_files /index.html @console_admin; }
+    location = / { try_files /index.html =404; }
     location / { try_files $uri =404; }
-
-    # Django 自带的维护入口使用独立会话，供账号维护和首次部署过渡。
-    location ^~ /static/ { alias /srv/www/lumatile-console/; }
-    location ^~ /admin/ {
-        add_header X-Content-Type-Options nosniff always;
-        include /etc/nginx/lumatile/proxy.conf;
-    }
+    location = /admin { return 404; }
+    location ^~ /admin/ { return 404; }
     location = /stats/ { return 302 /#stats; }
-    location @console_admin {
-        add_header X-Content-Type-Options nosniff always;
-        include /etc/nginx/lumatile/proxy.conf;
-    }
 }

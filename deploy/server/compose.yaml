@@ -7,7 +7,6 @@ services:
     volumes:
       - ${LUMATILE_FEEDBACK_DIR:-${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/feedback}:/data
       - ${LUMATILE_UPDATE_DIR:-${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/updates}:/updates
-      - ${LUMATILE_STATIC_DIR:-/srv/www/lumatile-console}:/static
       - ${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/stats/report:/stats:ro
       - ${LUMATILE_WEB_DIR:-/srv/www/lumatile}:/website:ro
     environment:

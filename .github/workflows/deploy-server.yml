@@ -137,7 +137,7 @@ jobs:
             [[ $IMAGE =~ ^ghcr\.io/c1oudreamw/qlu-toolbox/server@sha256:[a-f0-9]{64}$ ]]
             "${remote[@]}" "sudo -n /srv/apps/lumatile/deploy-portal.sh '$IMAGE'"
             curl -fsS --max-time 15 https://api.lumatile.cn/healthz
-            curl -fsS --max-time 15 -o /dev/null https://console.lumatile.cn/admin/login/
+            curl -fsS --max-time 15 -o /dev/null https://api.lumatile.cn/v1/auth/session
           else
             if [[ $TARGET == web ]]; then
               revision=${ARTIFACT#lumatile-web-}

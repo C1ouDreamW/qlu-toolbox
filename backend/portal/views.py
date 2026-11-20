@@ -6,10 +6,9 @@ from contextlib import closing
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import RequestDataTooBig
 from django.db import DatabaseError
-from django.http import FileResponse, HttpResponse
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -173,15 +172,6 @@ def active_announcement(request, channel):
         write_json(path, announcement)
         Operation.objects.create(actor=request.user.get_username(), resource=f"{channel}-announcement", value=announcement["id"])
     return response(announcement, 200 if previous else 201, Location=reverse("active-announcement", args=[channel]))
-
-
-@staff_member_required(login_url=settings.LOGIN_URL)
-def stats(request):
-    try:
-        report = (settings.STATS_DIR / "stats.html").open("rb")
-    except FileNotFoundError:
-        return HttpResponse("统计报告尚未生成", status=404, headers={"Cache-Control": "no-store"})
-    return FileResponse(report, content_type="text/html; charset=utf-8", headers={"Cache-Control": "no-store"})
 
 
 def health(request):
