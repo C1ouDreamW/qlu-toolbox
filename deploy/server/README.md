@@ -2,7 +2,7 @@
 
 默认 Compose 运行 `portal` 和 `jobs`，分别处理 Django 请求及定时统计、备份。两者共用同一个 Python 镜像。腾讯云的共享 Nginx 提供 HTTPS、官网和更新下载。使用独占 80/443 的服务器时可加载[独立部署配置](compose.standalone.yaml)，由同一套 Compose 启动 Nginx。
 
-服务端 Python 源码、Dockerfile 和接口定义在 [`apps/server/`](../../apps/server/)，官网构件在 [`apps/website/frontend/`](../../apps/website/frontend/)。从仓库根目录执行 `docker build -f apps/server/Dockerfile .` 构建后端镜像。业务接口见 [OpenAPI](../../apps/server/openapi.yaml)。
+服务端 Python 源码、Dockerfile 和接口定义在 [`apps/server/`](../../apps/server/)，官网构件在 [`apps/website/frontend/`](../../apps/website/frontend/)。从仓库根目录执行 `docker build apps/server` 构建后端镜像，构建上下文为 `apps/server/`。业务接口见 [OpenAPI](../../apps/server/openapi.yaml)。
 
 ## 本地检查
 
