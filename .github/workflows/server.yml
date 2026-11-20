@@ -2,10 +2,10 @@ name: Server artifacts
 
 on:
   pull_request:
-    paths: ['deploy/server/**', 'deploy/feedback/**', 'web/**', '.dockerignore', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
+    paths: ['deploy/server/**', 'deploy/feedback/**', 'deploy/stats/**', 'web/**', '.dockerignore', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
   push:
     branches: [main]
-    paths: ['deploy/server/**', 'deploy/feedback/**', 'web/**', '.dockerignore', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
+    paths: ['deploy/server/**', 'deploy/feedback/**', 'deploy/stats/**', 'web/**', '.dockerignore', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
   workflow_dispatch:
 
 permissions:
@@ -30,8 +30,8 @@ jobs:
       - run: node --test web/tests/downloads.test.mjs
       - run: uv run --directory deploy/server --locked python manage.py test portal
       - run: uv run --directory deploy/server --locked python manage.py makemigrations --check --dry-run
-      - run: sudo apt-get update && sudo apt-get install -y nginx
-      - run: bash deploy/server/check-nginx.sh
+      - run: uv run --directory deploy/server --locked python -m unittest test_jobs
+      - run: bash deploy/server/check-compose.sh
       - uses: actions/upload-artifact@v4
         with:
           name: lumatile-web-${{ github.sha }}

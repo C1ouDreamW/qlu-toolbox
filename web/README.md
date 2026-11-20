@@ -41,7 +41,7 @@ node --check web/frontend/app.mjs
 
 ## 部署到 lumatile.cn
 
-将 `frontend/` 作为静态构件部署，参考 [生产部署说明](../deploy/server/README.md) 和 [Nginx 配置](deploy/nginx.conf.example)。发布桌面版本时更新 `frontend/desktop-releases.json` 及 HTML 中对应的静态回退版本和链接，并同步已配置的外部下载渠道。
+将 `frontend/` 作为静态构件部署，参考 [生产部署说明](../deploy/server/README.md) 和 [Nginx 配置](../deploy/server/nginx/website.conf)。发布桌面版本时更新 `frontend/desktop-releases.json` 及 HTML 中对应的静态回退版本和链接，并同步已配置的外部下载渠道。
 
 ## 品牌与素材
 

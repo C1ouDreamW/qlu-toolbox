@@ -1,5 +1,7 @@
 # LumaTile 更新源统计
 
+当前 `deploy/server` 由 Compose 的 `jobs` 容器调用此脚本，部署和迁移见[生产服务说明](../server/README.md)。下文记录旧版更新源的宿主机部署。
+
 零常驻服务方案：`collect.py` 由 cron 每日执行，增量解析宿主机 nginx 访问日志，把匿名心跳（`/beacon/*`）、更新清单检查（`/stable/*.json`）和安装包下载（`/releases/*`）写入 SQLite，并生成自包含的统计页。
 
 ## 服务器布局（ishua.cloud）

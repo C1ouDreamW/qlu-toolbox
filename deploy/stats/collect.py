@@ -17,6 +17,7 @@ import os
 import re
 import sqlite3
 import sys
+import tempfile
 import urllib.request
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
@@ -140,28 +141,21 @@ def insert_event(conn: sqlite3.Connection, event: dict) -> None:
         )
 
 
-def process_log_path(conn: sqlite3.Connection, path: str) -> int:
-    """按 inode 水位增量处理单个日志文件，返回本次新增事件数。
-
-    关键点：logrotate 用 mv 轮转时 inode 不变、文件名改变，按 inode 记水位
-    才不会把 access.log.1 的内容重复统计一遍。
-    """
+def process_log_path(conn: sqlite3.Connection, path: str, *, dated: bool = False) -> int:
+    """旧部署用 inode 跟踪轮转，Compose 的每日文件用文件名跟踪进度。"""
     try:
         stat = os.stat(path)
     except OSError:
         return 0
-    row = conn.execute(
-        "SELECT offset FROM progress WHERE inode = ?", (stat.st_ino,)
-    ).fetchone()
-    offset = min(row[0], stat.st_size) if row else 0
-    if offset >= stat.st_size:
-        conn.execute(
-            "INSERT INTO progress (inode, offset) VALUES (?, ?) "
-            "ON CONFLICT(inode) DO UPDATE SET offset = excluded.offset",
-            (stat.st_ino, offset),
-        )
+    key = f"log_offset:{Path(path).name}"
+    if dated:
+        previous = int(kv_get(conn, key) or 0)
+    else:
+        row = conn.execute("SELECT offset FROM progress WHERE inode = ?", (stat.st_ino,)).fetchone()
+        previous = row[0] if row else 0
+    offset = min(previous, stat.st_size)
+    if offset == stat.st_size and previous == offset:
         return 0
-
     lines, consumed = iter_log_lines(path, offset)
     count = 0
     for line in lines:
@@ -170,11 +164,14 @@ def process_log_path(conn: sqlite3.Connection, path: str) -> int:
             continue
         count += 1
         insert_event(conn, event)
-    conn.execute(
-        "INSERT INTO progress (inode, offset) VALUES (?, ?) "
-        "ON CONFLICT(inode) DO UPDATE SET offset = excluded.offset",
-        (stat.st_ino, consumed),
-    )
+    if dated:
+        kv_set(conn, key, str(consumed))
+    else:
+        conn.execute(
+            "INSERT INTO progress (inode, offset) VALUES (?, ?) "
+            "ON CONFLICT(inode) DO UPDATE SET offset = excluded.offset",
+            (stat.st_ino, consumed),
+        )
     return count
 
 
@@ -698,7 +695,7 @@ def render_html(report: dict, feedback: dict[str, int] | None = None) -> str:
 </main></body></html>"""
 
 
-def load_config(path: Path) -> dict:
+def load_config(path: Path | None = None) -> dict:
     config = {
         # 只处理未压缩的当前日志和上一份轮转日志；.gz 是新 inode，无法可靠去重，
         # 服务器宕机跨天时该天统计会缺失，属可接受代价
@@ -712,19 +709,24 @@ def load_config(path: Path) -> dict:
         "github_timeout": 10,
         "range_days": 30,
     }
-    if path.exists():
+    if path is not None and path.exists():
         config.update(json.loads(path.read_text(encoding="utf-8")))
     return config
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="LumaTile 更新源统计")
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument("--force-github", action="store_true", help="忽略节流强制拉取 GitHub 计数")
-    parser.add_argument("--skip-github", action="store_true", help="本次不拉取 GitHub 计数")
-    args = parser.parse_args(argv)
+def write_report(path: Path, content: str) -> None:
+    descriptor, name = tempfile.mkstemp(dir=path.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+            output.write(content)
+        temporary.chmod(0o644)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
-    config = load_config(args.config)
+
+def run_collection(config: dict, *, force_github: bool = False, skip_github: bool = False) -> None:
     db_path = Path(config["db_path"])
     db_path.parent.mkdir(parents=True, exist_ok=True)
     report_dir = Path(config["report_dir"])
@@ -733,9 +735,11 @@ def main(argv: list[str] | None = None) -> int:
     conn = init_db(db_path)
     try:
         total_new = sum(process_log_path(conn, log_path) for log_path in config["log_paths"])
-        if not args.skip_github:
+        for path in config.get("dated_log_paths", ()):
+            total_new += process_log_path(conn, path, dated=True)
+        if not skip_github:
             fetch_github_downloads(
-                conn, config["github_repos"], float(config["github_timeout"]), args.force_github
+                conn, config["github_repos"], float(config["github_timeout"]), force_github
             )
         report = collect_report(conn, int(config.get("range_days", 30)))
         feedback = collect_feedback_counts(str(config.get("feedback_db_path", "")))
@@ -743,13 +747,18 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         conn.close()
 
-    (report_dir / "stats.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    (report_dir / "stats.html").write_text(render_html(report, feedback), encoding="utf-8")
-    os.chmod(report_dir / "stats.json", 0o644)
-    os.chmod(report_dir / "stats.html", 0o644)
+    write_report(report_dir / "stats.json", json.dumps(report, ensure_ascii=False, indent=2))
+    write_report(report_dir / "stats.html", render_html(report, feedback))
     print(f"[ok] 新增事件 {total_new}，报告已写入 {report_dir}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="LumaTile 更新源统计")
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--force-github", action="store_true", help="忽略节流强制拉取 GitHub 计数")
+    parser.add_argument("--skip-github", action="store_true", help="本次不拉取 GitHub 计数")
+    args = parser.parse_args(argv)
+    run_collection(load_config(args.config), force_github=args.force_github, skip_github=args.skip_github)
     return 0
 
 

@@ -1,6 +1,6 @@
 # LumaTile 生产服务
 
-目标架构与验收见 [升级规划](../../docs/backend-upgrade-plan.md)，业务接口见 [OpenAPI](openapi.yaml)。仓库 CI 使用合成数据验证官网、Django 和 APK 分发开关。主分支产出静态站构件和 GHCR 镜像，部署使用指定提交和镜像摘要。
+默认 Compose 运行 `portal` 和 `jobs`，分别处理 Django 请求及定时统计、备份。两者共用同一个 Python 镜像。腾讯云的共享 Nginx 继续提供 HTTPS、官网和更新下载。使用独占 80/443 的服务器时可加载 [独立部署配置](compose.standalone.yaml)，由同一套 Compose 启动 Nginx。业务接口见 [OpenAPI](openapi.yaml)。
 
 ## 本地检查
 
@@ -8,22 +8,43 @@
 
 ```bash
 LUMATILE_SECRET_KEY=local-tests PYTHONPATH="$PWD/deploy" uv run --directory deploy/server --locked python manage.py test portal
+PYTHONPATH="$PWD/deploy" uv run --directory deploy/server --locked python -m unittest test_jobs
 node --test web/tests/downloads.test.mjs
-bash deploy/server/check-nginx.sh
+bash deploy/server/check-compose.sh
 ```
 
-最后一项需要 Nginx 和 curl，使用临时目录与 UNIX socket。
+最后一项在 Linux Docker Compose 环境中以临时证书、环回端口和合成数据验证两种部署方式的路由、APK 分发、统计和备份。
 
-## 腾讯云部署
+## 现有腾讯云共享入口
 
-1. 在 `/srv/apps/lumatile/` 准备 Compose、部署脚本、定时任务配置和权限为 `0600` 的 `.env`。环境变量示例见 [.env.example](.env.example)。用随机值生成 Django 密钥。私有镜像使用只读 GHCR 凭据。
-2. 将现有更新文件与 SQLite 一致性备份恢复到 `/srv/data/lumatile/`。保留 `feedback/feedback.db`、`stats/stats.db` 和 `updates/{stable,alpha,releases}/`。反馈目录与官网控制台静态文件目录 `/srv/www/lumatile-console/` 由容器 UID 10001 写入。更新目录及其公告子目录需允许该 UID 原子替换公告和分发策略，宿主机 Nginx 用户需能读取公开文件并遍历其父目录。反馈与统计数据库目录保持受限。
-3. 运行 `bash deploy-web.sh <官网构件目录> <完整提交 SHA>` 和 `bash deploy-portal.sh <镜像摘要地址>`。Compose 初始化数据表并收集后台静态文件。首次运行通过 `docker compose exec portal python manage.py createsuperuser` 创建维护者账号。
-4. 先启用 [HTTP ACME 站点](nginx/http-acme.conf.example)，创建 `/var/www/letsencrypt` 并开放 TCP 80 / 443。各域名解析就绪后，用 Certbot 的 `certonly --webroot -w /var/www/letsencrypt` 签发 Let's Encrypt 证书。官网证书包含 `lumatile.cn` 和 `www.lumatile.cn`。其余域名按 [站点模板](nginx/sites.conf.example) 分别签发，证书续期后 reload Nginx。
-5. 将 `nginx/{proxy,updates}.conf` 放在 `/etc/nginx/lumatile/`，启用后端和 [官网 HTTPS 配置](../../web/deploy/nginx.conf.example)。使用 ACME 站点提供 HTTP 跳转，启用官网 HTTPS 时保留两个 443 站点段。运行 `nginx -t` 后 reload。新旧域名在整套上线时统一切换。
-6. 安装 [systemd 定时任务](systemd/)，将旧统计收集脚本和示例配置分别安装为 `/srv/apps/lumatile/collect.py`、`/srv/apps/lumatile/stats.json`。启用定时器后各运行一次服务，核对统计报告和 SQLite 备份。启用站外 HTTPS 探测，覆盖官网、公开更新策略、APK 开启时的下载和 API `/healthz`。
+1. 在 `/srv/apps/lumatile/` 放置 `compose.yaml`、部署脚本和权限为 `0600` 的 `.env`。按 [示例](.env.example) 配置后端镜像摘要，沿用原 Django 密钥。私有镜像使用只读 GHCR 凭据。
+2. 准备或恢复 `/srv/data/lumatile/{feedback,stats,updates,backups}` 和 `/srv/www/{lumatile,lumatile-console}`。`feedback`、`stats`、`stats/report` 和 `backups` 由 UID/GID 10001 管理，目录权限为 `0700`。升级时备份并调整已有统计数据与备份的所有者。控制台静态目录和更新目录由 UID 10001 写入，公开文件及其父目录允许 Nginx 读取和遍历。
+3. 首次切换前，停用旧的 LumaTile 统计、备份定时器，收集最后一批旧任务日志并留存一致性快照。宿主机 Nginx、Certbot 和现有站点配置继续使用。Portal 仍发布到 `127.0.0.1:18080`。`jobs` 通过只读挂载读取宿主机 `lumatile.access.log` 和轮转后的 `lumatile.access.log.1`，默认使用 Ubuntu `adm` 的 GID 4。其他主机可设置 `LUMATILE_NGINX_LOG_DIR` 和 `LUMATILE_NGINX_LOG_GID`。
+4. 更新配置、脚本和镜像后，运行 `docker compose pull` 和 `docker compose up -d --wait`，检查 18080 和原 HTTPS 域名。首次运行可通过 `docker compose exec portal python manage.py createsuperuser` 创建维护者账号。
+
+`jobs` 每天北京时间 00:25 统计、01:25 备份，重启后会补跑到期任务。统计库和任务日期都保存在 `stats/`。SQLite 快照保留 14 天。可以立即核对任务：
+
+```bash
+docker compose exec jobs python jobs.py collect
+docker compose exec jobs python jobs.py backup
+docker compose logs jobs
+```
 
 默认 APK 分发关闭。登录控制台修改模式后，Nginx 用同一个 `updates/android/server.json` 的存在状态控制公开策略和新旧域名上的 APK 路由。关闭时 APK 请求返回 503，官网和新版应用提供外部下载入口。发布工具继续核对 APK 大小与 SHA-256，再按渠道原子推广清单。具体构件见 [发布指南](../../RELEASING.md)。
+
+## 独立服务器全容器部署
+
+1. 准备上述数据和官网目录，并在同一目录放置 `compose.standalone.yaml` 和整个 `nginx/`。在 `.env` 中设置 `COMPOSE_FILE=compose.yaml:compose.standalone.yaml`。独立模式将 80/443 交给容器 Nginx，Portal 通过 Compose 内网提供服务。
+2. 将数据根目录下的 `logs/` 设为 UID 10001、GID 101、权限 `2770`。Nginx Alpine 工作进程写每日访问日志，`jobs` 读取并保留 14 天。
+3. 将 TLS 证书目录恢复到 `/etc/letsencrypt`，保留 `live/` 下的符号链接及其指向的 `archive/`。证书 `lumatile.cn` 覆盖官网、`www`、`updates`、`api` 和 `console`，`lumatile.ishua.cloud` 使用独立证书。新签发可在 DNS 指向新机且 80 端口空闲时使用 Certbot 容器的 `certonly --standalone`。运行后可用 Certbot 容器挂载证书目录和 `/var/www/letsencrypt`，以 `renew --webroot -w /var/www/letsencrypt` 续签，再运行 `docker compose exec nginx nginx -s reload`。
+4. 执行 `bash deploy-web.sh <官网构件目录> <完整提交 SHA>`，再运行 `docker compose pull` 和 `docker compose up -d --wait`。
+
+## 换服务器
+
+1. 预先在新机准备 Compose、镜像和证书。记录原镜像摘要与站点配置。趁源站继续服务时先同步较大的 `updates/releases/` 和官网版本目录。
+2. 切换窗口暂停发布并停止源站的 LumaTile 入口。共享入口模式下，只停用 LumaTile 站点，手动收集最后一批日志并保存一致性快照。宿主机日志按 inode 记录进度，历史数据通过统计库迁移。独立模式下，用 `docker compose stop nginx` 停止入口，手动运行一次统计和备份，保留数据目录中的每日访问日志。两种模式均用 `docker compose stop portal jobs` 停止写入后同步数据。
+3. 保留目录权限和符号链接，迁移 `/srv/apps/lumatile/`、`/srv/data/lumatile/`、`/srv/www/lumatile/` 和 TLS 证书目录。新机使用同一镜像摘要执行 `docker compose up -d --wait`，核对健康检查、登录、官网、公告与分发策略后切换 DNS。控制台静态文件会由 Portal 重新生成。
+4. 保留原机数据和配置供回滚。容器内数据库快照包含业务库、反馈库、统计库及当时生效的公告和分发策略。完整迁移还需要 APK、清单、官网构件和访问日志等挂载目录。
 
 ## GitHub Actions 自动部署
 
@@ -41,7 +62,7 @@ bash deploy/server/check-nginx.sh
 
 生产环境若设置部署分支与标签白名单，放行 `main` 以及 Android 的 `android-v*` 和 `android-alpha-v*`。若设置必需审阅人，部署任务会等待审批。
 
-部署账号需要官网版本目录、Android 更新目录及部署锁的写权限。后端部署通过 `sudo -n /srv/apps/lumatile/deploy-portal.sh` 执行，由管理员维护 root 所有的脚本与 Compose 配置。GHCR 公共镜像可直接拉取，私有镜像由服务器配置只读拉取凭据。Android 推广还需要 Node.js 22 和仓库发布工具目录，包含 `scripts/`、`electron/`、`config/`。
+部署账号需要官网版本目录、Android 更新目录及部署锁的写权限。后端部署通过 `sudo -n /srv/apps/lumatile/deploy-portal.sh` 执行，由管理员维护 root 所有的脚本与 Compose 配置。GHCR 公共镜像可直接拉取，私有镜像由服务器配置只读拉取凭据。Android 推广还需要 Node.js 22 和仓库发布工具目录，包含 `scripts/`、`electron/`、`config/`。使用自定义挂载路径时，给发布脚本传入与 Compose 对应的 `LUMATILE_WEB_DIR` 或 `LUMATILE_UPDATE_DIR`。
 
 ## 验证与恢复
 
@@ -51,4 +72,4 @@ bash deploy/server/check-nginx.sh
 - 官网验收包含首页、`/download/` 和各平台外部链接。可为官网部署脚本设置 `LUMATILE_WEB_CHECK_URL`，探测失败时恢复上一版链接。
 - 通过控制台分别验证公告发布、撤回，APK 开关和旧直链。关闭 APK 分发后用 `Range` 请求验证新旧域名，确认两个入口都不返回 APK 内容。
 - 后端部署前会备份 SQLite 并记录原镜像。失败后根据迁移兼容性选择原镜像与对应数据库备份。定时备份保留 14 天，异机保存并在临时目录验证恢复后再登记上线。
-- 排查使用 `docker compose logs portal`、`journalctl -u lumatile-stats.service -u lumatile-backup.service` 和 `/var/log/nginx/lumatile.access.log`。部署后更新服务器 `/srv/ops/SERVICES.md` 和 LumaTile 手册。
+- 排查使用 `docker compose logs portal jobs`。在共享模式下查阅宿主机 Nginx 日志。独立模式另用 `docker compose logs nginx` 和数据根目录的 `logs/`。现有服务器首次升级时由管理员安装新版 Compose 和部署脚本，再切换定时任务。之后镜像更新沿用现有工作流。

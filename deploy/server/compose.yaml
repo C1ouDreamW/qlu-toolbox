@@ -2,19 +2,39 @@ services:
   portal:
     image: ${LUMATILE_IMAGE:?set LUMATILE_IMAGE}
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LUMATILE_PORTAL_PORT:-18080}:8080"
+    volumes:
+      - ${LUMATILE_FEEDBACK_DIR:-${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/feedback}:/data
+      - ${LUMATILE_UPDATE_DIR:-${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/updates}:/updates
+      - ${LUMATILE_STATIC_DIR:-/srv/www/lumatile-console}:/static
+      - ${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/stats/report:/stats:ro
+      - ${LUMATILE_WEB_DIR:-/srv/www/lumatile}:/website:ro
     environment:
       LUMATILE_SECRET_KEY: ${LUMATILE_SECRET_KEY:?set LUMATILE_SECRET_KEY}
-    ports:
-      - "127.0.0.1:18080:8080"
-    volumes:
-      - ${LUMATILE_FEEDBACK_DIR:-/srv/data/lumatile/feedback}:/data
-      - ${LUMATILE_UPDATE_DIR:-/srv/data/lumatile/updates}:/updates
-      - ${LUMATILE_STATIC_DIR:-/srv/www/lumatile-console}:/static
-      - ${LUMATILE_STATS_DIR:-/srv/data/lumatile/stats/report}:/stats:ro
-      - /srv/www/lumatile:/website:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; request=urllib.request.Request('http://127.0.0.1:8080/healthz', headers={'Host':'api.lumatile.cn'}); urllib.request.urlopen(request, timeout=3)"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  jobs:
+    image: ${LUMATILE_IMAGE:?set LUMATILE_IMAGE}
+    restart: unless-stopped
+    init: true
+    command: ["python", "jobs.py", "schedule"]
+    environment:
+      TZ: CST-8
+      LUMATILE_ACCESS_LOG_FORMAT: host
+    depends_on:
+      portal:
+        condition: service_healthy
+    group_add:
+      - "${LUMATILE_NGINX_LOG_GID:-4}"
+    volumes:
+      - ${LUMATILE_FEEDBACK_DIR:-${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/feedback}:/data:ro
+      - ${LUMATILE_UPDATE_DIR:-${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/updates}:/updates:ro
+      - ${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/stats:/stats
+      - ${LUMATILE_NGINX_LOG_DIR:-/var/log/nginx}:/logs:ro
+      - ${LUMATILE_DATA_ROOT:-/srv/data/lumatile}/backups:/backups

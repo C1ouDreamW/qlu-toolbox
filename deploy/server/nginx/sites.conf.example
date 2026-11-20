@@ -1,10 +1,10 @@
-# 由 certbot 签发后使用其实际证书路径，四个站点可分别签发。
+# 主域证书覆盖主站、www、updates、api 和 console。旧域名使用独立证书。
 server {
     listen 443 ssl;
     server_name updates.lumatile.cn;
-    ssl_certificate /etc/letsencrypt/live/updates.lumatile.cn/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/updates.lumatile.cn/privkey.pem;
-    access_log /var/log/nginx/lumatile.access.log combined;
+    ssl_certificate /etc/letsencrypt/live/lumatile.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/lumatile.cn/privkey.pem;
+    access_log /logs/lumatile-access-$lumatile_log_date.log combined;
     include /etc/nginx/lumatile/updates.conf;
     location / { return 404; }
 }
@@ -14,7 +14,7 @@ server {
     server_name lumatile.ishua.cloud;
     ssl_certificate /etc/letsencrypt/live/lumatile.ishua.cloud/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/lumatile.ishua.cloud/privkey.pem;
-    access_log /var/log/nginx/lumatile.access.log combined;
+    access_log /logs/lumatile-access-$lumatile_log_date.log combined;
     include /etc/nginx/lumatile/updates.conf;
     location ~ ^/(stable|alpha)/(desktop|windows-x64|macos-arm64)\.json$ {
         add_header Cache-Control "no-cache" always;
@@ -47,8 +47,8 @@ server {
 server {
     listen 443 ssl;
     server_name api.lumatile.cn;
-    ssl_certificate /etc/letsencrypt/live/api.lumatile.cn/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.lumatile.cn/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/lumatile.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/lumatile.cn/privkey.pem;
     location = /healthz { include /etc/nginx/lumatile/proxy.conf; }
     location = /v1/feedback-submissions {
         client_max_body_size 16k;
@@ -67,8 +67,8 @@ server {
 server {
     listen 443 ssl;
     server_name console.lumatile.cn;
-    ssl_certificate /etc/letsencrypt/live/console.lumatile.cn/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/console.lumatile.cn/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/lumatile.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/lumatile.cn/privkey.pem;
     location /static/ { alias /srv/www/lumatile-console/; }
     location / { include /etc/nginx/lumatile/proxy.conf; }
 }
