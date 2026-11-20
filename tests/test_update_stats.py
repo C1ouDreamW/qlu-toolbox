@@ -13,7 +13,7 @@ from lumatile.core.settings import AppSettings, SettingsStore
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _SPEC = importlib.util.spec_from_file_location(
-    "update_stats_collect", REPO_ROOT / "deploy" / "stats" / "collect.py"
+    "update_stats_collect", REPO_ROOT / "apps" / "server" / "stats" / "collect.py"
 )
 collect = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(collect)

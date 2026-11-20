@@ -11,7 +11,7 @@ def load(name, path):
     spec.loader.exec_module(module)
     return module
 
-stats = load("stats", "deploy/stats/collect.py")
+stats = load("stats", "apps/server/stats/collect.py")
 
 class ReleaseRegressionTests(unittest.TestCase):
     def test_statistics_escape_labels_and_keep_manifest_only_days(self):

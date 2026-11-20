@@ -11,7 +11,7 @@ import urllib.request
 from contextlib import closing
 from pathlib import Path
 
-MODULE_PATH = Path(__file__).parents[1] / "deploy" / "feedback" / "server.py"
+MODULE_PATH = Path(__file__).parents[1] / "apps" / "server" / "feedback" / "server.py"
 SPEC = importlib.util.spec_from_file_location("feedback_server", MODULE_PATH)
 assert SPEC and SPEC.loader
 feedback_server = importlib.util.module_from_spec(SPEC)
