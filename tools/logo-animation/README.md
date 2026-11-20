@@ -4,10 +4,10 @@ React + TypeScript + Remotion；1080 × 1080，30 FPS，90 帧（3 秒），无�
 
 ## 目录
 
-工程、参考素材和输出统一放在 `lumatile-logo-animation/` 中，可独立移动使用：
+工程、参考素材和输出都在 `tools/logo-animation/`，可独立安装依赖和渲染。
 
 ```text
-lumatile-logo-animation/
+tools/logo-animation/
 ├── src/                 # React 组件、矢量图形、时间轴
 ├── public/lumatile.png   # 原始 Logo，最终定格素材
 ├── scripts/             # 轮廓提取和动画检查

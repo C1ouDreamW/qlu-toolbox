@@ -27,17 +27,17 @@
 先安装项目现有依赖，在两个终端中分别启动桌面和移动 Web 界面：
 
 ```powershell
-npx vite --host 127.0.0.1 --port 5179 --strictPort
+npx vite --config apps/desktop/vite.config.ts --host 127.0.0.1 --port 5179 --strictPort
 npm run mobile:dev -- --host 127.0.0.1 --port 5180 --strictPort
 ```
 
 首次准备 Logo 工程，或原始 MP4 不在本机时：
 
 ```powershell
-cd lumatile-logo-animation
+cd tools/logo-animation
 npm ci
 npm run render:mp4
-cd ..
+cd ../..
 ```
 
 在根目录执行素材生成；Pillow 仅作为临时工具依赖，不修改项目依赖文件：

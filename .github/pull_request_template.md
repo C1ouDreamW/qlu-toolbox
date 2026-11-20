@@ -21,7 +21,7 @@
 已执行：
 
 - [ ] `uv lock --check`
-- [ ] `uv run --locked python -B -m unittest discover -s tests -v`
+- [ ] `uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v`
 - [ ] `npm run typecheck`
 - [ ] `npm run build`
 - [ ] `npm run build:backend`

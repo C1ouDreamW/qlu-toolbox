@@ -1,6 +1,6 @@
 # 一格有光 · LumaTile Android
 
-这是 `docs/MOBILE_DEVELOPMENT_SOLUTION.md` 对应的正式 Android 工程。阶段 0 的 Java PoC 已完成使命并从当前源码树移除。
+这是本仓库的 Android 应用，演进过程见[移动端设计方案](../../docs/MOBILE_DEVELOPMENT_SOLUTION.md)。桌面与 Android 共用的教务脚本位于 [`packages/school-web/`](../../packages/school-web/)，品牌素材位于 [`packages/branding/`](../../packages/branding/)。
 
 ## 技术栈
 
@@ -43,7 +43,12 @@
 
 WebView renderer/完整进程回收测试、已保存 URI 失效处理和多设备支持矩阵仍按技术方案继续开发，不在本测试包中宣称完成。
 
-学分统计的本地验证：`npx vitest run packages/academic-core/src/credit.test.ts apps/mobile/src/creditCapture.test.ts`、`python -m unittest tests.test_credit_report`，以及下方 Android 构建命令。双端共用合成样本覆盖官方映射、关键词兜底、重修、未通过、在修、艺术豁免与选课建议；这些检查不替代真实校园网登录与真机验证。
+学分统计可从仓库根目录执行以下命令验证，再运行下方 Android 构建命令。双端共用合成样本覆盖官方映射、关键词兜底、重修、未通过、在修、艺术豁免与选课建议。
+
+```bash
+npx vitest run packages/academic-core/src/credit.test.ts apps/mobile/src/creditCapture.test.ts
+uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -p test_credit_report.py -v
+```
 
 ## 构建
 

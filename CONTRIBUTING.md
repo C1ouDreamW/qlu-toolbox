@@ -38,6 +38,8 @@
 
 ## 本地开发
 
+按[项目结构](README.md#项目结构)查找源码。`apps/` 下按桌面端、Android、官网和服务端分目录，仓库级开发和打包命令在根目录运行。官网与服务端有自己的[本地验证命令](deploy/server/README.md#本地检查)。
+
 桌面使用 Node.js 22、uv 与 Python 3.12；Android 额外需要 JDK 21、SDK API 36、build-tools 36.0.0。桌面只支持原生 Windows x64 / macOS arm64，不使用 Rosetta 构建 arm64 包。新机器无需正式或 Alpha 签名材料。
 
 先安装锁定依赖，再检查当前目标：
@@ -65,7 +67,7 @@ npm run dev
 
 ```shell
 uv lock --check
-uv run --locked python -B -m unittest discover -s tests -v
+uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v
 npm run test:release
 npm run test:desktop
 npm run test:mobile
@@ -81,7 +83,7 @@ PR CI 和构建演练只使用 Debug / 临时密钥；同仓库与 fork PR 均�
 
 三端普通 CI 负责测试、Debug 打包和包内身份校验。Alpha / Stable 按平台标签发布，命令与现有签名规则见 [发布指南](RELEASING.md)；不要求提交额外的验收或晋级批准记录。
 
-修改 Python 依赖请使用 `uv add` 或 `uv remove`，修改前端依赖请使用 `npm install`，并一并提交更新后的锁文件。
+修改桌面 Python 依赖时在根目录使用 `uv add` 或 `uv remove`。服务端 Python 依赖在 `apps/server/` 管理。修改前端依赖请使用 `npm install`，并一并提交相应的锁文件。
 
 ## 代码与数据要求
 

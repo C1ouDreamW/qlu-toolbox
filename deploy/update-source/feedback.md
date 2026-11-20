@@ -1,5 +1,7 @@
 # LumaTile 应用内反馈
 
+本文记录旧版更新源部署，反馈实现位于 [`apps/server/feedback/`](../../apps/server/feedback/)。当前生产部署见[生产服务说明](../server/README.md)。
+
 零依赖的 Python HTTP 服务，接收桌面端和 Android 端的简短反馈并写入 SQLite。服务只应通过更新源 Nginx 的 `/api/feedback` 暴露。
 
 数据库默认位于 `/data/feedback.db`。
@@ -32,7 +34,7 @@ install -d -o 10001 -g 10001 -m 0700 /opt/lumatile-update/feedback-data
 
 ```bash
 # 1. 上传新 server.py 到反馈构建上下文目录（FEEDBACK_BUILD_CONTEXT 指向的位置）
-scp deploy/feedback/server.py root@ishua.cloud:/opt/lumatile-update/feedback/server.py
+scp apps/server/feedback/server.py root@ishua.cloud:/opt/lumatile-update/feedback/server.py
 
 # 2. 重建反馈镜像并更新 Nginx 配置（新增 /admin/ 路由与凭据挂载）
 ssh root@ishua.cloud 'cd /opt/lumatile-update && docker compose up -d --build'
@@ -49,4 +51,4 @@ sqlite3 /opt/lumatile-update/feedback-data/feedback.db \
   "SELECT id,type,platform,app_version,created_at,content,contact FROM feedback WHERE status='new' ORDER BY created_at DESC;"
 ```
 
-服务不接收附件、日志、账号或成绩数据；来源地址只在进程内用于每小时 5 次的限流，不写入数据库。统计页会以只读方式展示反馈概览（见 `../stats/README.md`）。
+服务不接收附件、日志、账号或成绩数据；来源地址只在进程内用于每小时 5 次的限流，不写入数据库。统计页会以只读方式展示反馈概览，见[统计说明](stats.md)。

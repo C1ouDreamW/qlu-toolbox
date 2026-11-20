@@ -10,16 +10,17 @@
 
 | 路径 | 职责 |
 |---|---|
-| `src/` | 桌面 Vue 3 + TypeScript 页面、组件、样式与 `store.ts` 状态 |
-| `electron/` | `main.ts` 主进程、`preload.cts` 权限接口、`bridge.ts` Python IPC 客户端与更新逻辑 |
-| `main.py`、`lumatile/bridge.py` | Python Bridge / Worker 入口与任务调度 |
-| `lumatile/core/`、`lumatile/modules/` | 路径、设置、SQLite 任务记录、课表存储；各工具的领域规则与 Playwright 自动化 |
+| `apps/desktop/src/` | 桌面 Vue 3 + TypeScript 页面、组件、样式与 `store.ts` 状态 |
+| `apps/desktop/electron/` | `main.ts` 主进程、`preload.cts` 权限接口、`bridge.ts` Python IPC 客户端与更新逻辑 |
+| `apps/desktop/python/` | `main.py`、`lumatile/bridge.py` 负责本地 Bridge / Worker 入口与任务调度。`lumatile/core/` 和 `lumatile/modules/` 保存桌面领域规则、存储和 Playwright 自动化。PyInstaller spec 同在此目录。 |
 | `apps/mobile/src/`、`apps/mobile/android/` | 移动 Vue / Web Worker；Capacitor 8、Kotlin、Room、受限教务 WebView 与原生插件 |
-| `packages/` | `contracts` 数据契约、`academic-core` 学业规则、`schedule-ui` 课表交互逻辑、`update-notes` 更新说明解析 |
+| `apps/website/`、`apps/server/` | 静态官网；Django API 与控制台、反馈与统计、定时任务、OpenAPI 和后端 Dockerfile |
+| `packages/` | `contracts` 数据契约、`academic-core` 学业规则、`schedule-ui` 课表交互逻辑、`update-notes` 更新说明解析、`release-contract` 版本和更新协议、`school-web` 共用教务脚本、`branding` 品牌素材 |
 | `tests/` | Python unittest、Node.js 原生测试；Vitest 测试另与移动端和共享包源码就近存放 |
-| `config/`、`scripts/`、`.github/workflows/` | 平台渠道配置、开发与发布脚本、CI |
-| `deploy/` | 更新源、反馈服务与匿名统计服务，各有 README |
-| `lumatile-logo-animation/` | 独立 React / Remotion 动画工程，有自己的依赖与检查，不属于根 npm workspace |
+| `config/`、`changelogs/`、`scripts/`、`.github/workflows/` | 平台渠道配置、变更日志、开发和发布脚本、CI 与部署工作流 |
+| `deploy/server/`、`deploy/update-source/` | 生产 Compose、Nginx 和部署脚本；旧版更新源部署资料 |
+| `docs/`、`tools/logo-animation/` | 项目文档与 README 素材；自带依赖的独立 React / Remotion 工程 |
+| `updates/` | Android GitHub 备用清单，已发布客户端读取固定公开路径 `updates/android.json` |
 
 按任务阅读：贡献与环境见 [CONTRIBUTING.md](CONTRIBUTING.md)；Android 构建见 [apps/mobile/README.md](apps/mobile/README.md)；版本与发布见 [config/README.md](config/README.md)、[RELEASING.md](RELEASING.md)；签名与隐私见 [docs/release-security.md](docs/release-security.md)、[SECURITY.md](SECURITY.md)。`docs/` 中的历史设计方案含未完成规划，不能据此认定功能已实现；无需每次加载全部文档。
 
@@ -37,7 +38,7 @@
 | 环境诊断 | `npm run doctor`（桌面）；`npm run doctor -- --platform android` 或 `--platform all` |
 | 桌面开发 | 先 `npm run build:electron`，再 `npm run dev`；修改 Electron TypeScript 后重新编译并重启 |
 | 移动 Web 开发 | `npm run mobile:dev`（原生功能仍需 Android 验证） |
-| Python 测试 | `uv run --locked python -B -m unittest discover -s tests -v`；可用 `-p 'test_credit_report.py'` 等缩小范围 |
+| Python 测试 | `uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v`，可用 `-p 'test_credit_report.py'` 等缩小范围 |
 | 桌面测试 | `npm run test:desktop`（已包含 Electron 编译） |
 | 移动 Vue 测试 | `npm run test:mobile` |
 | 共享包测试 | `npm test --workspace @lumatile/academic-core`；同样适用于 `@lumatile/schedule-ui`、`@lumatile/update-notes` |
@@ -48,7 +49,7 @@
 | 发布脚本与锁文件检查 | `npm run test:release`；Python 依赖变更时 `uv lock --check` |
 | 桌面 Debug 打包 | Windows：`npm run dist:installer` / `npm run dist:zip`；macOS：`npm run dist:mac`（均会构建 Python Worker） |
 
-根应用目前没有统一的 Lint / 格式化脚本，不要假设存在 `npm run lint` 或全仓 Prettier。动画工程的命令在其目录内执行，见 [lumatile-logo-animation/README.md](lumatile-logo-animation/README.md)。
+根应用目前没有统一的 Lint / 格式化脚本，不要假设存在 `npm run lint` 或全仓 Prettier。动画工程的命令在其目录内执行，见[动画工程说明](tools/logo-animation/README.md)。官网与服务端的验证命令见[生产服务说明](deploy/server/README.md)。
 
 ## 架构与代码组织
 
