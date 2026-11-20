@@ -92,7 +92,7 @@
 | macOS Apple Silicon | 2.0.4 | [DMG](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile_v2.0.4_arm64.dmg) | 使用 ad-hoc 签名，未公证，首次打开需在系统设置中确认 |
 | Android 7.0 及以上 | 2.0.4（versionCode 15） | [APK](https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.4/LumaTile-Android-v2.0.4.apk) | 使用系统 WebView（Chromium 80 及以上），支持系统文件保存和应用内更新检查 |
 
-安装包同时发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 与自建更新源 `lumatile.ishua.cloud`（互为备用渠道）。详细版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+安装包同时发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 与自建更新源 `lumatile.ishua.cloud`（互为备用渠道）。详细版本变化见 [历史更新日志](changelogs/legacy.md)。
 
 下载表只列已公开版本。独立发布迁移尚未切换生产，当前三端仍为 2.0.4；后续各平台分别维护下载链接与版本，不以仓库的单个 latest Release 代表所有平台。迁移进度及平台更新日志见[平台版本说明](config/README.md)。
 
@@ -106,7 +106,7 @@
 
 Alpha / Debug 使用独立应用身份和私有数据，可以与 Stable 共存。加入测试无需卸载 Stable；各渠道不自动读取对方的课表、设置或登录状态。需要转移课表时，由用户主动导出备份再导入，首次测试建议使用内置虚拟展示课表。Android Alpha 使用固定独立测试证书，Debug 的机器临时证书不能保证跨机器覆盖安装。
 
-Alpha 按平台独立发布 GitHub prerelease，Stable 按平台独立发布正式版本；Debug 构件由普通 CI 提供。构建和发版命令见 [发布指南](RELEASING.md)。当前不发布新版本。
+Alpha 按平台独立发布 GitHub prerelease，Stable 按平台独立发布正式版本；Debug 构件由普通 CI 提供。构建和发版命令见 [发布指南](docs/releasing.md)。当前不发布新版本。
 
 ## 桌面版
 

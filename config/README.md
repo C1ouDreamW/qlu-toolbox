@@ -40,7 +40,7 @@ Debug 不检查在线更新；Alpha / Debug 不发送匿名统计。Alpha 和 St
 - `bridgeVersion=null`：暂未指定旧桌面迁移版本，仅保留旧更新格式兼容能力。
 - 两个 Android 签名指纹只保存公开 SHA-256，Alpha 必须与 Stable 不同。
 
-当前只开发并合并代码，不创建发布标签。以后发版时再启用对应开关、更新本端 `changelogs/<platform>.md` 并创建标签，见 [发布指南](../RELEASING.md)。不需要晋级批准文件、候选验收状态机或 SBOM 前置任务。
+当前只开发并合并代码，不创建发布标签。以后发版时再启用对应开关、更新本端 `changelogs/<platform>.md` 并创建标签，见 [发布指南](../docs/releasing.md)。不需要晋级批准文件、候选验收状态机或 SBOM 前置任务。
 
 发布工作流从不可变标签读取配置，要求提交已进入 main；未提交的工作区修改不能打开发布。Android 将无密钥构建、独立签名与公开 Release 分开，PR 仅生成 Debug，不接收长期签名 Secret。
 

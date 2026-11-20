@@ -32,7 +32,7 @@ docker compose exec jobs python jobs.py backup
 docker compose logs jobs
 ```
 
-默认 APK 分发关闭。登录控制台修改模式后，Nginx 用同一个 `updates/android/server.json` 的存在状态控制公开策略和新旧域名上的 APK 路由。关闭时 APK 请求返回 503，官网和新版应用提供外部下载入口。发布工具继续核对 APK 大小与 SHA-256，再按渠道原子推广清单。具体构件见 [发布指南](../../RELEASING.md)。
+默认 APK 分发关闭。登录控制台修改模式后，Nginx 用同一个 `updates/android/server.json` 的存在状态控制公开策略和新旧域名上的 APK 路由。关闭时 APK 请求返回 503，官网和新版应用提供外部下载入口。发布工具继续核对 APK 大小与 SHA-256，再按渠道原子推广清单。具体构件见 [发布指南](../../docs/releasing.md)。
 
 公开分发入口为 `api.lumatile.cn`。Nginx 提供 `/android/distribution.json`、`/{channel}/android.json`、`/{channel}/announcement.json` 和 APK 下载。兼容入口 `lumatile.ishua.cloud` 继续提供已发布客户端使用的地址。新版客户端和官网读取自建清单时会将旧 APK 下载地址转换为 API 域名。
 

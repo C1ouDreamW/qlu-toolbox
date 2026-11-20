@@ -1,6 +1,6 @@
 # Android 更新清单
 
-`android.json` is copied from the verified APK's release bundle only after the complete GitHub Release is public. Do not hand-edit hashes, sizes, package IDs, version codes, or `notes`. The legacy release workflow uses `CHANGELOG.md`; the gated independent Android workflow uses `changelogs/android.md`. Both clients render the notes as Markdown.
+`android.json` is copied from the verified APK's release bundle only after the complete GitHub Release is public. Do not hand-edit hashes, sizes, package IDs, version codes, or `notes`. The legacy release workflow used the [historical changelog](../changelogs/legacy.md). The gated independent Android workflow reads the [Android changelog](../changelogs/android.md). Both clients render the notes as Markdown.
 
 The release workflow pushes the generated manifest to a dedicated branch and adds a pull-request link to the workflow summary. Open that link and create the pull request so that the protected `main` branch runs its required status checks. Merge it after CI passes to make the new update visible to installed apps.
 
