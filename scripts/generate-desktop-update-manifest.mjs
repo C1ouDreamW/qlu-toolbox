@@ -4,9 +4,9 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { artifactFileNames, assertStableVersion, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { artifactFileNames, assertStableVersion, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
 import { parseReleaseTag, releaseVersion, validateReleaseConfig } from './release-config.mjs'
-import { buildInformation } from '../electron/channel-contract.mjs'
+import { buildInformation } from '../packages/release-contract/channel-contract.mjs'
 
 /** Pure generation entry for verified build artifacts; the CLI resolves identity from Git. */
 export async function generateDesktopManifest({ platform, version, tag, commit, artifacts, notes, buildNumber = 1, channel = 'stable', bridgeVersion = null, publishedAt = new Date().toISOString() }) {

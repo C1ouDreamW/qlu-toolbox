@@ -3,12 +3,12 @@ import { createHash } from 'node:crypto'
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { artifactFileNames, compareVersions, desktopTarget, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../electron/update-contract.mjs'
+import { artifactFileNames, compareVersions, desktopTarget, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
 import { extractReleaseNotes, parseReleaseTag, resolveRelease, validateReleaseConfig } from './release-config.mjs'
 import { generateDesktopManifest } from './generate-desktop-update-manifest.mjs'
-import { androidArtifactName, validateAndroidManifest } from '../electron/android-update-contract.mjs'
-export { validateAndroidManifest } from '../electron/android-update-contract.mjs'
-import { assertChannelVersion, compareChannelVersions, channelIdentity, buildInformation } from '../electron/channel-contract.mjs'
+import { androidArtifactName, validateAndroidManifest } from '../packages/release-contract/android-update-contract.mjs'
+export { validateAndroidManifest } from '../packages/release-contract/android-update-contract.mjs'
+import { assertChannelVersion, compareChannelVersions, channelIdentity, buildInformation } from '../packages/release-contract/channel-contract.mjs'
 
 export const repositoryRoot = fileURLToPath(new URL('../', import.meta.url))
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')

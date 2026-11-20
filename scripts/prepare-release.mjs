@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { extractReleaseNotes, hostReleasePlatform, readReleaseConfig, resolveRelease } from './release-config.mjs'
 import { replacePythonVersion } from './set-python-version.mjs'
-import { buildInformation } from '../electron/channel-contract.mjs'
+import { buildInformation } from '../packages/release-contract/channel-contract.mjs'
 
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url))
 
@@ -40,7 +40,6 @@ export async function prepareRelease({ root = repositoryRoot, platform, tag, cha
       value.build.mac.executableName = information.productName
       value.build.mac.bundleVersion = information.nativeBuildVersion
       value.build.mac.extendInfo = { ...value.build.mac.extendInfo, CFBundleShortVersionString: information.baseVersion }
-      if (!value.build.files.includes('lumatile/build-info.json')) value.build.files.push('lumatile/build-info.json')
       // Stable retains old filenames for the one-time bridge; all other channels are explicit.
       const prefix = release.channel === 'stable' ? 'LumaTile' : information.productName.replace(' ', '-')
       value.build.win.artifactName = `${prefix}_v\${version}_\${arch}.\${ext}`
@@ -62,12 +61,12 @@ export async function prepareRelease({ root = repositoryRoot, platform, tag, cha
     }
   })
   if (desktop) {
-    const file = 'lumatile/__init__.py'
+    const file = 'apps/desktop/python/lumatile/__init__.py'
     const before = await readFile(resolve(root, file), 'utf8')
     const after = replacePythonVersion(before, release.version)
     if (before !== after) changes.push({ file, before, after })
   }
-  const metadataFile = desktop ? 'lumatile/build-info.json' : 'apps/mobile/build-info.json'
+  const metadataFile = desktop ? 'apps/desktop/python/lumatile/build-info.json' : 'apps/mobile/build-info.json'
   const before = await readFile(resolve(root, metadataFile), 'utf8').catch(error => { if (error.code === 'ENOENT') return null; throw error })
   const after = `${JSON.stringify(information, null, 2)}\n`
   if (before !== after) changes.push({ file: metadataFile, before, after })
@@ -95,7 +94,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     values.channel = process.env.LUMATILE_BUILD_CHANNEL
     if (!values.channel && values.verify) {
       const desktop = values.platform !== 'android'
-      try { values.channel = JSON.parse(await readFile(resolve(repositoryRoot, desktop ? 'lumatile/build-info.json' : 'apps/mobile/build-info.json'), 'utf8')).channel } catch { /* Require preparation below. */ }
+      try { values.channel = JSON.parse(await readFile(resolve(repositoryRoot, desktop ? 'apps/desktop/python/lumatile/build-info.json' : 'apps/mobile/build-info.json'), 'utf8')).channel } catch { /* Require preparation below. */ }
     }
     values.channel ||= 'debug'
   }

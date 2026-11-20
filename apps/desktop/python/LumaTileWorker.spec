@@ -1,17 +1,23 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import sys
+from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all
 
+python_dir = Path(SPECPATH).resolve()
+repository = python_dir.parents[2]
 playwright_datas, playwright_binaries, playwright_hiddenimports = collect_all("playwright")
-worker_icon = "assets/lumatile.icns" if sys.platform == "darwin" else "assets/lumatile.ico"
+worker_icon = python_dir.parent / "assets" / ("lumatile.icns" if sys.platform == "darwin" else "lumatile.ico")
 
 analysis = Analysis(
-    ["main.py"],
+    [str(python_dir / "main.py")],
     pathex=[],
     binaries=playwright_binaries,
-    datas=playwright_datas + [("assets/qlu-schedule-dom.js", "assets"), ("lumatile/build-info.json", "lumatile")],
+    datas=playwright_datas + [
+        (str(repository / "packages/school-web/qlu-schedule-dom.js"), "assets"),
+        (str(python_dir / "lumatile/build-info.json"), "lumatile"),
+    ],
     hiddenimports=playwright_hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -36,5 +42,5 @@ executable = EXE(
     upx=False,
     console=True,
     disable_windowed_traceback=False,
-    icon=[worker_icon],
+    icon=[str(worker_icon)],
 )

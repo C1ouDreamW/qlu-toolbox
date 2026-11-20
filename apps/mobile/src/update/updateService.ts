@@ -1,7 +1,7 @@
 import type { Announcement, AvailableUpdate, CurrentAppVersion, UpdateManifest } from './types'
-import { androidReleaseTag, androidUpdateSources, validateAndroidManifest } from '../../../../electron/android-update-contract.mjs'
-import { assertChannelVersion, compareChannelVersions } from '../../../../electron/version-contract.mjs'
-import { API_ORIGIN, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../../../../electron/update-contract.mjs'
+import { androidReleaseTag, androidUpdateSources, validateAndroidManifest } from '../../../../packages/release-contract/android-update-contract.mjs'
+import { assertChannelVersion, compareChannelVersions } from '../../../../packages/release-contract/version-contract.mjs'
+import { API_ORIGIN, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../../../../packages/release-contract/update-contract.mjs'
 import { buildInformation } from '../build-info'
 
 export const ANNOUNCEMENT_URL = `${API_ORIGIN}/${buildInformation.channel}/announcement.json`

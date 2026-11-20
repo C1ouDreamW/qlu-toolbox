@@ -2,8 +2,8 @@ import {
   desktopTagVersion, desktopTarget, GITHUB_REPOSITORY,
   isArtifactUrl, UPDATE_ORIGIN, validateDesktopManifest,
   type DesktopTarget, type DesktopManifest,
-} from './update-contract.mjs'
-import { assertChannelVersion, compareChannelVersions, validateBuildInformation, versionChannel } from './channel-contract.mjs'
+} from '../../../packages/release-contract/update-contract.mjs'
+import { assertChannelVersion, compareChannelVersions, validateBuildInformation, versionChannel } from '../../../packages/release-contract/channel-contract.mjs'
 
 type Fetcher = typeof fetch
 type UpdateInfo = { version: string; name: string; notes: string; url: string }

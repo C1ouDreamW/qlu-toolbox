@@ -25,7 +25,7 @@ node_modules/
 /release-*/
 /apps/mobile/dist/
 /apps/mobile/build-info.json
-/lumatile/build-info.json
+/apps/desktop/python/lumatile/build-info.json
 /apps/mobile/android/.gradle/
 /apps/mobile/android/.gradle-user/
 /apps/mobile/android/build/

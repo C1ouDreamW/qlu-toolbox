@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { resolveRelease, validateReleaseConfig } from './release-config.mjs'
-import { validateMigrationPolicy } from '../electron/update-contract.mjs'
-import { buildInformation } from '../electron/channel-contract.mjs'
+import { validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
+import { buildInformation } from '../packages/release-contract/channel-contract.mjs'
 
 // CI reads the Debug identity from immutable HEAD without creating release tags.
 export function rehearsalIdentity(root, platform) {

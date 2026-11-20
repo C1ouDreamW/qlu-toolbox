@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { androidArtifactName, androidReleaseTag, androidUpdateSources } from '../../../../electron/android-update-contract.mjs'
+import { androidArtifactName, androidReleaseTag, androidUpdateSources } from '../../../../packages/release-contract/android-update-contract.mjs'
 const native = vi.hoisted(() => ({ downloadAndInstall: vi.fn() }))
 const information = vi.hoisted(() => ({ channel: 'stable', applicationId: 'io.github.c1oudreamw.lumatile', version: '2.0.0', updatesEnabled: true }))
 vi.mock('@capacitor/core', () => ({ Capacitor: {}, registerPlugin: () => native }))

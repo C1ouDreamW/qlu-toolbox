@@ -2,9 +2,9 @@ import { githubReleaseClient, publishVerifiedDraft } from './github-release-draf
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { assertStableVersion, desktopTagVersion, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../electron/update-contract.mjs'
-import { assertChannelVersion, compareChannelVersions } from '../electron/channel-contract.mjs'
-import { androidArtifactName, androidReleaseTag } from '../electron/android-update-contract.mjs'
+import { assertStableVersion, desktopTagVersion, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../packages/release-contract/update-contract.mjs'
+import { assertChannelVersion, compareChannelVersions } from '../packages/release-contract/channel-contract.mjs'
+import { androidArtifactName, androidReleaseTag } from '../packages/release-contract/android-update-contract.mjs'
 import { parseReleaseTag } from './release-config.mjs'
 import { assertPromotion, manifestTarget, repositoryRoot, sha256, taggedRelease, targetFor, validatePlatformManifest, verifyReleaseFiles } from './release-artifacts.mjs'
 

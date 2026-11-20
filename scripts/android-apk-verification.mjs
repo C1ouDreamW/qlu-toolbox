@@ -1,4 +1,4 @@
-import { channelIdentity } from '../electron/channel-contract.mjs'
+import { channelIdentity } from '../packages/release-contract/channel-contract.mjs'
 // Pure checks shared by native-tool verification and failure-boundary tests.
 export function assertAndroidApkMetadata({ identity, badging, metadata }) {
   const debug = identity.purpose === 'rehearsal'

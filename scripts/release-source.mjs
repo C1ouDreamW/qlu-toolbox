@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { GITHUB_REPOSITORY } from '../electron/update-contract.mjs'
+import { GITHUB_REPOSITORY } from '../packages/release-contract/update-contract.mjs'
 
 export function releaseRunContext(env = process.env) {
   return { repository: env.GITHUB_REPOSITORY, event: env.GITHUB_EVENT_NAME, ref: env.GITHUB_REF,

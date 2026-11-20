@@ -109,7 +109,7 @@ jobs:
           npm run test:release
 
       - name: Run Python tests
-        run: uv run --locked python -B -m unittest discover -s tests -v
+        run: uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v
 
       - name: Build Vue and Electron
         run: npm run build
@@ -179,7 +179,7 @@ jobs:
           npm run test:release
 
       - name: Run Python tests
-        run: uv run --locked python -B -m unittest discover -s tests -v
+        run: uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v
 
       - name: Build Vue and Electron
         run: npm run build

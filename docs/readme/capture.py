@@ -15,7 +15,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "apps/desktop/python"))
 from lumatile.modules.gpa_calculator.domain import parse_grade_xlsx
 from lumatile.modules.credit_report.domain import CourseRecord, default_rules, rules_to_dict, summarize
 
@@ -198,11 +198,11 @@ def save_gif(frames, path: Path, width: int):
 
 def export_logo(output: Path):
     from PIL import Image
-    ffmpeg = ROOT / "lumatile-logo-animation/node_modules/@remotion/compositor-win32-x64-msvc/ffmpeg.exe"
+    ffmpeg = ROOT / "tools/logo-animation/node_modules/@remotion/compositor-win32-x64-msvc/ffmpeg.exe"
     folder = output / "logo-frames"
     folder.mkdir(exist_ok=True)
     subprocess.run([str(ffmpeg), "-hide_banner", "-loglevel", "error", "-y", "-i",
-                    str(ROOT / "lumatile-logo-animation/out/logo-reveal.mp4"), "-vf", "scale=192:192", "-r", "15",
+                    str(ROOT / "tools/logo-animation/out/logo-reveal.mp4"), "-vf", "scale=192:192", "-r", "15",
                     str(folder / "%03d.png")], check=True)
     # 固定读取 3 秒 / 15 FPS 的帧，避免上次生成的多余文件影响编码。
     frames = [Image.open(folder / f"{index:03d}.png").convert("RGB") for index in range(1, 46)]
