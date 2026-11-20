@@ -2,10 +2,10 @@ name: Server artifacts
 
 on:
   pull_request:
-    paths: ['deploy/server/**', 'apps/server/**', 'apps/website/**', '.dockerignore', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
+    paths: ['deploy/server/**', 'apps/server/**', 'apps/website/**', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
   push:
     branches: [main]
-    paths: ['deploy/server/**', 'apps/server/**', 'apps/website/**', '.dockerignore', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
+    paths: ['deploy/server/**', 'apps/server/**', 'apps/website/**', '.github/workflows/server.yml', '.github/workflows/deploy-server.yml']
   workflow_dispatch:
 
 permissions:
@@ -57,7 +57,7 @@ jobs:
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}/server:${GITHUB_SHA}"
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker build -f apps/server/Dockerfile -t "$image" .
+          docker build -t "$image" apps/server
           docker push "$image"
           reference=$(docker image inspect --format '{{index .RepoDigests 0}}' "$image")
           echo "reference=$reference" >> "$GITHUB_OUTPUT"

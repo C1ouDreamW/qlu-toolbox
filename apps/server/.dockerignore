@@ -1,0 +1,11 @@
+**
+!Dockerfile
+!manage.py
+!jobs.py
+!pyproject.toml
+!uv.lock
+!portal/
+!portal/**
+!feedback/server.py
+!stats/collect.py
+**/__pycache__
