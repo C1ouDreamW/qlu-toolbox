@@ -9,7 +9,7 @@ on:
     paths-ignore:
       - "**/*.md"
       - "docs/**"
-      - "lumatile-logo-animation/**"
+      - "tools/logo-animation/**"
   workflow_dispatch:
 
 permissions:
