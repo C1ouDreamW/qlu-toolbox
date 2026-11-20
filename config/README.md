@@ -27,7 +27,7 @@ npm run release:prepare -- --platform windows --channel debug --check
 npm run release:prepare -- --platform windows --channel debug
 ```
 
-日常 `npm run dev`、桌面打包命令、`npm run mobile:build` 默认 Debug。生成的 build-info.json 不提交；版本注入产生的 package / lock / Python 改动要与真实源码、依赖改动区分，不能自动清空用户工作区。
+日常 `npm run dev`、桌面打包命令、`npm run mobile:build` 默认 Debug。生成的元数据分别位于 `apps/desktop/python/lumatile/build-info.json` 和 `apps/mobile/build-info.json`，均被 Git 忽略。提交前检查版本注入产生的 package、lock 和 Python 版本文件改动，保留实际的源码和依赖变更。
 
 Debug 不检查在线更新；Alpha / Debug 不发送匿名统计。Alpha 和 Stable 各自读取本平台渠道清单及对应 GitHub prerelease / release，Android 覆盖安装时仍校验包名、版本号、证书和摘要。
 

@@ -4,13 +4,13 @@
 
 三端 Stable / Alpha 独立工作流已接入，两个渠道的发布门禁仍关闭，尚未修改服务器。Stable 桌面切换需要桥接与真实升级链验收；Alpha 可独立准备和验收，详见 [`config/README.md`](../../config/README.md)。下方将旧流程与切换后的单平台流程分别说明。
 
-除静态文件外，容器配置还提供 `/beacon/desktop` 与 `/beacon/android` 两个 204 匿名统计心跳路由（只依赖访问日志计数）、写入本地 SQLite 的 `/api/feedback` 应用内反馈接口，以及受 Basic Auth 保护的反馈管理页 `/admin/`（与统计页共用 `/etc/nginx/lumatile-stats.htpasswd`，见 compose 挂载）。反馈服务说明见 `../feedback/README.md`，公告与统计页方案见 `../stats/README.md`。
+除静态文件外，容器配置还提供 `/beacon/desktop` 与 `/beacon/android` 两个 204 匿名统计心跳路由（只依赖访问日志计数）、写入本地 SQLite 的 `/api/feedback` 应用内反馈接口，以及受 Basic Auth 保护的反馈管理页 `/admin/`（与统计页共用 `/etc/nginx/lumatile-stats.htpasswd`，见 Compose 挂载）。旧版部署细节见[反馈服务说明](feedback.md)和[统计说明](stats.md)。当前生产部署见[生产服务说明](../server/README.md)。
 
 ## 首次部署
 
 1. 将本目录复制到服务器，例如 `/opt/lumatile-update`。
 2. 将已核验的 `releases/<tag>/` 放入 `data/releases/`，再分别推广目标清单；不要将下载构件整体覆盖 `data/` 或 `stable/`。
-   如果服务器使用扁平目录、反馈服务位于本目录的 `feedback/`，请在 `.env` 中设置 `FEEDBACK_BUILD_CONTEXT=./feedback`。
+   从仓库运行时，反馈镜像默认从 `apps/server/feedback/` 构建。如果服务器使用扁平目录、反馈服务位于本目录的 `feedback/`，请在 `.env` 中设置 `FEEDBACK_BUILD_CONTEXT=./feedback`。
 3. 确认 `/etc/nginx/lumatile-stats.htpasswd` 已存在（统计页方案创建）；若路径不同，在 `.env` 中设置 `ADMIN_HTPASSWD`。文件缺失时 `/admin/` 鉴权会失败，但其余路由不受影响。
 4. 运行 `docker compose up -d`。
 5. 将 `host-nginx.conf.example` 合并到宿主机 Nginx，并为域名签发证书。

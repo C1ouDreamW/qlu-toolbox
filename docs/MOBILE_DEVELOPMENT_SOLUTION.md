@@ -6,6 +6,8 @@
 > 目标平台：Android 优先，iOS 后续评估
 > 适用项目：QLU 工具箱 v1.1.x 及后续版本
 
+文档保留设计阶段的目录和技术决策。当前应用位置见[项目结构](../README.md#项目结构)。
+
 ## 1. 方案结论
 
 移动端继续在当前仓库开发，采用 Vue 3、TypeScript、Vite 与 Capacitor，优先交付 Android 版本。现有 Electron 桌面端继续使用 Python + Playwright 完成浏览器自动化；移动端不内置 Python 和 Playwright，而是通过独立、受限的系统 WebView 完成以下流程：

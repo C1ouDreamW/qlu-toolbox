@@ -1,15 +1,17 @@
 # LumaTile 生产服务
 
-默认 Compose 运行 `portal` 和 `jobs`，分别处理 Django 请求及定时统计、备份。两者共用同一个 Python 镜像。腾讯云的共享 Nginx 继续提供 HTTPS、官网和更新下载。使用独占 80/443 的服务器时可加载 [独立部署配置](compose.standalone.yaml)，由同一套 Compose 启动 Nginx。业务接口见 [OpenAPI](openapi.yaml)。
+默认 Compose 运行 `portal` 和 `jobs`，分别处理 Django 请求及定时统计、备份。两者共用同一个 Python 镜像。腾讯云的共享 Nginx 提供 HTTPS、官网和更新下载。使用独占 80/443 的服务器时可加载[独立部署配置](compose.standalone.yaml)，由同一套 Compose 启动 Nginx。
+
+服务端 Python 源码、Dockerfile 和接口定义在 [`apps/server/`](../../apps/server/)，官网构件在 [`apps/website/frontend/`](../../apps/website/frontend/)。从仓库根目录执行 `docker build -f apps/server/Dockerfile .` 构建后端镜像。业务接口见 [OpenAPI](../../apps/server/openapi.yaml)。
 
 ## 本地检查
 
 在仓库根目录执行：
 
 ```bash
-LUMATILE_SECRET_KEY=local-tests PYTHONPATH="$PWD/deploy" uv run --directory deploy/server --locked python manage.py test portal
-PYTHONPATH="$PWD/deploy" uv run --directory deploy/server --locked python -m unittest test_jobs
-node --test web/tests/downloads.test.mjs
+LUMATILE_SECRET_KEY=local-tests uv run --python 3.12 --directory apps/server --locked python manage.py test portal
+uv run --python 3.12 --directory apps/server --locked python -m unittest test_jobs
+node --test apps/website/tests/downloads.test.mjs
 bash deploy/server/check-compose.sh
 ```
 
@@ -64,7 +66,9 @@ docker compose logs jobs
 
 生产环境若设置部署分支与标签白名单，放行 `main` 以及 Android 的 `android-v*` 和 `android-alpha-v*`。若设置必需审阅人，部署任务会等待审批。
 
-部署账号需要官网版本目录、Android 更新目录及部署锁的写权限。后端部署通过 `sudo -n /srv/apps/lumatile/deploy-portal.sh` 执行，由管理员维护 root 所有的脚本与 Compose 配置。GHCR 公共镜像可直接拉取，私有镜像由服务器配置只读拉取凭据。Android 推广还需要 Node.js 22 和仓库发布工具目录，包含 `scripts/`、`electron/`、`config/`。使用自定义挂载路径时，给发布脚本传入与 Compose 对应的 `LUMATILE_WEB_DIR` 或 `LUMATILE_UPDATE_DIR`。
+部署账号需要官网版本目录、Android 更新目录及部署锁的写权限。后端部署通过 `sudo -n /srv/apps/lumatile/deploy-portal.sh` 执行，由管理员维护 root 所有的脚本与 Compose 配置。GHCR 公共镜像可直接拉取，私有镜像由服务器配置只读拉取凭据。
+
+Android 推广需要 Node.js 22。同步 `/srv/apps/lumatile/release-tools/` 时，从同一个提交复制 `scripts/`、`packages/release-contract/` 和 `config/`，保留目录层级。发布脚本按相对路径加载更新契约。使用自定义挂载路径时，给发布脚本传入与 Compose 对应的 `LUMATILE_WEB_DIR` 或 `LUMATILE_UPDATE_DIR`。
 
 ## 验证与恢复
 

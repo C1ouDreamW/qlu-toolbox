@@ -1,6 +1,6 @@
 # LumaTile 更新源统计
 
-当前 `deploy/server` 由 Compose 的 `jobs` 容器调用此脚本，部署和迁移见[生产服务说明](../server/README.md)。下文记录旧版更新源的宿主机部署。
+当前生产环境由 Compose 的 `jobs` 容器调用 [`apps/server/stats/collect.py`](../../apps/server/stats/collect.py)。部署和迁移见[生产服务说明](../server/README.md)。下文记录旧版更新源的宿主机部署。
 
 零常驻服务方案：`collect.py` 由 cron 每日执行，增量解析宿主机 nginx 访问日志，把匿名心跳（`/beacon/*`）、更新清单检查（`/stable/*.json`）和安装包下载（`/releases/*`）写入 SQLite，并生成自包含的统计页。
 
@@ -8,7 +8,7 @@
 
 ```text
 /opt/lumatile-stats/
-├── collect.py       # 本目录同名文件的部署副本
+├── collect.py       # apps/server/stats/collect.py 的部署副本
 ├── config.json      # 日志路径、GitHub 仓库、报告目录、feedback_db_path
 ├── stats.db         # SQLite 原始数据（可用 sqlite3 直接查询）
 └── report/          # stats.html + stats.json，由 nginx Basic Auth 保护
@@ -41,7 +41,7 @@ ssh root@ishua.cloud "sqlite3 /opt/lumatile-stats/stats.db 'SELECT day, COUNT(DI
 ## 修改后重新部署
 
 ```bash
-scp deploy/stats/collect.py root@ishua.cloud:/opt/lumatile-stats/collect.py
+scp apps/server/stats/collect.py root@ishua.cloud:/opt/lumatile-stats/collect.py
 ```
 
 客户端开关语义见 README「隐私与安全边界」；公告发布见 `scripts/publish_announcement.py`。

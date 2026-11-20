@@ -274,14 +274,14 @@ npm run build:electron
 npm run dev
 ```
 
-修改 `electron/` 下的 TypeScript 后，需要重新执行 `npm run build:electron` 再重启开发进程。
+修改 `apps/desktop/electron/` 下的 TypeScript 后，需要重新执行 `npm run build:electron` 再重启开发进程。
 
 开发版默认使用项目 `.venv` 中的 Python，可通过 `LUMATILE_PYTHON` 指定其他解释器。旧变量 `QLU_PYTHON` 继续作为兼容回退；同时设置时优先使用 `LUMATILE_PYTHON`。
 
 桌面端验证命令：
 
 ```powershell
-uv run --locked python -B -m unittest discover -s tests -v
+uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v
 npm run typecheck
 npm run test:desktop
 npm run build
@@ -336,30 +336,28 @@ Windows 上一键构建并安装到 adb 连接的设备：
 powershell -ExecutionPolicy Bypass -File scripts\build-and-install-android.ps1
 ```
 
-设备上已装正式版时会自动改用共存测试包（包名后缀 `.test`），不卸载正式版，也不影响其数据。
+脚本安装独立 Debug 应用（包名后缀 `.debug`），可与正式版共存。
 
 Release APK 必须配置长期正式签名，具体环境变量和密钥库要求见 [`apps/mobile/README.md`](apps/mobile/README.md)。
 
 ## 项目结构
 
-```text
-src/                                  桌面 Vue 页面、组件和状态
-electron/                             Electron 主进程、preload 和 Python IPC 客户端
-main.py                               Python Bridge 与 Worker 统一入口
-lumatile/bridge.py                   设置、任务、浏览器组件和 Worker 调度
-lumatile/core/                       路径、设置、任务数据库和工具定义
-lumatile/modules/grade_export/       桌面分项成绩导出领域与 Playwright Worker
-lumatile/modules/gpa_calculator/     桌面 XLSX 解析与 GPA 规则
-apps/mobile/src/                      Android 端 Vue、Capacitor 和 Web Worker 代码
-apps/mobile/android/                  Kotlin Activity、原生插件、Room 和 Gradle 工程
-packages/contracts/                   移动端共享 TypeScript 数据契约
-packages/academic-core/               学期、导出参数、成绩解析、GPA、课表时段分段与学分修读领域逻辑
-packages/schedule-ui/                 课表周次摘要与滚轮选择的共享界面逻辑
-tests/                                Python 单元与 Bridge 集成测试
-.github/workflows/                    Windows、macOS、Android CI 与 Release 流程
-updates/android.json                  Android 公开更新清单
-docs/                                 移动端方案、产品与发布文档
-```
+| 目录 | 职责 |
+| --- | --- |
+| [`apps/desktop/`](apps/desktop/) | Windows 和 macOS 应用。Vue 界面在 `src/`，Electron 主进程和 preload 在 `electron/`，本地 Python Bridge 和 Worker 在 `python/`，打包素材在 `assets/` 和 `installer-assets/`。 |
+| [`apps/mobile/`](apps/mobile/) | Android 应用。Vue、Web Worker 在 `src/`，Capacitor 原生工程和 Kotlin 代码在 `android/`。 |
+| [`apps/website/`](apps/website/) | 官网。静态页面和下载逻辑在 `frontend/`，官网测试在 `tests/`。 |
+| [`apps/server/`](apps/server/) | 线上服务。Django API 和控制台在 `portal/`，定时任务入口是 `jobs.py`。目录内还有反馈、统计、OpenAPI 和 Dockerfile。 |
+| [`packages/`](packages/) | 共享数据契约、学业规则、课表交互、更新说明、发布契约、教务页面脚本和品牌素材。 |
+| [`deploy/`](deploy/) | 生产 Compose、Nginx、部署脚本以及旧更新源的部署资料。 |
+| [`config/`](config/)、[`changelogs/`](changelogs/) | 平台版本、发布渠道配置和三端变更日志。 |
+| [`scripts/`](scripts/)、[`tests/`](tests/) | 仓库级开发与发布工具、Python 与 Node.js 测试。 |
+| [`docs/`](docs/) | 项目文档、README 截图和演示素材。 |
+| [`tools/`](tools/) | 独立工具。目前是自带依赖的 Remotion 标志动画工程。 |
+| [`updates/`](updates/) | Android 客户端使用的 GitHub 备用更新清单，公开路径为 `updates/android.json`。 |
+| [`.github/`](.github/) | CI、客户端发布、官网和服务端部署工作流及贡献模板。 |
+
+根目录的 npm 和 uv 配置提供客户端开发、测试和打包命令。线上服务使用 `apps/server/` 内独立的 Python 依赖配置，部署入口见[生产服务说明](deploy/server/README.md)。
 
 桌面端和 Android 端使用不同的自动化与文件处理实现，但目标是在学年、学期、导出字段、课程分组和 GPA 结果上保持一致。移动端共享规则集中在 `packages/academic-core`；桌面端对应规则位于 Python 领域模块。
 
