@@ -37,7 +37,7 @@ chmod 0755 "$LUMATILE_NGINX_LOG_DIR"
 "${root_command[@]}" install -d -o 10001 -g 101 -m 2770 "$scratch/data/logs"
 "${root_command[@]}" install -d -o 10001 -g 10001 -m 0755 "$scratch/static"
 printf 'test apk payload' > "$scratch/data/updates/releases/test/test.apk"
-cp -a "$root/web/frontend/." "$scratch/web/current/"
+cp -a "$root/apps/website/frontend/." "$scratch/web/current/"
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=lumatile.cn \
   -addext 'subjectAltName=DNS:lumatile.cn,DNS:www.lumatile.cn,DNS:api.lumatile.cn,DNS:console.lumatile.cn,DNS:lumatile.ishua.cloud' \
   -keyout "$scratch/tls/key.pem" -out "$scratch/tls/cert.pem" >/dev/null 2>&1

@@ -86,7 +86,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [[ $TARGET == web ]]; then
-            paths='["web"]'
+            paths='["apps/website"]'
           else
             paths='["deploy/server", "deploy/feedback", "deploy/stats", ".dockerignore"]'
           fi
