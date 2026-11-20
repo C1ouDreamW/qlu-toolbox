@@ -77,6 +77,8 @@ npm run build
 
 桌面完整 Debug 打包使用 Windows 的 `npm run dist:installer` / `npm run dist:zip`，或原生 arm64 Mac 的 `npm run dist:mac`；这些入口自动准备身份并构建 Python worker。只运行 electron-builder 可能打入上次构建的 worker，不作为版本一致性验收。
 
+Windows 也可运行[免安装目录构建脚本](apps/desktop/scripts/build.bat)或[安装包构建脚本](apps/desktop/scripts/build-installer.bat)。脚本会从仓库根目录安装依赖并运行对应的 Debug 构建命令。
+
 开发准备会把当前渠道版本注入 package / lock / Python 版本载体，并生成被忽略的 build-info.json。提交前检查 diff，勿将本地 Debug 注入当作版本发布提交；只还原本次生成的版本字段，保留真实依赖和源码修改。平台渠道权威配置、实际产物核验与迁移状态见 [`config/README.md`](config/README.md)。
 
 PR CI 和构建演练只使用 Debug / 临时密钥；同仓库与 fork PR 均不接收 Alpha 或正式长期签名 Secret。Alpha 是独立的长期测试应用，需要单独的版本、包身份、更新源及 Android 签名；把 Debug 包重新命名或把 Alpha 包覆盖到 Stable 都不构成发布。流程与停点见[签名规则](docs/release-security.md)。
