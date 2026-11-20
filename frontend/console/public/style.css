@@ -25,8 +25,8 @@
 .console :is(h1, h2, h3, p, dl, dd) { margin: 0; }
 .console a { color: var(--action); font-weight: 600; text-decoration: none; }
 .console a:hover { text-decoration: underline; }
-:where(.console, .console-admin) :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
-.console :is(button, input, select) {
+.console :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.console :is(button, input, select, textarea) {
   font: inherit;
   min-height: 42px;
   border: 1px solid var(--line);
@@ -40,9 +40,9 @@
 .console :is(button, select):disabled { opacity: .55; cursor: default; }
 .console button.primary { background: var(--action); border-color: var(--action); color: #fff; }
 .console button.primary:hover:not(:disabled) { background: var(--action-hover); border-color: var(--action-hover); }
-.console :is(input, select) { width: 100%; padding: 7px 11px; }
+.console :is(input, select, textarea) { width: 100%; padding: 7px 11px; }
 .console label { display: grid; gap: 5px; min-width: 0; font-size: .875rem; font-weight: 600; }
-.console label :is(input, select) { font-weight: 400; }
+.console label :is(input, select, textarea) { font-weight: 400; }
 
 .skip-link { position: absolute; z-index: 2; padding: 8px 14px; background: var(--surface); transform: translateY(-120%); }
 .skip-link:focus { transform: translateY(0); }
@@ -81,38 +81,12 @@
 .versions dl > div:nth-child(3) { border-color: #efd588; background: #fff9e7; }
 .versions dt, .muted { color: var(--muted); font-size: .85rem; }
 .versions dd { font-size: 1.35rem; font-weight: 750; font-variant-numeric: tabular-nums; }
-.workspace-jump { display: none; }
-.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); gap: 18px; align-items: start; }
-.dashboard-grid :is(section, #feedback-title) { scroll-margin-top: 14px; }
-.dashboard-grid .panel:is(:target, :has(#feedback-title:target)) { border-color: var(--blue); }
-.controls { display: grid; gap: 18px; }
+.publish-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.stack { display: grid; gap: 14px; }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 14px; }
 .form-grid { display: grid; grid-template-columns: minmax(90px, .5fr) minmax(140px, 1fr) auto; align-items: end; gap: 10px; }
 #feedback-filter { padding: 10px; border-radius: 12px; background: var(--page); }
 .announcement-fields { grid-template-columns: minmax(86px, .5fr) minmax(0, 1fr); }
-@supports (appearance: base-select) and selector(::picker(select)) {
-  .dashboard-grid select, .dashboard-grid select::picker(select) { appearance: base-select; }
-  .dashboard-grid selectedcontent { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dashboard-grid select::picker(select) {
-    position-area: block-end span-inline-end;
-    position-try-fallbacks: flip-block;
-    position-try-order: normal;
-    inline-size: anchor-size(inline);
-    max-block-size: min(18rem, calc(50dvh - 2rem));
-    margin: 5px 0;
-    padding: 4px;
-    overflow-y: auto;
-    border: 1px solid var(--line);
-    border-radius: 11px;
-    background: var(--surface);
-    color: var(--text);
-    box-shadow: var(--shadow);
-  }
-  .dashboard-grid option { padding: 7px 8px; border-radius: 6px; white-space: normal; overflow-wrap: anywhere; }
-  .dashboard-grid option:checked { background: #eaf2ff; color: var(--action); }
-  .dashboard-grid option:is(:hover, :focus-visible) { background: var(--page); }
-  .dashboard-grid option:focus-visible { outline-offset: -2px; }
-}
 .actions, .pagination { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .pagination { justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 13px; }
 .pagination > div { display: flex; gap: 6px; }
@@ -154,13 +128,9 @@
 .login-panel form > button { margin-top: 4px; min-height: 46px; }
 .login-panel label { margin-bottom: 6px; }
 .password-input { display: flex; gap: 6px; }
-.password-input input { min-width: 0; }
+.password-input input { min-width: 0; flex: 1; }
 .password-input button { color: var(--action); font-size: .8rem; padding-inline: 9px; }
-.login-panel a.auth-action { display: block; margin-top: 24px; padding: 10px 14px; border-radius: 9px; background: var(--action); color: #fff; text-align: center; }
-.login-panel a.auth-action:hover { background: var(--action-hover); text-decoration: none; }
-.login-panel .errorlist { margin: 6px 0 0; padding-left: 20px; color: var(--danger); }
 .login-panel .message.error { padding: 8px 12px; border-radius: 9px; background: #fff0ef; }
-.login-panel .message .errorlist { margin: 0; padding: 0; list-style: none; }
 
 @media (max-width: 700px) {
   .topbar-inner { flex-wrap: wrap; gap: 0 10px; padding-block: 10px; }
@@ -168,9 +138,7 @@
   .console-nav a { padding: 7px 9px; }
 }
 @media (max-width: 800px) {
-  .workspace-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-  .workspace-jump a { display: inline-flex; align-items: center; min-height: 42px; }
-  .dashboard-grid { grid-template-columns: 1fr; }
+  .publish-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .topbar-inner, .workspace { width: calc(100% - 28px); }
@@ -191,3 +159,15 @@
   #feedback-filter label:first-child { grid-column: 1 / -1; }
   .feedback-meta time { margin-inline-start: 0; }
 }
+
+
+#feedback-counts { margin-top: 12px; }
+.console p.pending { margin: 10px 0; font-size: 1.5rem; font-weight: 750; }
+#draft-form { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.console textarea { width: 100%; padding: 10px; resize: vertical; }
+.operation-filter { grid-template-columns: minmax(0, 1fr) auto; }
+.account-form { max-width: 560px; }
+.table-scroll { overflow-x: auto; margin-top: 10px; }
+.table-scroll table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.table-scroll th, .table-scroll td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.table-scroll th { color: var(--muted); font-size: .85rem; }

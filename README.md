@@ -346,8 +346,9 @@ Release APK 必须配置长期正式签名，具体环境变量和密钥库要�
 | --- | --- |
 | [`apps/desktop/`](apps/desktop/) | Windows 和 macOS 应用。Vue 界面在 `src/`，Electron 主进程和 preload 在 `electron/`，本地 Python Bridge 和 Worker 在 `python/`，打包素材在 `assets/` 和 `installer-assets/`。 |
 | [`apps/mobile/`](apps/mobile/) | Android 应用。Vue、Web Worker 在 `src/`，Capacitor 原生工程和 Kotlin 代码在 `android/`。 |
-| [`frontend/website/`](frontend/website/) | 官网。静态页面和下载逻辑在 `frontend/`，官网测试在 `tests/`。 |
-| [`backend/`](backend/) | 线上服务。Django API 和控制台在 `portal/`，定时任务入口是 `jobs.py`。目录内还有反馈、统计、OpenAPI 和 Dockerfile。 |
+| [`frontend/website/`](frontend/website/) | 公开官网。静态页面和下载逻辑在 `public/`，测试在 `tests/`。 |
+| [`frontend/console/`](frontend/console/) | 独立运营控制台。登录、反馈、发布、统计与操作记录通过 API 域名访问后端。 |
+| [`backend/`](backend/) | 全项目共享的线上后端。Django 项目配置在 `config/`，API、模型与迁移在 `portal/`，定时任务入口是 `jobs.py`。 |
 | [`packages/`](packages/) | 共享数据契约、学业规则、课表交互、更新说明、发布契约、教务页面脚本和品牌素材。 |
 | [`deploy/`](deploy/) | 生产 Compose、Nginx、部署脚本以及旧更新源的部署资料。 |
 | [`config/`](config/)、[`changelogs/`](changelogs/) | 平台版本、发布渠道配置和三端变更日志。 |

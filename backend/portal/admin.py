@@ -7,7 +7,6 @@ admin.site.site_header = "LumaTile 控制台"
 admin.site.site_title = "LumaTile 控制台"
 admin.site.index_title = "站点管理"
 admin.site.enable_nav_sidebar = False
-admin.site.login_template = "portal/login.html"
 
 
 @admin.register(Announcement)

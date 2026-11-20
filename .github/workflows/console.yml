@@ -1,0 +1,60 @@
+name: Console artifacts
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/console/**'
+      - '!frontend/console/README.md'
+      - 'deploy/server/deploy-console.sh'
+      - 'deploy/server/deploy-web.sh'
+      - '.github/workflows/console.yml'
+      - '.github/workflows/deploy-server.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/console/**'
+      - '!frontend/console/README.md'
+      - 'deploy/server/deploy-console.sh'
+      - 'deploy/server/deploy-web.sh'
+      - '.github/workflows/console.yml'
+      - '.github/workflows/deploy-server.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Console verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test frontend/console/tests/*.test.mjs
+      - run: |
+          for file in frontend/console/public/*.mjs; do node --check "$file"; done
+          bash -n deploy/server/deploy-console.sh
+          bash -n deploy/server/deploy-web.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumatile-console-${{ github.sha }}
+          path: frontend/console/public
+          if-no-files-found: error
+
+  deploy-console:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/deploy-server.yml
+    with:
+      target: console
+      run_id: ${{ format('{0}', github.run_id) }}
+      artifact: lumatile-console-${{ github.sha }}
+    secrets:
+      LUMATILE_DEPLOY_KEY: ${{ secrets.LUMATILE_DEPLOY_KEY }}

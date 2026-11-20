@@ -94,7 +94,7 @@ PR CI 和构建演练只使用 Debug / 临时密钥；同仓库与 fork PR 均�
 | Android 应用源码或构建入口 | Android 的测试、Debug 打包及包内身份校验 |
 | 双端共享包、根 npm 锁文件 | Windows、macOS 和 Android 检查 |
 | 发布工具、渠道配置、工作流 | 对应的发布工具测试、工作流检查和受影响的客户端构建 |
-| 官网、后端 | 各自的验证和 `main` 自动部署，详见[生产服务说明](deploy/server/README.md#github-actions-自动部署) |
+| 官网、Console、后端 | 各自的验证和 `main` 自动部署，详见[生产服务说明](deploy/server/README.md#github-actions-自动部署) |
 
 一次提交触及多个范围时，相关任务都会运行。客户端 PR 保留原有检查名称，无关任务在工作流内跳过。需要完整重跑客户端检查时，可手动运行 `CI`。
 

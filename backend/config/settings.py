@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("LUMATILE_DATA_DIR", "/data"))
 UPDATE_DIR = Path(os.environ.get("LUMATILE_UPDATE_DIR", "/updates"))
 SECRET_KEY = os.environ["LUMATILE_SECRET_KEY"]
@@ -24,7 +23,7 @@ MIDDLEWARE = [
 ]
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates",
-    "DIRS": [BASE_DIR / "portal" / "templates"],
+    "DIRS": [],
     "APP_DIRS": True,
     "OPTIONS": {"context_processors": [
         "django.template.context_processors.request", "django.contrib.auth.context_processors.auth",

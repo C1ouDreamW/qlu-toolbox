@@ -28,7 +28,10 @@ switch() {
   mv -fT -- "$link" "$base/current"
 }
 switch "releases/$revision"
-if [[ -n ${LUMATILE_WEB_CHECK_URL:-} ]] && ! curl -fsS --max-time 15 "$LUMATILE_WEB_CHECK_URL" | grep -Fq '<title>一格有光'; then
-  if [[ -n $previous ]]; then switch "$previous"; else rm -- "$base/current"; fi
-  exit 1
+if [[ -n ${LUMATILE_WEB_CHECK_URL:-} ]]; then
+  if ! page=$(curl -fsS --max-time 15 "$LUMATILE_WEB_CHECK_URL") ||
+     ! grep -Fq -- "${LUMATILE_WEB_CHECK_TITLE:-<title>一格有光}" <<< "$page"; then
+    if [[ -n $previous ]]; then switch "$previous"; else rm -- "$base/current"; fi
+    exit 1
+  fi
 fi
