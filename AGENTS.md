@@ -22,7 +22,7 @@
 | `docs/`、`tools/logo-animation/` | 项目文档与 README 素材；自带依赖的独立 React / Remotion 工程 |
 | `updates/` | Android GitHub 备用清单，已发布客户端读取固定公开路径 `updates/android.json` |
 
-按任务阅读：贡献与环境见 [CONTRIBUTING.md](CONTRIBUTING.md)；Android 构建见 [apps/mobile/README.md](apps/mobile/README.md)；版本与发布见 [config/README.md](config/README.md)、[RELEASING.md](RELEASING.md)；签名与隐私见 [docs/release-security.md](docs/release-security.md)、[SECURITY.md](SECURITY.md)。`docs/` 中的历史设计方案含未完成规划，不能据此认定功能已实现；无需每次加载全部文档。
+按任务阅读：贡献与环境见 [CONTRIBUTING.md](CONTRIBUTING.md)；Android 构建见 [apps/mobile/README.md](apps/mobile/README.md)；版本与发布见 [config/README.md](config/README.md)、[发布指南](docs/releasing.md)；签名与隐私见 [docs/release-security.md](docs/release-security.md)、[SECURITY.md](SECURITY.md)。`docs/` 中的历史设计方案含未完成规划，不能据此认定功能已实现；无需每次加载全部文档。
 
 技术版本、脚本行为或目录结构与本文不一致时，以当前配置和代码为准，不为符合过时描述修改正常配置。
 
@@ -95,5 +95,5 @@
   ```
 
 - `type` 必填且为小写英文，仅用 `feat`、`fix`、`refactor`、`perf`、`docs`、`style`、`test`、`build`、`ci`、`chore`、`revert`。`scope` 可选，使用英文并优先沿用已有模块名。`description` 必填，使用简洁明确的中文，末尾不加句号；例如 `docs(agents): 完善项目开发规范`。
-- 除明确的发布任务外，不修改应用版本号、不创建或推送发布标签、不改写发布记录、不打开发布开关或更改线上更新清单。`config/release-versions.json` 是版本唯一人工入口，具体流程按 `config/README.md` 与 `RELEASING.md`，不手改生成版本载体。
+- 除明确的发布任务外，不修改应用版本号、不创建或推送发布标签、不改写发布记录、不打开发布开关或更改线上更新清单。`config/release-versions.json` 是版本唯一人工入口，具体流程按 `config/README.md` 与 `docs/releasing.md`，不手改生成版本载体。
 - Debug、Alpha、Stable 保持各自应用身份、数据和签名边界；不卸载 Stable 来解决 Debug 安装冲突。PR / 普通构建不接收 Alpha 或正式长期密钥，签名与发布仅通过维护者控制的既有流程；不自动迁移或替换签名 Secret。
