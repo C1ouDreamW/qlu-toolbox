@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PythonBridge } from './bridge.js'
 import { checkGithubUpdate, verifyBootstrapVersion } from './updates.js'
-import { desktopTarget, validateMigrationPolicy } from './update-contract.mjs'
+import { API_ORIGIN, desktopTarget, validateMigrationPolicy } from './update-contract.mjs'
 import { configureDesktopIdentity, readDesktopBuildInformation } from './build-info.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -15,9 +15,9 @@ configureDesktopIdentity(app, information)
 if (process.platform === 'win32') app.setAppUserModelId(information.applicationId)
 const bridge = new PythonBridge()
 let mainWindow: BrowserWindow | null = null
-const ANNOUNCEMENT_URL = `https://updates.lumatile.cn/${information.channel}/announcement.json`
+const ANNOUNCEMENT_URL = `${API_ORIGIN}/${information.channel}/announcement.json`
 const STATS_BEACON_URL = 'https://lumatile.ishua.cloud/beacon/desktop'
-const FEEDBACK_URL = 'https://api.lumatile.cn/v1/feedback-submissions'
+const FEEDBACK_URL = `${API_ORIGIN}/v1/feedback-submissions`
 const DOWNLOAD_URL = `https://lumatile.cn/download/#download-${information.platform === 'macos' ? 'mac' : 'windows'}`
 
 async function loadInstallId(): Promise<string> {

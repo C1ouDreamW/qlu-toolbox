@@ -31,6 +31,8 @@
 
 ## 域名与服务结构
 
+本节记录 2026-11-13 的部署方案。当前公开分发已归入 `api.lumatile.cn`，见[生产服务说明](../deploy/server/README.md)。
+
 | 域名 | 职责 |
 | --- | --- |
 | `lumatile.cn` | 官网、下载、更新说明、帮助和隐私说明。`/download/` 是各平台的统一下载入口。`www.lumatile.cn` 跳转到主域名。 |

@@ -48,7 +48,7 @@ fi
 if [[ -f $data/android/server.json ]]; then
   downloaded="$stage/public.apk"
   mkdir -p "$stage"
-  curl -fsS --max-time 90 "https://updates.lumatile.cn/releases/$tag/$apk" -o "$downloaded"
+  curl -fsS --max-time 90 "https://api.lumatile.cn/releases/$tag/$apk" -o "$downloaded"
   cmp -- "$target/$apk" "$downloaded"
 fi
 node "$root/scripts/promote-update-manifest.mjs" android "$manifest" "$data" "$channel"

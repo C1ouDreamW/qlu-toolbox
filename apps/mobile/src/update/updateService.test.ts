@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { ANDROID_UPDATE_ORIGIN, androidArtifactName, androidReleaseTag, androidUpdateSources } from '../../../../electron/android-update-contract.mjs'
+import { androidArtifactName, androidReleaseTag, androidUpdateSources } from '../../../../electron/android-update-contract.mjs'
 const native = vi.hoisted(() => ({ downloadAndInstall: vi.fn() }))
 const information = vi.hoisted(() => ({ channel: 'stable', applicationId: 'io.github.c1oudreamw.lumatile', version: '2.0.0', updatesEnabled: true }))
 vi.mock('@capacitor/core', () => ({ Capacitor: {}, registerPlugin: () => native }))
@@ -37,7 +37,6 @@ function network(routes: Map<string, unknown>) {
 }
 function sources(item: UpdateManifest) {
   const urls = androidUpdateSources(item.channel)
-  urls[0] = `${ANDROID_UPDATE_ORIGIN}/${item.channel}/android.json`
   return new Map<string, unknown>([
     ...urls.map((url, index) => [url, { ...item, apkUrl: index ? githubUrl(item) : item.apkUrl }] as [string, unknown]),
     [`${api}/releases?per_page=100&page=1`, []],
@@ -56,9 +55,10 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 it('prefers self-hosted and retries a matching mirror only for transport failures', async () => {
   const item = manifest()
-  network(sources(item))
+  const fetcher = network(sources(item))
   const update = (await findAvailableUpdate(current))!
-  const primary = item.apkUrl.replace('https://lumatile.ishua.cloud', ANDROID_UPDATE_ORIGIN)
+  const primary = item.apkUrl.replace('https://lumatile.ishua.cloud', 'https://api.lumatile.cn')
+  expect(fetcher.mock.calls[0][0]).toBe('https://api.lumatile.cn/stable/android.json')
   expect(update.apkUrl).toBe(primary)
   expect(update.fallbackApkUrls).toEqual([githubUrl(item)])
   native.downloadAndInstall.mockRejectedValueOnce({ code: 'UPDATE_HTTP_ERROR' }).mockResolvedValueOnce({ ready: true })
@@ -80,7 +80,7 @@ it('Alpha checks only Alpha sources and never accepts Stable IDs, channels or pa
   for (const change of [{ applicationId: 'io.github.c1oudreamw.lumatile' }, { channel: 'stable' }, { apkUrl: manifest().apkUrl }, { versionName: '2.1.0' }]) {
     const item = { ...manifest('alpha'), ...change }
     const routes = sources(manifest('alpha'))
-    for (const url of androidUpdateSources('alpha')) routes.set(url.replace("https://lumatile.ishua.cloud", ANDROID_UPDATE_ORIGIN), item)
+    for (const url of androidUpdateSources('alpha')) routes.set(url, item)
     const fetcher = network(routes)
     await expect(findAvailableUpdate(current)).rejects.toThrow('无法读取')
     expect(fetcher.mock.calls.some(([url]) => url.includes('/stable/') || url.endsWith('/updates/android.json'))).toBe(false)

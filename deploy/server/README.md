@@ -32,11 +32,13 @@ docker compose logs jobs
 
 默认 APK 分发关闭。登录控制台修改模式后，Nginx 用同一个 `updates/android/server.json` 的存在状态控制公开策略和新旧域名上的 APK 路由。关闭时 APK 请求返回 503，官网和新版应用提供外部下载入口。发布工具继续核对 APK 大小与 SHA-256，再按渠道原子推广清单。具体构件见 [发布指南](../../RELEASING.md)。
 
+公开分发入口为 `api.lumatile.cn`。Nginx 提供 `/android/distribution.json`、`/{channel}/android.json`、`/{channel}/announcement.json` 和 APK 下载。兼容入口 `lumatile.ishua.cloud` 继续提供已发布客户端使用的地址。新版客户端和官网读取自建清单时会将旧 APK 下载地址转换为 API 域名。
+
 ## 独立服务器全容器部署
 
 1. 准备上述数据和官网目录，并在同一目录放置 `compose.standalone.yaml` 和整个 `nginx/`。在 `.env` 中设置 `COMPOSE_FILE=compose.yaml:compose.standalone.yaml`。独立模式将 80/443 交给容器 Nginx，Portal 通过 Compose 内网提供服务。
 2. 将数据根目录下的 `logs/` 设为 UID 10001、GID 101、权限 `2770`。Nginx Alpine 工作进程写每日访问日志，`jobs` 读取并保留 14 天。
-3. 将 TLS 证书目录恢复到 `/etc/letsencrypt`，保留 `live/` 下的符号链接及其指向的 `archive/`。证书 `lumatile.cn` 覆盖官网、`www`、`updates`、`api` 和 `console`，`lumatile.ishua.cloud` 使用独立证书。新签发可在 DNS 指向新机且 80 端口空闲时使用 Certbot 容器的 `certonly --standalone`。运行后可用 Certbot 容器挂载证书目录和 `/var/www/letsencrypt`，以 `renew --webroot -w /var/www/letsencrypt` 续签，再运行 `docker compose exec nginx nginx -s reload`。
+3. 将 TLS 证书目录恢复到 `/etc/letsencrypt`，保留 `live/` 下的符号链接及其指向的 `archive/`。证书 `lumatile.cn` 覆盖官网、`www`、`api` 和 `console`，`lumatile.ishua.cloud` 使用独立证书。新签发可在 DNS 指向新机且 80 端口空闲时使用 Certbot 容器的 `certonly --standalone`。运行后可用 Certbot 容器挂载证书目录和 `/var/www/letsencrypt`，以 `renew --webroot -w /var/www/letsencrypt` 续签，再运行 `docker compose exec nginx nginx -s reload`。
 4. 执行 `bash deploy-web.sh <官网构件目录> <完整提交 SHA>`，再运行 `docker compose pull` 和 `docker compose up -d --wait`。
 
 ## 换服务器
