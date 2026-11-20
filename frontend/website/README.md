@@ -1,12 +1,12 @@
 # LumaTile 官网
 
-官网位于 `apps/website/`，采用原生 HTML、CSS 和 JavaScript，可直接部署静态文件。
+官网位于 `public/website/`，采用原生 HTML、CSS 和 JavaScript，可直接部署静态文件。
 
 ## 目录与前后端边界
 
 ```text
-apps/website/
-├── frontend/                 静态前端，可直接部署此目录
+frontend/website/
+├── public/                   静态前端，可直接部署此目录
 │   ├── index.html            首页、下载、安装说明与常见问题
 │   ├── style.css             响应式样式
 │   ├── app.mjs               产品界面切换、版本信息刷新
@@ -15,21 +15,21 @@ apps/website/
 └── tests/downloads.test.mjs  下载逻辑测试
 ```
 
-Android 下载按钮读取 `api.lumatile.cn` 的分发策略和 Stable 清单。桌面端使用对应平台的 GitHub Release，QQ群和百度网盘可在 `frontend/download-channels.json` 中按平台配置。
+Android 下载按钮读取 `api.lumatile.cn` 的分发策略和 Stable 清单。桌面端使用对应平台的 GitHub Release，QQ群和百度网盘可在 `public/download-channels.json` 中按平台配置。
 
 ## 本地预览
 
 在仓库根目录执行：
 
 ```powershell
-python -m http.server 5188 --bind 127.0.0.1 --directory apps/website/frontend
+python -m http.server 5188 --bind 127.0.0.1 --directory frontend/website/public
 ```
 
 浏览器访问 `http://127.0.0.1:5188`。不能直接用 `file://` 预览模块脚本。
 
 ```powershell
-node --test apps/website/tests/downloads.test.mjs
-node --check apps/website/frontend/app.mjs
+node --test frontend/website/tests/downloads.test.mjs
+node --check frontend/website/public/app.mjs
 ```
 
 ## 下载行为
@@ -40,10 +40,10 @@ node --check apps/website/frontend/app.mjs
 
 ## 部署到 lumatile.cn
 
-将 `frontend/` 作为静态构件部署。发布桌面版本时更新 `frontend/desktop-releases.json` 及 HTML 中对应的静态回退版本和链接，并同步已配置的外部下载渠道。见[生产部署说明](../../deploy/server/README.md)和 [Nginx 配置](../../deploy/server/nginx/website.conf)。
+将 `public/` 作为静态构件部署。发布桌面版本时更新 `public/desktop-releases.json` 及 HTML 中对应的静态回退版本和链接，并同步已配置的外部下载渠道。见[生产部署说明](../../deploy/server/README.md)和 [Nginx 配置](../../deploy/server/nginx/website.conf)。
 
 ## 品牌与素材
 
-官网直接使用 `frontend/assets/` 中的静态副本。标志原图和使用合成数据的界面素材分别见[品牌素材](../../packages/branding/lumatile.png)和 [README 演示素材](../../docs/readme/)。
+官网直接使用 `public/assets/` 中的静态副本。标志原图和使用合成数据的界面素材分别见[品牌素材](../../packages/branding/lumatile.png)和 [README 演示素材](../../docs/readme/)。
 
 网页文案遵循根 README 的支持平台、隐私和非商业使用边界；源码公开不等同于无限制的商业许可。

@@ -13,7 +13,7 @@ services:
       - feedback
 
   feedback:
-    build: ${FEEDBACK_BUILD_CONTEXT:-../../apps/server/feedback}
+    build: ${FEEDBACK_BUILD_CONTEXT:-../../backend/feedback}
     restart: unless-stopped
     environment:
       FEEDBACK_DB_PATH: /data/feedback.db

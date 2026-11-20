@@ -136,16 +136,16 @@ test('website and portal changes trigger independent CI and verified main deploy
     return posix.matchesGlob(path, exclude ? pattern.slice(1) : pattern) ? !exclude : included
   }, false)
   for (const [path, backend, web] of [
-    ['apps/server/portal/views.py', true, false],
-    ['apps/server/tests/test_feedback_server.py', true, false],
+    ['backend/portal/views.py', true, false],
+    ['backend/tests/test_feedback_server.py', true, false],
     ['deploy/server/nginx/website.conf', true, false],
-    ['apps/website/frontend/index.html', false, true],
+    ['frontend/website/public/index.html', false, true],
     ['deploy/server/deploy-web.sh', false, true],
     ['deploy/server/promote-android.sh', false, false],
     ['.github/workflows/deploy-server.yml', true, true],
     ['apps/mobile/src/App.vue', false, false],
     ['deploy/server/README.md', false, false],
-    ['apps/website/README.md', false, false],
+    ['frontend/website/README.md', false, false],
   ]) {
     assert.deepEqual([matches(server, path), matches(website, path)], [backend, web], path)
   }

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fetchManifest, readDownload } from '../frontend/downloads.mjs'
+import { fetchManifest, readDownload } from '../public/downloads.mjs'
 
 const android = {
   schemaVersion: 1, applicationId: 'io.github.c1oudreamw.lumatile',
@@ -55,7 +55,7 @@ test('清单网络失败与 HTTP 错误交给调用方处理', async t => {
 })
 
 test('官网在 Android 分发关闭或策略不可用时保留外部下载', async t => {
-  const { loadAndroidDownload, MANIFEST_URLS } = await import('../frontend/downloads.mjs')
+  const { loadAndroidDownload, MANIFEST_URLS } = await import('../public/downloads.mjs')
   const network = t.mock.method(globalThis, 'fetch', async () => ({ ok: true, json: async () => ({ mode: 'website' }) }))
   assert.equal(await loadAndroidDownload(), null)
   assert.equal(network.mock.callCount(), 1)

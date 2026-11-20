@@ -6,7 +6,7 @@
 
 ## 任务阶段清单
 
-- [x] **阶段 1 · 确定契约。** 确定域名和路由、REST API 与 [OpenAPI 契约](../apps/server/openapi.yaml)、Android 分发开关行为，以及旧客户端兼容范围。
+- [x] **阶段 1 · 确定契约。** 确定域名和路由、REST API 与 [OpenAPI 契约](../backend/openapi.yaml)、Android 分发开关行为，以及旧客户端兼容范围。
 - [ ] **阶段 2 · 并行实现。** 建设 Django API 与控制台，完成官网三端下载、桌面更新跳转官网和 Android 应用内更新及分发开关。
 - [ ] **阶段 3 · 接通部署。** 配置 Nginx、HTTPS 和 Compose，接入官网、后端和 Android 更新源的 CI/CD，并配置统计、备份和告警。
 - [ ] **阶段 4 · 整体部署与验收。** 统一联调三端下载、Android 分发开关和旧入口，验证反馈、公告、回滚与备份恢复。
@@ -27,7 +27,7 @@
 | 反馈 | Python 服务接收反馈并写入 SQLite，维护者在 `/admin/` 查看和处理。 |
 | 统计 | Nginx 访问日志记录心跳和下载，Python 定时任务生成 `/stats/` 报表。 |
 
-旧版部署资料见[更新源](../deploy/update-source/README.md)、[反馈](../deploy/update-source/feedback.md)和[统计](../deploy/update-source/stats.md)。当前代码见[官网](../apps/website/)和[服务端](../apps/server/)。
+旧版部署资料见[更新源](../deploy/update-source/README.md)、[反馈](../deploy/update-source/feedback.md)和[统计](../deploy/update-source/stats.md)。当前代码见[官网](../frontend/website/)和[服务端](../backend/)。
 
 ## 域名与服务结构
 

@@ -14,9 +14,9 @@
 | `apps/desktop/electron/` | `main.ts` 主进程、`preload.cts` 权限接口、`bridge.ts` Python IPC 客户端与更新逻辑 |
 | `apps/desktop/python/` | `main.py`、`lumatile/bridge.py` 负责本地 Bridge / Worker 入口与任务调度。`lumatile/core/` 和 `lumatile/modules/` 保存桌面领域规则、存储和 Playwright 自动化。PyInstaller spec 同在此目录。 |
 | `apps/mobile/src/`、`apps/mobile/android/` | 移动 Vue / Web Worker；Capacitor 8、Kotlin、Room、受限教务 WebView 与原生插件 |
-| `apps/website/`、`apps/server/` | 静态官网；Django API 与控制台、反馈与统计、定时任务、OpenAPI 和后端 Dockerfile |
+| `frontend/website/`、`backend/` | 静态官网；Django API 与控制台、反馈与统计、定时任务、OpenAPI 和后端 Dockerfile |
 | `packages/` | `contracts` 数据契约、`academic-core` 学业规则、`schedule-ui` 课表交互逻辑、`update-notes` 更新说明解析、`release-contract` 版本和更新协议、`school-web` 共用教务脚本、`branding` 品牌素材 |
-| `tests/` | 客户端 Python unittest 与仓库级 Node.js 测试。服务端回归放在 `apps/server/tests/`，Vitest 测试与移动端和共享包源码就近存放。 |
+| `tests/` | 客户端 Python unittest 与仓库级 Node.js 测试。服务端回归放在 `backend/tests/`，Vitest 测试与移动端和共享包源码就近存放。 |
 | `config/`、`changelogs/`、`scripts/`、`.github/workflows/` | 平台渠道配置、变更日志、开发和发布脚本、CI 与部署工作流 |
 | `deploy/server/`、`deploy/update-source/` | 生产 Compose、Nginx 和部署脚本；旧版更新源部署资料 |
 | `docs/`、`tools/logo-animation/` | 项目文档与 README 素材；自带依赖的独立 React / Remotion 工程 |

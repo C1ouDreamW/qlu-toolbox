@@ -91,10 +91,10 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/git/trees/$1?recursive=1" |
               jq -ce --arg target "$TARGET" 'select(.truncated == false) |
                 [.tree[] | select(
-                  if $target == "web" then .path == "apps/website/frontend"
+                  if $target == "web" then .path == "frontend/website/public"
                   else .type == "blob" and (.path |
-                    (startswith("apps/server/") or startswith("deploy/server/") or . == "scripts/publish_announcement.py") and
-                    . != "apps/server/README.md" and . != "deploy/server/README.md" and
+                    (startswith("backend/") or startswith("deploy/server/") or . == "scripts/publish_announcement.py") and
+                    . != "backend/README.md" and . != "deploy/server/README.md" and
                     . != "deploy/server/deploy-web.sh" and . != "deploy/server/promote-android.sh")
                   end
                 ) | {path, mode, sha}] | sort_by(.path)'

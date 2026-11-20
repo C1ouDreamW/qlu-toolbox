@@ -3,16 +3,16 @@ name: Website artifacts
 on:
   pull_request:
     paths:
-      - 'apps/website/**'
-      - '!apps/website/README.md'
+      - 'frontend/website/**'
+      - '!frontend/website/README.md'
       - 'deploy/server/deploy-web.sh'
       - '.github/workflows/website.yml'
       - '.github/workflows/deploy-server.yml'
   push:
     branches: [main]
     paths:
-      - 'apps/website/**'
-      - '!apps/website/README.md'
+      - 'frontend/website/**'
+      - '!frontend/website/README.md'
       - 'deploy/server/deploy-web.sh'
       - '.github/workflows/website.yml'
       - '.github/workflows/deploy-server.yml'
@@ -32,12 +32,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test apps/website/tests/downloads.test.mjs
+      - run: node --test frontend/website/tests/downloads.test.mjs
       - run: bash -n deploy/server/deploy-web.sh
       - uses: actions/upload-artifact@v4
         with:
           name: lumatile-web-${{ github.sha }}
-          path: apps/website/frontend
+          path: frontend/website/public
           if-no-files-found: error
 
   deploy-web:

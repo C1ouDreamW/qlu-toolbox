@@ -1,6 +1,6 @@
 # LumaTile 应用内反馈
 
-本文记录旧版更新源部署，反馈实现位于 [`apps/server/feedback/`](../../apps/server/feedback/)。当前生产部署见[生产服务说明](../server/README.md)。
+本文记录旧版更新源部署，反馈实现位于 [`backend/feedback/`](../../backend/feedback/)。当前生产部署见[生产服务说明](../server/README.md)。
 
 零依赖的 Python HTTP 服务，接收桌面端和 Android 端的简短反馈并写入 SQLite。服务只应通过更新源 Nginx 的 `/api/feedback` 暴露。
 
@@ -34,7 +34,7 @@ install -d -o 10001 -g 10001 -m 0700 /opt/lumatile-update/feedback-data
 
 ```bash
 # 1. 上传新 server.py 到反馈构建上下文目录（FEEDBACK_BUILD_CONTEXT 指向的位置）
-scp apps/server/feedback/server.py root@ishua.cloud:/opt/lumatile-update/feedback/server.py
+scp backend/feedback/server.py root@ishua.cloud:/opt/lumatile-update/feedback/server.py
 
 # 2. 重建反馈镜像并更新 Nginx 配置（新增 /admin/ 路由与凭据挂载）
 ssh root@ishua.cloud 'cd /opt/lumatile-update && docker compose up -d --build'

@@ -13,14 +13,14 @@ const selected = paths => Object.entries(affectedChecks(paths))
 
 test('selects only the affected client and infrastructure checks', () => {
   for (const [paths, expected] of [
-    [['apps/server/portal/views.py'], []],
-    [['apps/website/frontend/downloads.mjs'], []],
-    [['apps/server/tests/test_feedback_server.py', 'deploy/server/compose.yaml'], []],
+    [['backend/portal/views.py'], []],
+    [['frontend/website/public/downloads.mjs'], []],
+    [['backend/tests/test_feedback_server.py', 'deploy/server/compose.yaml'], []],
     [['apps/desktop/src/App.vue'], ['windows', 'macos']],
     [['apps/desktop/scripts/build.bat'], ['windows']],
     [['apps/desktop/installer-assets/entitlements.mac.plist'], ['macos']],
     [['apps/mobile/src/App.vue'], ['android']],
-    [['apps/mobile/android/app/build.gradle', 'apps/server/jobs.py'], ['android']],
+    [['apps/mobile/android/app/build.gradle', 'backend/jobs.py'], ['android']],
     [['packages/school-web/qlu-schedule-dom.js'], ['windows', 'macos', 'android']],
     [['packages/release-contract/update-contract.mjs'], ['windows', 'macos', 'android', 'release']],
     [['package-lock.json'], ['windows', 'macos', 'android', 'release']],
@@ -57,7 +57,7 @@ test('scopes main pushes and keeps the PR jobs available as status checks', () =
   for (const path of ['apps/desktop/src/App.vue', 'apps/mobile/src/App.vue', 'deploy/server/promote-android.sh', '.github/workflows/ci.yml']) {
     assert.ok(triggers(path), path)
   }
-  for (const path of ['apps/server/jobs.py', 'apps/website/frontend/index.html', 'deploy/server/compose.yaml', 'scripts/publish_announcement.py', 'README.md']) {
+  for (const path of ['backend/jobs.py', 'frontend/website/public/index.html', 'deploy/server/compose.yaml', 'scripts/publish_announcement.py', 'README.md']) {
     assert.ok(!triggers(path), path)
   }
 })
@@ -74,7 +74,7 @@ test('uses the whole push range, the PR merge base, and both paths of a rename',
   git('init', '-qb', 'main')
   mkdirSync(join(root, 'apps/desktop'), { recursive: true })
   mkdirSync(join(root, 'apps/mobile'), { recursive: true })
-  mkdirSync(join(root, 'apps/server'), { recursive: true })
+  mkdirSync(join(root, 'backend'), { recursive: true })
   writeFileSync(join(root, 'apps/desktop/shared.txt'), 'move me')
   const base = commit('base')
   git('checkout', '-qb', 'feature')
@@ -83,8 +83,8 @@ test('uses the whole push range, the PR merge base, and both paths of a rename',
   writeFileSync(join(root, 'README.md'), 'unrelated docs')
   const head = commit('docs')
   git('checkout', '-q', 'main')
-  mkdirSync(join(root, 'apps/server'), { recursive: true })
-  writeFileSync(join(root, 'apps/server/jobs.py'), 'new base change')
+  mkdirSync(join(root, 'backend'), { recursive: true })
+  writeFileSync(join(root, 'backend/jobs.py'), 'new base change')
   const updatedBase = commit('base changed')
   const expected = ['README.md', 'apps/desktop/shared.txt', 'apps/mobile/shared.txt']
   assert.deepEqual(changedPaths('push', { before: base, after: head }, root).sort(), expected)
