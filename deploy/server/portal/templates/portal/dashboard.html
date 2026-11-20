@@ -82,6 +82,7 @@
           </label>
           <label>公告草稿
             <select id="draft" {% if not drafts %}disabled{% endif %}>
+              <button type="button"><selectedcontent></selectedcontent></button>
               {% for draft in drafts %}<option value="{{ draft.id }}">{{ draft.title }}</option>{% empty %}<option value="">暂无草稿</option>{% endfor %}
             </select>
           </label>
