@@ -16,7 +16,7 @@ web/
 └── deploy/nginx.conf.example 官网静态服务配置示例
 ```
 
-Android 下载按钮读取 `updates.lumatile.cn` 的分发策略和 Stable 清单。桌面端使用对应平台的 GitHub Release，QQ群和百度网盘可在 `frontend/download-channels.json` 中按平台配置。
+Android 下载按钮读取 `api.lumatile.cn` 的分发策略和 Stable 清单。桌面端使用对应平台的 GitHub Release，QQ群和百度网盘可在 `frontend/download-channels.json` 中按平台配置。
 
 ## 本地预览
 

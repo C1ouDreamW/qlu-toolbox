@@ -39,7 +39,7 @@ chmod 0755 "$LUMATILE_NGINX_LOG_DIR"
 printf 'test apk payload' > "$scratch/data/updates/releases/test/test.apk"
 cp -a "$root/web/frontend/." "$scratch/web/current/"
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=lumatile.cn \
-  -addext 'subjectAltName=DNS:lumatile.cn,DNS:www.lumatile.cn,DNS:updates.lumatile.cn,DNS:api.lumatile.cn,DNS:console.lumatile.cn,DNS:lumatile.ishua.cloud' \
+  -addext 'subjectAltName=DNS:lumatile.cn,DNS:www.lumatile.cn,DNS:api.lumatile.cn,DNS:console.lumatile.cn,DNS:lumatile.ishua.cloud' \
   -keyout "$scratch/tls/key.pem" -out "$scratch/tls/cert.pem" >/dev/null 2>&1
 for domain in lumatile.cn lumatile.ishua.cloud; do
   directory="$scratch/tls/live/$domain"
@@ -72,16 +72,17 @@ request() {
 test "$(request api.lumatile.cn /healthz -f)" = ok
 request console.lumatile.cn /admin/login/ -f -o /dev/null
 request lumatile.cn /download/ -f -o /dev/null
-request updates.lumatile.cn /android/distribution.json -f | grep -q '"website"'
+request api.lumatile.cn /android/distribution.json -f | grep -q '"website"'
+test "$(request api.lumatile.cn /android/distribution.json -H 'Host: updates.lumatile.cn' -o /dev/null -w '%{http_code}')" = 404
 check_apk() {
   local host
-  for host in updates.lumatile.cn lumatile.ishua.cloud; do
+  for host in api.lumatile.cn lumatile.ishua.cloud; do
     test "$(request "$host" /releases/test/test.apk -H 'Range: bytes=0-3' -o /dev/null -w '%{http_code}')" = "$1"
   done
 }
 check_apk 503
 printf '{"mode":"server"}\n' > "$scratch/data/updates/android/server.json"
-request updates.lumatile.cn /android/distribution.json -f | grep -q '"server"'
+request api.lumatile.cn /android/distribution.json -f | grep -q '"server"'
 check_apk 206
 rm "$scratch/data/updates/android/server.json"
 check_apk 503

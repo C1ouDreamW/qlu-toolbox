@@ -1,17 +1,8 @@
-# 主域证书覆盖主站、www、updates、api 和 console。旧域名使用独立证书。
-server {
-    listen 443 ssl;
-    server_name updates.lumatile.cn;
-    ssl_certificate /etc/letsencrypt/live/lumatile.cn/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/lumatile.cn/privkey.pem;
-    access_log /logs/lumatile-access-$lumatile_log_date.log combined;
-    include /etc/nginx/lumatile/updates.conf;
-    location / { return 404; }
-}
-
+# 主域证书覆盖主站、www、api 和 console。旧域名使用独立证书。
 server {
     listen 443 ssl;
     server_name lumatile.ishua.cloud;
+    if ($host != lumatile.ishua.cloud) { return 404; }
     ssl_certificate /etc/letsencrypt/live/lumatile.ishua.cloud/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/lumatile.ishua.cloud/privkey.pem;
     access_log /logs/lumatile-access-$lumatile_log_date.log combined;
@@ -47,8 +38,11 @@ server {
 server {
     listen 443 ssl;
     server_name api.lumatile.cn;
+    if ($host != api.lumatile.cn) { return 404; }
     ssl_certificate /etc/letsencrypt/live/lumatile.cn/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/lumatile.cn/privkey.pem;
+    access_log /logs/lumatile-access-$lumatile_log_date.log combined;
+    include /etc/nginx/lumatile/updates.conf;
     location = /healthz { include /etc/nginx/lumatile/proxy.conf; }
     location = /v1/feedback-submissions {
         client_max_body_size 16k;

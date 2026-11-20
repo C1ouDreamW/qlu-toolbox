@@ -6,6 +6,7 @@ export { assertStableVersion, compareVersions } from './version-contract.mjs'
 /** @typedef {{ url: string, fallbackUrl: string, sha256: string, size: number }} UpdateArtifact */
 /** @typedef {{ schemaVersion: number, platform: string, arch: string, channel: string, version: string, tag: string, commit: string, name: string, notes: string, publishedAt: string, buildNumber?: number, nativeBuildVersion?: string, artifacts: Record<string, UpdateArtifact> }} DesktopManifest */
 
+export const API_ORIGIN = 'https://api.lumatile.cn'
 export const UPDATE_ORIGIN = 'https://lumatile.ishua.cloud'
 export const GITHUB_REPOSITORY = 'C1ouDreamW/qlu-toolbox'
 export const UPDATE_REPOSITORIES = [GITHUB_REPOSITORY, 'C1ouDreamW/lumatile']
