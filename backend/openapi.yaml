@@ -62,21 +62,44 @@ paths:
       operationId: getConsoleOverview
       security: [{ staffSession: [] }]
       responses:
-        '200': { description: Windows、macOS 和 Android 各渠道的线上版本 }
+        '200':
+          description: Windows、macOS 和 Android 各渠道的线上版本
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [windows, macos, android]
+                properties:
+                  windows: { type: [string, 'null'] }
+                  macos: { type: [string, 'null'] }
+                  android:
+                    type: object
+                    required: [stable, alpha]
+                    properties:
+                      stable: { type: [string, 'null'] }
+                      alpha: { type: [string, 'null'] }
         '403': { $ref: '#/components/responses/Problem' }
   /v1/announcement-drafts:
     get:
       operationId: listAnnouncementDrafts
       security: [{ staffSession: [] }]
       responses:
-        '200': { description: 公告草稿列表 }
+        '200':
+          description: 公告草稿列表
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/AnnouncementDraft' } }
         '403': { $ref: '#/components/responses/Problem' }
     post:
       operationId: createAnnouncementDraft
       security: [{ staffSession: [], csrf: [] }]
       requestBody: { $ref: '#/components/requestBodies/AnnouncementDraft' }
       responses:
-        '201': { description: 已创建的公告草稿 }
+        '201': { $ref: '#/components/responses/AnnouncementDraft' }
         '400': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
   /v1/announcement-drafts/{id}:
@@ -86,7 +109,7 @@ paths:
       operationId: getAnnouncementDraft
       security: [{ staffSession: [] }]
       responses:
-        '200': { description: 公告草稿 }
+        '200': { $ref: '#/components/responses/AnnouncementDraft' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
     put:
@@ -94,7 +117,7 @@ paths:
       security: [{ staffSession: [], csrf: [] }]
       requestBody: { $ref: '#/components/requestBodies/AnnouncementDraft' }
       responses:
-        '200': { description: 更新后的公告草稿 }
+        '200': { $ref: '#/components/responses/AnnouncementDraft' }
         '400': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
@@ -110,7 +133,11 @@ paths:
       operationId: getStatistics
       security: [{ staffSession: [] }]
       responses:
-        '200': { description: 最近生成的匿名统计报表 JSON }
+        '200':
+          description: 最近生成的匿名统计报表 JSON
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatisticsReport' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '503': { $ref: '#/components/responses/Problem' }
@@ -122,7 +149,25 @@ paths:
         - { in: query, name: offset, schema: { type: integer, minimum: 0 } }
         - { in: query, name: q, schema: { type: string, maxLength: 120 } }
       responses:
-        '200': { description: 最近的分发策略和发布操作及下一页偏移量 }
+        '200':
+          description: 最近的分发策略和发布操作及下一页偏移量
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextOffset]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [actor, resource, value, created_at]
+                      properties:
+                        actor: { type: string }
+                        resource: { type: string }
+                        value: { type: string }
+                        created_at: { type: string, format: date-time }
+                  nextOffset: { type: [integer, 'null'], minimum: 0 }
         '400': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
   /v1/feedback-submissions:
@@ -182,11 +227,13 @@ paths:
                   items: { type: array, items: { $ref: '#/components/schemas/Feedback' } }
                   counts:
                     type: object
+                    required: [new, resolved]
                     properties:
                       new: { type: integer, minimum: 0 }
                       resolved: { type: integer, minimum: 0 }
                   links:
                     type: object
+                    required: [self, next, previous]
                     properties:
                       self: { type: string }
                       next: { type: [string, 'null'] }
@@ -297,6 +344,54 @@ components:
               url: { type: string, description: HTTPS 地址或空字符串 }
               expiresAt: { type: [string, 'null'], format: date-time }
   schemas:
+    AnnouncementDraft:
+      type: object
+      required: [id, title, body, level, url, expiresAt]
+      properties:
+        id: { type: integer, minimum: 1 }
+        title: { type: string }
+        body: { type: string }
+        level: { enum: [info, warning] }
+        url: { type: string, description: HTTPS 地址或空字符串 }
+        expiresAt: { type: [string, 'null'], format: date-time }
+    CountByLabel:
+      type: array
+      items:
+        type: object
+        required: [label, count]
+        properties:
+          label: { type: string }
+          count: { type: integer, minimum: 0 }
+    StatisticsReport:
+      type: object
+      required: [generated_at, range_days, days, dau, raw_checks, downloads, new_installs,
+                 version_dist, os_dist, client_dist, arch_dist, top_files, totals,
+                 github_snapshot_day, github_by_asset]
+      properties:
+        generated_at: { type: string, description: 服务器本地时间 }
+        range_days: { type: integer, minimum: 1 }
+        days: { type: array, items: { type: string, format: date } }
+        dau: { type: array, items: { type: integer, minimum: 0 } }
+        raw_checks: { type: array, items: { type: integer, minimum: 0 } }
+        downloads: { type: array, items: { type: integer, minimum: 0 } }
+        new_installs: { type: array, items: { type: integer, minimum: 0 } }
+        version_dist: { $ref: '#/components/schemas/CountByLabel' }
+        os_dist: { $ref: '#/components/schemas/CountByLabel' }
+        client_dist: { $ref: '#/components/schemas/CountByLabel' }
+        arch_dist: { $ref: '#/components/schemas/CountByLabel' }
+        top_files: { $ref: '#/components/schemas/CountByLabel' }
+        totals:
+          type: object
+          required: [installs, downloads_selfhosted, beacons, manifest_checks, update_checks, downloads_github]
+          properties:
+            installs: { type: integer, minimum: 0 }
+            downloads_selfhosted: { type: integer, minimum: 0 }
+            beacons: { type: integer, minimum: 0 }
+            manifest_checks: { type: integer, minimum: 0 }
+            update_checks: { type: integer, minimum: 0 }
+            downloads_github: { type: integer, minimum: 0 }
+        github_snapshot_day: { type: [string, 'null'], format: date }
+        github_by_asset: { $ref: '#/components/schemas/CountByLabel' }
     Feedback:
       type: object
       required: [id, type, content, platform, app_version, status, created_at]
@@ -314,6 +409,11 @@ components:
     staffSession: { type: apiKey, in: cookie, name: sessionid }
     csrf: { type: apiKey, in: header, name: X-CSRFToken }
   responses:
+    AnnouncementDraft:
+      description: 公告草稿
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/AnnouncementDraft' }
     ConsoleSession:
       description: 当前维护者、页面权限和用于后续写操作的 CSRF 令牌
       content:
