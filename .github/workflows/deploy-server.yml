@@ -94,7 +94,10 @@ jobs:
               jq -ce --arg target "$TARGET" 'select(.truncated == false) |
                 [.tree[] | select(
                   if $target == "web" then .path == "frontend/website/public"
-                  elif $target == "console" then .path == "frontend/console/public"
+                  elif $target == "console" then .type == "blob" and (.path |
+                    (startswith("frontend/console/") and . != "frontend/console/README.md") or
+                    . == "backend/openapi.yaml" or . == "package.json" or . == "package-lock.json" or
+                    . == ".github/workflows/console.yml" or . == "deploy/server/nginx/sites.conf.example")
                   else .type == "blob" and (.path |
                     (startswith("backend/") or startswith("deploy/server/") or . == "scripts/publish_announcement.py") and
                     . != "backend/README.md" and . != "deploy/server/README.md" and

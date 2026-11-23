@@ -24,6 +24,9 @@ node_modules/
 /release/
 /release-*/
 /apps/mobile/dist/
+/frontend/console/dist/
+/frontend/console/src/api/schema.d.ts
+/frontend/console/test-results/
 /apps/mobile/build-info.json
 /apps/desktop/python/lumatile/build-info.json
 /apps/mobile/android/.gradle/

@@ -15,7 +15,7 @@ test('selects only the affected client and infrastructure checks', () => {
   for (const [paths, expected] of [
     [['backend/portal/views.py'], []],
     [['frontend/website/public/downloads.mjs'], []],
-    [['frontend/console/public/app.mjs'], []],
+    [['frontend/console/src/App.vue'], []],
     [['backend/tests/test_feedback_server.py', 'deploy/server/compose.yaml'], []],
     [['apps/desktop/src/App.vue'], ['windows', 'macos']],
     [['apps/desktop/scripts/build.bat'], ['windows']],
@@ -58,7 +58,7 @@ test('scopes main pushes and keeps the PR jobs available as status checks', () =
   for (const path of ['apps/desktop/src/App.vue', 'apps/mobile/src/App.vue', 'deploy/server/promote-android.sh', '.github/workflows/ci.yml']) {
     assert.ok(triggers(path), path)
   }
-  for (const path of ['backend/jobs.py', 'frontend/website/public/index.html', 'frontend/console/public/index.html', 'deploy/server/compose.yaml', 'scripts/publish_announcement.py', 'README.md']) {
+  for (const path of ['backend/jobs.py', 'frontend/website/public/index.html', 'frontend/console/index.html', 'deploy/server/compose.yaml', 'scripts/publish_announcement.py', 'README.md']) {
     assert.ok(!triggers(path), path)
   }
 })

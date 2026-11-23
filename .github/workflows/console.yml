@@ -5,8 +5,12 @@ on:
     paths:
       - 'frontend/console/**'
       - '!frontend/console/README.md'
+      - 'backend/openapi.yaml'
+      - 'package.json'
+      - 'package-lock.json'
       - 'deploy/server/deploy-console.sh'
       - 'deploy/server/deploy-web.sh'
+      - 'deploy/server/nginx/sites.conf.example'
       - '.github/workflows/console.yml'
       - '.github/workflows/deploy-server.yml'
   push:
@@ -14,8 +18,12 @@ on:
     paths:
       - 'frontend/console/**'
       - '!frontend/console/README.md'
+      - 'backend/openapi.yaml'
+      - 'package.json'
+      - 'package-lock.json'
       - 'deploy/server/deploy-console.sh'
       - 'deploy/server/deploy-web.sh'
+      - 'deploy/server/nginx/sites.conf.example'
       - '.github/workflows/console.yml'
       - '.github/workflows/deploy-server.yml'
   workflow_dispatch:
@@ -34,15 +42,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test frontend/console/tests/*.test.mjs
+          cache: npm
+      - run: npm ci --workspace @lumatile/console
+      - run: npm run build --workspace @lumatile/console
+      - run: npm test --workspace @lumatile/console
+      - run: npm exec --workspace @lumatile/console -- playwright install --with-deps --only-shell chromium
+      - run: npm run test:e2e --workspace @lumatile/console
       - run: |
-          for file in frontend/console/public/*.mjs; do node --check "$file"; done
+          test -s frontend/console/dist/app.mjs
           bash -n deploy/server/deploy-console.sh
           bash -n deploy/server/deploy-web.sh
       - uses: actions/upload-artifact@v4
         with:
           name: lumatile-console-${{ github.sha }}
-          path: frontend/console/public
+          path: frontend/console/dist
           if-no-files-found: error
 
   deploy-console:

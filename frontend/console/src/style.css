@@ -163,7 +163,6 @@
 
 #feedback-counts { margin-top: 12px; }
 .console p.pending { margin: 10px 0; font-size: 1.5rem; font-weight: 750; }
-#draft-form { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .console textarea { width: 100%; padding: 10px; resize: vertical; }
 .operation-filter { grid-template-columns: minmax(0, 1fr) auto; }
 .account-form { max-width: 560px; }

@@ -1,0 +1,29 @@
+{
+  "name": "@lumatile/console",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate:api": "openapi-typescript ../../backend/openapi.yaml -o src/api/schema.d.ts",
+    "predev": "npm run generate:api",
+    "dev": "vite",
+    "pretypecheck": "npm run generate:api",
+    "typecheck": "vue-tsc --noEmit",
+    "build": "npm run typecheck && vite build",
+    "test": "vitest run --exclude '**/*.spec.ts'",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "vue": "^3.5.17",
+    "vue-router": "^4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^22.20.5",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.4",
+    "vitest": "^4.0.0",
+    "vue-tsc": "^3.0.1"
+  }
+}

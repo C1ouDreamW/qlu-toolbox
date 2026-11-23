@@ -128,7 +128,8 @@ test('website, console and portal changes trigger independent CI and verified ma
   assert.equal(website.jobs['deploy-web'].with.artifact, 'lumatile-web-${{ github.sha }}')
   assert.ok(website.jobs.verify.steps.some(step => step.with?.name === website.jobs['deploy-web'].with.artifact))
   assert.equal(console.jobs['deploy-console'].with.artifact, 'lumatile-console-${{ github.sha }}')
-  assert.ok(console.jobs.verify.steps.some(step => step.with?.name === console.jobs['deploy-console'].with.artifact))
+  const consoleArtifact = console.jobs.verify.steps.find(step => step.with?.name === console.jobs['deploy-console'].with.artifact)
+  assert.equal(consoleArtifact?.with.path, 'frontend/console/dist')
   assert.equal(server.jobs['deploy-portal'].with.image, '${{ needs.image.outputs.reference }}')
   assert.equal(server.jobs['deploy-web'], undefined)
   assert.equal(website.jobs.image, undefined)
@@ -144,8 +145,12 @@ test('website, console and portal changes trigger independent CI and verified ma
     ['backend/portal/views.py', true, false, false],
     ['backend/tests/test_feedback_server.py', true, false, false],
     ['deploy/server/nginx/website.conf', true, false, false],
+    ['deploy/server/nginx/sites.conf.example', true, false, true],
     ['frontend/website/public/index.html', false, true, false],
-    ['frontend/console/public/index.html', false, false, true],
+    ['frontend/console/src/App.vue', false, false, true],
+    ['frontend/console/README.md', false, false, false],
+    ['backend/openapi.yaml', true, false, true],
+    ['package-lock.json', false, false, true],
     ['deploy/server/deploy-console.sh', false, false, true],
     ['deploy/server/deploy-web.sh', false, true, true],
     ['deploy/server/promote-android.sh', false, false, false],

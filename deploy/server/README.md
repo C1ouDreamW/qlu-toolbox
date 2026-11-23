@@ -2,7 +2,7 @@
 
 默认 Compose 运行 `portal` 和 `jobs`，分别处理 Django 请求及定时统计、备份。两者共用同一个 Python 镜像。腾讯云的共享 Nginx 提供 HTTPS、官网和更新下载。使用独占 80/443 的服务器时可加载[独立部署配置](compose.standalone.yaml)，由同一套 Compose 启动 Nginx。
 
-服务端 Python 源码、Dockerfile 和接口定义在 [`backend/`](../../backend/)。官网和 Console 的静态构件分别在 [`frontend/website/public/`](../../frontend/website/public/)和 [`frontend/console/public/`](../../frontend/console/public/)。从仓库根目录执行 `docker build backend` 构建后端镜像。业务接口见 [OpenAPI](../../backend/openapi.yaml)。
+服务端 Python 源码、Dockerfile 和接口定义在 [`backend/`](../../backend/)。官网直接部署 [`frontend/website/public/`](../../frontend/website/public/)，Console 由 [`frontend/console/`](../../frontend/console/) 构建并部署 `dist/`。从仓库根目录执行 `docker build backend` 构建后端镜像。业务接口见 [OpenAPI](../../backend/openapi.yaml)。
 
 ## 本地检查
 
@@ -13,7 +13,8 @@ LUMATILE_SECRET_KEY=local-tests uv run --python 3.12 --directory backend --locke
 uv run --python 3.12 --directory backend --locked python -m unittest test_jobs
 uv run --python 3.12 --directory backend --locked python -B -m unittest discover -s tests -v
 node --test frontend/website/tests/downloads.test.mjs
-node --test frontend/console/tests/*.test.mjs
+npm run build --workspace @lumatile/console
+npm test --workspace @lumatile/console
 bash deploy/server/check-compose.sh
 ```
 

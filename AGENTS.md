@@ -14,7 +14,7 @@
 | `apps/desktop/electron/` | `main.ts` 主进程、`preload.cts` 权限接口、`bridge.ts` Python IPC 客户端与更新逻辑 |
 | `apps/desktop/python/` | `main.py`、`lumatile/bridge.py` 负责本地 Bridge / Worker 入口与任务调度。`lumatile/core/` 和 `lumatile/modules/` 保存桌面领域规则、存储和 Playwright 自动化。PyInstaller spec 同在此目录。 |
 | `apps/mobile/src/`、`apps/mobile/android/` | 移动 Vue / Web Worker；Capacitor 8、Kotlin、Room、受限教务 WebView 与原生插件 |
-| `frontend/website/`、`frontend/console/` | 公开官网和维护者控制台，各自从 `public/` 部署静态构件 |
+| `frontend/website/`、`frontend/console/` | 公开官网直接部署 `public/`，维护者控制台使用 Vue、TypeScript 和 Vite 构建后部署 `dist/` |
 | `backend/` | 共享 Django API、认证、数据和定时任务。项目配置在 `config/`，业务与迁移在 `portal/`。 |
 | `packages/` | `contracts` 数据契约、`academic-core` 学业规则、`schedule-ui` 课表交互逻辑、`update-notes` 更新说明解析、`release-contract` 版本和更新协议、`school-web` 共用教务脚本、`branding` 品牌素材 |
 | `tests/` | 客户端 Python unittest 与仓库级 Node.js 测试。服务端回归放在 `backend/tests/`，Vitest 测试与移动端和共享包源码就近存放。 |
