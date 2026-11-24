@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
+import { ArrowUpRight } from 'lucide-vue-next'
 import type { Credentials } from '../api/client'
 import StatusMessage from '../components/StatusMessage.vue'
 import { useAction } from '../useAction'
@@ -33,7 +34,7 @@ async function signIn() {
         <img class="brand-icon" src="/logo.png" width="64" height="64" alt="">
         <p class="login-brand-name">LumaTile</p>
         <p class="login-brand-product">运营控制台</p>
-        <a href="https://lumatile.cn/">访问官网</a>
+        <a href="https://lumatile.cn/">访问官网<ArrowUpRight :size="15" aria-hidden="true" /></a>
       </div>
       <div class="login-panel">
         <h1>登录控制台</h1>

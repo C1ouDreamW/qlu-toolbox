@@ -11,5 +11,5 @@ export function errorText(error: unknown) {
 
 export interface Status {
   text: string
-  state?: 'loading' | 'error' | 'success' | 'empty'
+  state?: 'loading' | 'error' | 'success' | 'empty' | 'info'
 }

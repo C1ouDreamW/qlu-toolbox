@@ -13,6 +13,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@headlessui/vue": "^1.7.23",
+    "lucide-vue-next": "^0.525.0",
     "vue": "^3.5.17",
     "vue-router": "^4.6.5"
   },

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue'
+import { ArrowRight, ArrowUpRight, Inbox, Laptop, Monitor, PackageCheck, Smartphone } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 import type { Overview } from '../api/client'
 import StatusMessage from '../components/StatusMessage.vue'
@@ -10,10 +11,10 @@ const versions = shallowRef<Overview>()
 const pendingFeedback = ref<number>()
 const status = ref<Status | undefined>({ text: '正在读取线上信息…', state: 'loading' })
 const releases = computed(() => [
-  { platform: 'Windows', version: versions.value?.windows },
-  { platform: 'macOS', version: versions.value?.macos },
-  { platform: 'Android', channel: 'Stable', version: versions.value?.android.stable },
-  { platform: 'Android', channel: 'Alpha', version: versions.value?.android.alpha },
+  { platform: 'Windows', icon: Monitor, version: versions.value?.windows },
+  { platform: 'macOS', icon: Laptop, version: versions.value?.macos },
+  { platform: 'Android', icon: Smartphone, channel: 'Stable', version: versions.value?.android.stable },
+  { platform: 'Android', icon: Smartphone, channel: 'Alpha', version: versions.value?.android.alpha },
 ])
 
 async function load() {
@@ -36,22 +37,26 @@ onMounted(() => void load())
   <section class="view">
     <div class="page-heading">
       <h1>运营概览</h1>
-      <a class="outline-link" href="https://lumatile.cn/">访问官网</a>
+      <a class="outline-link" href="https://lumatile.cn/">访问官网<ArrowUpRight :size="16" aria-hidden="true" /></a>
     </div>
     <div class="overview-grid">
       <section class="panel feedback-summary">
-        <h2>待处理反馈</h2>
+        <h2 class="panel-title"><span class="icon-tile"><Inbox :size="18" aria-hidden="true" /></span>待处理反馈</h2>
         <p class="queue-count" aria-live="polite">{{ pendingFeedback === undefined ? '—' : numberFormat.format(pendingFeedback) }}</p>
-        <RouterLink class="outline-link" :to="{ name: 'feedback' }">查看反馈</RouterLink>
+        <RouterLink class="action-link" :to="{ name: 'feedback' }">查看反馈<ArrowRight :size="16" aria-hidden="true" /></RouterLink>
       </section>
       <section class="panel versions">
         <div class="panel-heading">
-          <h2>线上版本</h2>
-          <RouterLink :to="{ name: 'publish' }">前往发布</RouterLink>
+          <h2 class="panel-title"><span class="icon-tile"><PackageCheck :size="18" aria-hidden="true" /></span>线上版本</h2>
+          <RouterLink class="action-link" :to="{ name: 'publish' }">前往发布<ArrowRight :size="16" aria-hidden="true" /></RouterLink>
         </div>
         <dl>
           <div v-for="release in releases" :key="release.platform + (release.channel ?? '')">
-            <dt>{{ release.platform }}<span v-if="release.channel" class="badge">{{ release.channel }}</span></dt>
+            <dt>
+              <component :is="release.icon" :size="16" aria-hidden="true" />
+              {{ release.platform }}
+              <span v-if="release.channel" class="badge" :data-tone="release.channel === 'Alpha' ? 'warning' : 'success'">{{ release.channel }}</span>
+            </dt>
             <dd>{{ release.version ?? '—' }}</dd>
           </div>
         </dl>
@@ -63,14 +68,15 @@ onMounted(() => void load())
 </template>
 
 <style scoped>
-.overview-grid { display: grid; grid-template-columns: minmax(170px, .65fr) minmax(0, 1.35fr); gap: 16px; }
-.feedback-summary { display: grid; align-content: start; justify-items: start; gap: 12px; border-color: #d5e3fb; background: linear-gradient(135deg, #e8f0ff, #f5f8ff); }
-.feedback-summary h2 { color: #3a507b; }
-.feedback-summary .queue-count { font-size: clamp(2.4rem, 7vw, 4rem); line-height: 1.1; font-weight: 760; letter-spacing: -.04em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.versions .panel-heading a { font-size: .875rem; }
-.versions dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.versions dl > div { min-width: 0; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--page); }
+.overview-grid { display: grid; grid-template-columns: minmax(190px, .7fr) minmax(0, 1.3fr); gap: var(--panel-gap); }
+.feedback-summary { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; border-color: #d9e5fc; background: linear-gradient(145deg, #eaf2ff, #f6f9ff); }
+.feedback-summary .icon-tile { background: #dce9ff; }
+.feedback-summary .queue-count { margin-block: 4px; font-size: clamp(2.75rem, 6vw, 3.65rem); line-height: 1; font-weight: 725; letter-spacing: -.06em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.feedback-summary .action-link { margin: auto 0 0 -8px; }
+.versions dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.versions dl > div { min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--subtle); }
 .versions dt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--muted); font-size: .875rem; }
-.versions dd { margin-top: 4px; font-size: 1.2rem; font-weight: 730; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-@media (max-width: 640px) { .overview-grid { grid-template-columns: minmax(0, 1fr); } }
+.versions dt svg { flex: none; }
+.versions dd { margin-top: 4px; font-size: 1.22rem; font-weight: 720; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .overview-grid { grid-template-columns: minmax(0, 1fr); } }
 </style>

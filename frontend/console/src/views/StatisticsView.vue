@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue'
+import { ChevronDown, RefreshCw } from 'lucide-vue-next'
 import type { StatisticsReport } from '../api/client'
 import DataTable from '../components/DataTable.vue'
 import DistributionChart from '../components/DistributionChart.vue'
@@ -71,7 +72,9 @@ onMounted(() => void load())
         <h1>访问统计</h1>
         <p v-if="report" class="page-meta">更新于 {{ report.generated_at.replace('T', ' ') }}</p>
       </div>
-      <button type="button" :disabled="loading" @click="load">{{ loading ? '刷新中…' : '刷新报告' }}</button>
+      <button type="button" :disabled="loading" @click="load">
+        <RefreshCw :size="16" aria-hidden="true" />{{ loading ? '刷新中…' : '刷新报告' }}
+      </button>
     </div>
     <StatusMessage :status="status" />
     <div v-if="report" class="dashboard-stack">
@@ -94,8 +97,8 @@ onMounted(() => void load())
         </div>
         <TrendChart v-if="report.days.length" :dates="report.days" :values="report[metric.key]" :label="metric.label" />
         <p v-else class="empty-state">暂无逐日数据</p>
-        <details v-if="days.length" class="details-table">
-          <summary>逐日明细</summary>
+        <details v-if="days.length" class="details-table disclosure">
+          <summary><ChevronDown :size="16" aria-hidden="true" />逐日明细</summary>
           <DataTable :headers="['日期', '日活', '新增安装', '更新检查', '自建源下载']" :rows="days" />
         </details>
       </section>
@@ -128,7 +131,7 @@ onMounted(() => void load())
 .trend-heading { align-items: flex-start; }
 .distribution-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .details-table { border-top: 1px solid var(--line); margin-top: 13px; padding-top: 13px; }
-.details-table summary { width: fit-content; color: var(--action); cursor: pointer; font-size: .875rem; font-weight: 650; }
+.details-table summary { width: fit-content; }
 .details-table :deep(table) { min-width: 430px; }
 @media (max-width: 1020px) { .stats-totals { grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); } }
 @media (max-width: 560px) {

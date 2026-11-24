@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, shallowRef, watch } from 'vue'
+import { ChevronDown, Megaphone, Plus } from 'lucide-vue-next'
 import { ApiError, type Channel, type Draft, type DraftInput } from '../api/client'
 import AndroidDistribution from '../components/AndroidDistribution.vue'
+import SelectField from '../components/SelectField.vue'
 import StatusMessage from '../components/StatusMessage.vue'
 import { useAction } from '../useAction'
 import { api, useSession } from '../useSession'
@@ -10,11 +12,14 @@ import { dateFormat, errorText, type Status } from '../ui'
 const { session } = useSession()
 const permissions = computed(() => session.value?.permissions)
 const channel = ref<Channel>('stable')
-const channelLabel: Record<Channel, string> = { stable: 'Stable', alpha: 'Alpha' }
+const channelLabels: Record<Channel, string> = { stable: 'Stable', alpha: 'Alpha' }
+const channels = (['stable', 'alpha'] as const).map(value => ({ value, label: channelLabels[value] }))
+const levels = [{ value: 'info', label: '普通' }, { value: 'warning', label: '重要' }] as const
 const drafts = shallowRef<Draft[]>([])
+const draftOptions = computed(() => drafts.value.map(item => ({ value: item.id, label: item.title })))
 const draftId = ref<number>()
 const draft = computed(() => drafts.value.find(item => item.id === draftId.value))
-const picker = ref<HTMLSelectElement>()
+const picker = ref<{ focus: () => void }>()
 const titleField = ref<HTMLInputElement>()
 const activeStatus = ref<Status>()
 const hasActive = ref(false)
@@ -39,11 +44,11 @@ async function loadActive() {
     const announcement = await api.activeAnnouncement(channel.value)
     if (current !== activeRequest) return
     hasActive.value = true
-    activeStatus.value = { text: `当前公告 · ${announcement.title}` }
+    activeStatus.value = { text: `当前公告 · ${announcement.title}`, state: 'success' }
   } catch (error) {
     if (current !== activeRequest) return
     activeStatus.value = error instanceof ApiError && error.status === 404
-      ? { text: '该渠道暂无公告' }
+      ? { text: '该渠道暂无公告', state: 'info' }
       : { text: errorText(error), state: 'error' }
   }
 }
@@ -55,7 +60,7 @@ function publish() {
   return runAnnouncement(async () => {
     await api.publish(target, id)
     await loadActive()
-  }, `已发布至 ${channelLabel[target]}`)
+  }, `已发布至 ${channelLabels[target]}`)
 }
 
 function withdraw() {
@@ -122,21 +127,19 @@ onMounted(async () => {
     <div class="publish-layout">
       <section class="panel">
         <div class="panel-heading">
-          <h2>应用内公告</h2>
-          <button v-if="permissions?.addDraft" type="button" :disabled="saving || publishing" @click="openEditor()">新建草稿</button>
+          <h2 class="panel-title"><span class="icon-tile"><Megaphone :size="18" aria-hidden="true" /></span>应用内公告</h2>
+          <button v-if="permissions?.addDraft" type="button" :disabled="saving || publishing" @click="openEditor()">
+            <Plus :size="16" aria-hidden="true" />新建草稿
+          </button>
         </div>
         <div class="form-grid announcement-fields">
-          <label>渠道<select v-model="channel" :disabled="publishing"><option value="stable">Stable</option><option value="alpha">Alpha</option></select></label>
-          <label>草稿<select ref="picker" v-model="draftId" :disabled="!drafts.length || saving || publishing">
-            <option v-if="!drafts.length" :value="undefined">暂无草稿</option>
-            <option v-for="item in drafts" :key="item.id" :value="item.id">{{ item.title }}</option>
-          </select></label>
+          <SelectField v-model="channel" label="渠道" :options="channels" :disabled="publishing" />
+          <SelectField ref="picker" v-model="draftId" label="草稿" :options="draftOptions" placeholder="暂无草稿"
+            :disabled="!drafts.length || saving || publishing" />
         </div>
-        <div class="active-announcement" :data-active="hasActive">
-          <StatusMessage :status="activeStatus" />
-        </div>
-        <details v-if="draft" class="preview" open>
-          <summary>预览所选草稿</summary>
+        <StatusMessage class="active-announcement" :status="activeStatus" />
+        <details v-if="draft" class="preview disclosure" open>
+          <summary><ChevronDown :size="16" aria-hidden="true" />预览所选草稿</summary>
           <article>
             <div class="preview-title">
               <h3>{{ draft.title }}</h3>
@@ -159,7 +162,7 @@ onMounted(async () => {
           <label>标题<input ref="titleField" v-model="form.title" maxlength="120" required></label>
           <label>正文<textarea v-model="form.body" rows="5" required></textarea></label>
           <div class="draft-options">
-            <label>级别<select v-model="form.level"><option value="info">普通</option><option value="warning">重要</option></select></label>
+            <SelectField v-model="form.level" label="级别" :options="levels" />
             <label>到期时间（本机时间）<input v-model="form.expiresAt" type="datetime-local"></label>
           </div>
           <label>详情链接<input v-model="form.url" type="url" maxlength="200" placeholder="https://"></label>
@@ -173,19 +176,17 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.publish-layout { display: grid; grid-template-columns: minmax(0, 1.58fr) minmax(245px, 1fr); align-items: start; gap: 16px; }
-.active-announcement { margin-top: 14px; border-radius: 9px; background: var(--page); }
-.active-announcement[data-active="true"] { background: var(--success-bg); }
-.active-announcement :deep(.message:not([data-state])) { padding: 9px 12px; }
-.preview { margin-top: 14px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
-.preview summary { cursor: pointer; color: var(--action); font-weight: 650; font-size: .85rem; }
-.preview article { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); }
+.publish-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(265px, 1fr); align-items: start; gap: var(--panel-gap); }
+.active-announcement.message { margin-top: 16px; }
+.preview { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
+.preview summary { margin: 4px; }
+.preview article { margin: 0 13px; padding: 12px 0; border-top: 1px solid var(--line); }
 .preview-title { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .preview p { margin-top: 6px; }
 .feedback-body { white-space: pre-wrap; }
 .draft-form { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--page); }
 .draft-options { display: grid; grid-template-columns: minmax(70px, .5fr) minmax(0, 1fr); gap: 10px; }
 .draft-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-@media (max-width: 980px) { .publish-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 920px) { .publish-layout { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 440px) { .draft-options { grid-template-columns: minmax(0, 1fr); } }
 </style>
