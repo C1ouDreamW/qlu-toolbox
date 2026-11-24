@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "applicationId": "io.github.c1oudreamw.lumatile.alpha",
+  "versionName": "2.0.5-alpha.1",
+  "versionCode": 1,
+  "channel": "alpha",
+  "tag": "android-alpha-v2.0.5-alpha.1",
+  "commit": "7404f4f2d8298e7540415d405755983ab6d390ec",
+  "title": "一格有光版本更新",
+  "notes": "- 从当前主分支构建首个 Android Alpha，用于验证独立签名、APK 分发和更新清单。本次发版准备仅调整版本与发布配置。",
+  "publishedAt": "2026-11-24T04:57:55.000Z",
+  "apkUrl": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/android-alpha-v2.0.5-alpha.1/LumaTile-Alpha-Android-v2.0.5-alpha.1.apk",
+  "sha256": "d16c14acc0fc9cc4f057f269c4dcb74d2cd8985b82f420a5edca880d55f498ea",
+  "size": 6503834,
+  "mandatory": false
+}
