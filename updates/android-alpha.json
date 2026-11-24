@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "applicationId": "io.github.c1oudreamw.lumatile.alpha",
+  "versionName": "2.0.5-alpha.2",
+  "versionCode": 2,
+  "channel": "alpha",
+  "tag": "v2.0.5-alpha.2",
+  "commit": "0371f4189e0a3497557e70b1eeb681a8dd707fd2",
+  "title": "一格有光版本更新",
+  "notes": "- Android APK 随 Windows、macOS 一起发布到同一条 GitHub 预发布。APK 沿用 Alpha 签名，`versionCode` 提升为 `2`，可覆盖安装此前的 Alpha。",
+  "publishedAt": "2026-11-24T06:01:20.000Z",
+  "apkUrl": "https://github.com/C1ouDreamW/qlu-toolbox/releases/download/v2.0.5-alpha.2/LumaTile-Alpha-Android-v2.0.5-alpha.2.apk",
+  "sha256": "4b032d361a696b890af2cb54005246dd9d7bee7d85cba64ae0e6515fd4ac91c0",
+  "size": 6507930,
+  "mandatory": false
+}
