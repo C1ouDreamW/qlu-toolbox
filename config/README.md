@@ -1,20 +1,18 @@
-# 平台与渠道版本
+# 客户端渠道与版本
 
-`release-versions.json` 是版本的唯一人工入口，schema 2 按 Windows / macOS / Android 分别保存 Stable 和 Alpha：
+`release-versions.json` 是版本的唯一人工入口。schema 3 为 Stable 和 Alpha 各保存一个三端共用版本号，以及各平台的原生构建号。
 
 - Stable：`major.minor.patch`。
 - Alpha：`major.minor.patch-alpha.N`，N 从 1 开始。
 - Debug：默认开发渠道，从本平台 Alpha 基础版本生成 `major.minor.patch-debug.0`。
 
-每个平台独立更新版本和变更日志，不要求同时发三端。桌面增加本渠道 `buildNumber`，Android 增加本渠道 `versionCode`；已公开版本不能替换成不同字节。
+每次发布增加对应渠道的版本号、两端桌面的 `buildNumber` 和 Android 的 `versionCode`。三个原生计数分别递增。各平台更新日志仍记录各自交付内容。
 
-| 平台 | Stable 标签 | Alpha 标签 |
+| 平台 | Stable 标签示例 | Alpha 标签示例 |
 |---|---|---|
-| Windows x64 | `win-v2.1.0` | `win-alpha-v2.1.0-alpha.1` |
-| macOS arm64 | `mac-v2.1.0` | `mac-alpha-v2.1.0-alpha.1` |
-| Android | `android-v2.1.0` | `android-alpha-v2.1.0-alpha.1` |
+| Windows x64、macOS arm64、Android | `v2.1.0` | `v2.1.0-alpha.1` |
 
-以上是命名示例，不代表这些版本已经发布。当前配置中的 Alpha 版本也只是开发起点。
+每个标签对应一条 GitHub Release。已撤回的 `2.0.5-alpha.1` 原生构建号和标签是历史基线，下次发布使用更高版本和构建号。
 
 ## 构建身份
 
@@ -35,13 +33,13 @@ Debug 不检查在线更新；Alpha / Debug 不发送匿名统计。Alpha 和 St
 
 `release-migration.json` 目前保持：
 
-- `independentPublishingEnabled=false`：正式发布关闭。
+- `stablePublishingEnabled=false`：正式发布关闭。
 - `alphaPublishingEnabled=false`：Alpha 发布关闭。
 - `bridgeVersion=null`：暂未指定旧桌面迁移版本，仅保留旧更新格式兼容能力。
 - 两个 Android 签名指纹只保存公开 SHA-256，Alpha 必须与 Stable 不同。
 
-当前只开发并合并代码，不创建发布标签。以后发版时再启用对应开关、更新本端 `changelogs/<platform>.md` 并创建标签，见 [发布指南](../docs/releasing.md)。不需要晋级批准文件、候选验收状态机或 SBOM 前置任务。
+发版时启用对应开关、更新三份 `changelogs/<platform>.md` 并创建一个共用标签，见 [发布指南](../docs/releasing.md)。
 
 发布工作流从不可变标签读取配置，要求提交已进入 main；未提交的工作区修改不能打开发布。Android 将无密钥构建、独立签名与公开 Release 分开，PR 仅生成 Debug，不接收长期签名 Secret。
 
-旧桌面用户的更新源迁移在首次独立正式发版时处理，不作为本 PR 合并条件。首次切换可能需要用户手动下载安装；当前不更改线上清单。
+客户端支持统一标签和历史平台标签。已安装 `2.0.5-alpha.1` 的测试者可从下一条统一预发布手动覆盖安装 Alpha。

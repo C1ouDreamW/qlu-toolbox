@@ -14,6 +14,14 @@ export function androidArtifactName(version, channel = 'stable') {
   return `LumaTile-${channel === 'alpha' ? 'Alpha-' : ''}Android-v${version}.apk`
 }
 
+/** @param {unknown} tag @param {string} channel */
+export function androidTagVersion(tag, channel) {
+  if (typeof tag !== 'string' || !['stable', 'alpha'].includes(channel)) return null
+  const prefix = tag.startsWith('v') ? 'v' : channel === 'alpha' ? 'android-alpha-v' : 'android-v'
+  if (!tag.startsWith(prefix)) return null
+  try { return assertChannelVersion(tag.slice(prefix.length), channel) } catch { return null }
+}
+
 export function androidUpdateSources(channel) {
   if (!['stable', 'alpha'].includes(channel)) throw new Error('Debug 版本不提供在线更新')
   const file = channel === 'alpha' ? 'android-alpha.json' : 'android.json'
@@ -34,8 +42,8 @@ export function validateAndroidManifest(item, channel = 'stable') {
   const tag = androidReleaseTag(item.versionName, channel)
   const file = androidArtifactName(item.versionName, channel)
   if ((item.tag !== undefined || item.commit !== undefined) &&
-      (item.tag !== tag || typeof item.commit !== 'string' || !/^[a-f0-9]{40}$/.test(item.commit))) throw new Error('Android 清单源码身份无效')
-  const tags = channel === 'stable' ? [tag, `v${item.versionName}`] : [tag]
+      (androidTagVersion(item.tag, channel) !== item.versionName || typeof item.commit !== 'string' || !/^[a-f0-9]{40}$/.test(item.commit))) throw new Error('Android 清单源码身份无效')
+  const tags = item.tag !== undefined ? [item.tag] : channel === 'stable' ? [tag, `v${item.versionName}`] : [tag]
   if (!tags.some(value => item.apkUrl === `${API_ORIGIN}/releases/${value}/${file}` || isArtifactUrl(item.apkUrl, value, file))) throw new Error('Android APK 地址与渠道或版本不匹配')
   return item
 }

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { assertChannelVersion, buildInformation, channelIdentity, compareChannelVersions, validateBuildInformation } from '../packages/release-contract/channel-contract.mjs'
-import { releaseVersion, resolveRelease, validateReleaseConfig } from '../scripts/release-config.mjs'
+import { parseReleaseTag, readReleaseConfig, releaseVersion, resolveRelease, validateReleaseConfig } from '../scripts/release-config.mjs'
 
 function versions() {
   return { schemaVersion: 2,
@@ -9,6 +10,23 @@ function versions() {
     macos: { stable: { version: '2.0.6', buildNumber: 3 }, alpha: { version: '2.1.0-alpha.10', buildNumber: 10 } },
     android: { stable: { version: '2.0.7', versionCode: 16 }, alpha: { version: '2.1.0-alpha.1', versionCode: 1 } } }
 }
+
+test('the current schema shares one version and tag across the three release builds', async () => {
+  const config = await readReleaseConfig(fileURLToPath(new URL('../', import.meta.url)))
+  assert.equal(config.schemaVersion, 3)
+  for (const channel of ['alpha', 'stable']) {
+    for (const platform of ['windows', 'macos', 'android']) {
+      const tag = `v${config[channel].version}`
+      const result = resolveRelease(config, { platform, channel, tag })
+      assert.equal(result.version, config[channel].version)
+      assert.equal(result.tag, tag)
+      assert.deepEqual(parseReleaseTag(platform, tag), { version: result.version, channel })
+      const counter = platform === 'android' ? 'versionCode' : 'buildNumber'
+      assert.equal(result[counter], config[channel][platform][counter])
+    }
+  }
+  assert.throws(() => resolveRelease(config, { platform: 'windows', tag: `win-v${config.stable.version}` }), /Tag mismatch/)
+})
 
 test('schema 2 resolves each platform and channel independently with Debug derived from Alpha', () => {
   const config = versions()

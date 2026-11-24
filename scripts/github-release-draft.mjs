@@ -38,7 +38,7 @@ export function githubReleaseClient({ token, fetcher = fetch }) {
   return { api, request, json, publicJson, paginate }
 }
 
-export async function publishVerifiedDraft({ identity, directory, names, prerelease, title, body, beforePublish, client }) {
+export async function publishVerifiedDraft({ identity, directory, names, prerelease, makeLatest = false, title, body, beforePublish, client }) {
   const { api, request, json, paginate } = client
   const assetsFor = id => paginate(`/releases/${id}/assets`)
   const verifyRemote = async (assets, complete) => {
@@ -76,6 +76,6 @@ export async function publishVerifiedDraft({ identity, directory, names, prerele
   }
   await verifyRemote(await assetsFor(release.id), true)
   await beforePublish()
-  await json(`${api}/releases/${release.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draft: false, make_latest: 'false' }) })
+  await json(`${api}/releases/${release.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draft: false, make_latest: makeLatest ? 'true' : 'false' }) })
   return { status: 'published', tag: identity.tag }
 }

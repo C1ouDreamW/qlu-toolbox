@@ -9,7 +9,7 @@ export function releaseRunContext(env = process.env) {
 export function assertReleaseRun(identity, context) {
   if (context.repository !== GITHUB_REPOSITORY || context.event !== 'push' || context.ref !== `refs/tags/${identity.tag}` ||
       !/^[a-f0-9]{40}$/.test(context.sha) || !/^[1-9]\d*$/.test(context.runId) || !/^[1-9]\d*$/.test(context.runAttempt)) {
-    throw new Error('Release must originate from this repository and a platform tag push')
+    throw new Error('Release must originate from this repository and a release tag push')
   }
 }
 

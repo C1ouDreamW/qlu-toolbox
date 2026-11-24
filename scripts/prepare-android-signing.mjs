@@ -17,13 +17,16 @@ if (mode === 'record') {
   const receipt = await createUnsignedReceipt({ identity, context, apk: resolve(apk), tools })
   const content = `${JSON.stringify(receipt, null, 2)}\n`
   await writeFile(resolve(receiptPath), content, { flag: 'wx' })
-  if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `commit=${identity.commit}\nversion=${identity.version}\nchannel=${identity.channel}\nunsigned_sha256=${receipt.artifact.sha256}\nreceipt_sha256=${sha256(content)}\n`)
+  if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `commit=${identity.commit}\nversion=${identity.version}\nchannel=${identity.channel}\nunsigned_sha256=${receipt.artifact.sha256}\nreceipt_sha256=${sha256(content)}\nbuild_attempt=${context.runAttempt}\n`)
   console.log(JSON.stringify(receipt, null, 2))
 } else {
-  const input = await readUnsignedBuildInput({ identity, context, apk: resolve(apk), receiptPath: resolve(receiptPath), expectedSha256: process.env.RELEASE_UNSIGNED_SHA256, expectedReceiptSha256: process.env.RELEASE_RECEIPT_SHA256 })
+  const buildAttempt = process.env.RELEASE_BUILD_ATTEMPT ?? context.runAttempt
+  if (!/^[1-9]\d*$/.test(buildAttempt) || BigInt(buildAttempt) > BigInt(context.runAttempt)) throw new Error('Invalid unsigned build attempt')
+  const buildContext = { ...context, runAttempt: buildAttempt }
+  const input = await readUnsignedBuildInput({ identity, context: buildContext, apk: resolve(apk), receiptPath: resolve(receiptPath), expectedSha256: process.env.RELEASE_UNSIGNED_SHA256, expectedReceiptSha256: process.env.RELEASE_RECEIPT_SHA256 })
   if (mode === 'verify') console.log('Unsigned artifact and receipt match the validated build')
   else {
-    const report = await signAndroidRelease({ identity, context, apk: resolve(apk), receipt: input.receipt,
+    const report = await signAndroidRelease({ identity, context, buildContext, apk: resolve(apk), receipt: input.receipt,
       expectedSha256: process.env.RELEASE_UNSIGNED_SHA256, tools, output: resolve(output), verification: resolve(verification) })
     console.log(JSON.stringify(report, null, 2))
   }

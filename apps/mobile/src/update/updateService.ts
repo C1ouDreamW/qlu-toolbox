@@ -1,5 +1,5 @@
 import type { Announcement, AvailableUpdate, CurrentAppVersion, UpdateManifest } from './types'
-import { androidReleaseTag, androidUpdateSources, validateAndroidManifest } from '../../../../packages/release-contract/android-update-contract.mjs'
+import { androidTagVersion, androidUpdateSources, validateAndroidManifest } from '../../../../packages/release-contract/android-update-contract.mjs'
 import { assertChannelVersion, compareChannelVersions } from '../../../../packages/release-contract/version-contract.mjs'
 import { API_ORIGIN, GITHUB_REPOSITORY, isArtifactUrl, UPDATE_ORIGIN } from '../../../../packages/release-contract/update-contract.mjs'
 import { buildInformation } from '../build-info'
@@ -146,12 +146,12 @@ async function fetchGithubManifest(current: CurrentAppVersion): Promise<UpdateMa
     if (!Array.isArray(value)) throw new Error('GitHub 发布列表无效')
     for (const item of value) {
       if (!item || item.draft !== false || item.prerelease !== (channel === 'alpha') || typeof item.tag_name !== 'string') continue
-      const prefix = channel === 'alpha' ? 'android-alpha-v' : 'android-v'
-      if (!item.tag_name.startsWith(prefix)) continue
-      try {
-        const version = assertChannelVersion(item.tag_name.slice(prefix.length), channel)
-        if (compareChannelVersions(version, current.versionName, channel) > 0) candidates.push(item)
-      } catch { /* Another tag format is outside this channel. */ }
+      const version = androidTagVersion(item.tag_name, channel)
+      if (!version || compareChannelVersions(version, current.versionName, channel) <= 0) continue
+      // Historical shared stable releases are still covered by the Android update feeds.
+      if (channel === 'stable' && item.tag_name === `v${version}` && Array.isArray(item.assets) &&
+          !item.assets.some((asset: GithubAsset) => asset.name === 'update-android.json' || asset.name === 'release-record.json')) continue
+      candidates.push(item)
     }
     if (value.length < 100 && !response.headers.get('link')?.includes('rel="next"')) break
   }
@@ -164,7 +164,7 @@ async function fetchGithubManifest(current: CurrentAppVersion): Promise<UpdateMa
       const found = assets.filter(asset => asset.name === 'update-android.json')
       if (found.length !== 1 || !isArtifactUrl(found[0].browser_download_url, release.tag_name, 'update-android.json', true)) throw new Error('GitHub 发布缺少 Android 清单')
       const manifest = validateManifest((await githubJson(found[0].browser_download_url)).value, 'GitHub')
-      if (androidReleaseTag(manifest.versionName, channel) !== release.tag_name || manifest.tag !== release.tag_name ||
+      if (androidTagVersion(release.tag_name, channel) !== manifest.versionName || manifest.tag !== release.tag_name ||
           typeof manifest.commit !== 'string' || !/^[a-f0-9]{40}$/.test(manifest.commit)) throw new Error('GitHub 清单与发布标签不一致')
       const commit = (await githubJson(`${api}/commits/${encodeURIComponent(release.tag_name)}`)).value as { sha?: unknown } | null
       if (commit?.sha !== manifest.commit) throw new Error('GitHub 清单与标签 commit 不一致')

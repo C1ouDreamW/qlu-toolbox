@@ -7,12 +7,12 @@
 | Stable | `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD` |
 | Alpha | `ANDROID_ALPHA_KEYSTORE_BASE64`、`ANDROID_ALPHA_KEYSTORE_PASSWORD`、`ANDROID_ALPHA_KEY_ALIAS`、`ANDROID_ALPHA_KEY_PASSWORD` |
 
-现有正式四项 Secret 保持原样，不迁移、不替换，不要求 Environment。维护人已在 Windows 创建并确认备份 Alpha key，报告 Alpha Secrets 已配置；公开指纹保存在 `config/release-migration.json`，不同于正式证书。当前未实际使用长期 Alpha key 或执行新版本发布。
+维护人已在 Windows 创建并确认备份 Alpha key。Alpha 签名使用上述独立仓库 Secret，公开指纹保存在 `config/release-migration.json`。首个 Alpha APK 的签名已通过工作流验证，后续同渠道版本沿用该证书。
 
 ## 基本安全边界
 
 - PR CI 只构建 Debug，权限只读，不引用长期签名 Secrets。
-- 发布标签与该平台 / 渠道配置一致，源码必须已经进入 main；任意分支不能直接取得签名能力。
+- 发布标签与渠道的三端共用版本一致，源码必须已经进入 main。Android 验证任务另外核对原生构建号。
 - Android 分为无密钥构建、独立签名、公开 Release 三个任务。签名 runner 不运行 npm / Gradle 构建或构件内脚本。
 - 签名前核对构建任务独立输出的 APK 与回执摘要、来源 commit、run / attempt、原生和 Web 身份；签名后核对证书、包名、Release 状态与最终摘要。
 - Alpha 和 Stable 显式选择各自 Secrets，不在 Alpha 缺失时回退到正式 key。

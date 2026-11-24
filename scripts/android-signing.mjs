@@ -60,9 +60,9 @@ export function assertUnsignedReceipt({ identity, context, receipt, bytes, expec
   return receipt
 }
 
-export async function signAndroidRelease({ identity, context, receipt, apk, expectedSha256, tools, output, verification, env = process.env }) {
+export async function signAndroidRelease({ identity, context, buildContext = context, receipt, apk, expectedSha256, tools, output, verification, env = process.env }) {
   const bytes = await readFile(apk)
-  assertUnsignedReceipt({ identity, context, receipt, bytes, expectedSha256 })
+  assertUnsignedReceipt({ identity, context: buildContext, receipt, bytes, expectedSha256 })
   const toolEnv = toolEnvironment(env)
   assertAndroidApkMetadata({ identity, ...apkMetadata(apk, tools, toolEnv) })
   for (const key of ['ANDROID_KEYSTORE_BASE64', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD']) {

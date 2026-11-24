@@ -38,10 +38,10 @@ test('single-target desktop manifests use actual artifact bytes without requirin
 test('wrong or missing target artifacts and prerelease or mismatched tags cannot generate a stable pointer', async t => {
   const dir = await fixture(t)
   await writeFile(join(dir, 'LumaTile-macOS-v2.0.6-arm64.dmg'), 'mac fixture')
-  for (const options of [{ platform: 'windows', tag: 'win-v2.0.6' }, { platform: 'macos', tag: 'mac-v2.0.7' }, { platform: 'macos', tag: 'mac-v2.0.6-beta' }, { platform: 'macos', tag: 'v2.0.6' }]) {
+  for (const options of [{ platform: 'windows', tag: 'win-v2.0.6' }, { platform: 'macos', tag: 'mac-v2.0.7' }, { platform: 'macos', tag: 'mac-v2.0.6-beta' }, { platform: 'macos', tag: 'v2.0.6-alpha.1' }]) {
     await assert.rejects(generateDesktopManifest({ ...identity, artifacts: dir, ...options }))
   }
-  const result = await generateDesktopManifest({ ...identity, artifacts: dir, platform: 'macos', tag: 'mac-v2.0.6' })
+  const result = await generateDesktopManifest({ ...identity, artifacts: dir, platform: 'macos', tag: 'v2.0.6' })
   assert.equal(result.arch, 'arm64')
   assert.equal(result.nativeBuildVersion, '1')
   assert.deepEqual(Object.keys(result.artifacts), ['dmg'])

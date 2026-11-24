@@ -73,7 +73,7 @@ docker compose logs jobs
 
 - 官网改动运行 `Website artifacts`，Console 改动运行 `Console artifacts`。两者分别验证静态站，并在推送到 `main` 后部署自己的构件。后端、Compose 和 Nginx 改动运行 `Server artifacts`，通过服务端检查后构建并部署镜像。共享部署工作流改动会验证三条流程。
 - 自动部署会检查构件的对应源码与 `main` 是否一致。PR 运行受影响的验证，网页改动也会生成静态构件。
-- Android 在对应渠道的签名校验和 GitHub Release 发布完成后，自动推广同一工作流的 APK 构件。Stable 与 Alpha 只更新自己的清单，沿用当前分发模式。Android 备用清单仍走 PR。桌面安装包继续由各平台 Release 工作流发布到 GitHub。
+- 三端安装包一起发布到同一条 GitHub Release。公开后自动推广同一工作流的签名 APK。Android 自建源构件继续使用平台标签格式的目录，GitHub 备用清单使用共用标签并通过 PR 更新。Stable 与 Alpha 各自更新清单，沿用当前分发模式。
 - `Deploy LumaTile` 保留手动入口，可选择部署目标以及已通过验证的构件或镜像摘要。
 
 在 GitHub 的 **Settings → Environments → production** 配置：
@@ -84,7 +84,7 @@ docker compose logs jobs
 | Variable | `LUMATILE_DEPLOY_TARGET` | `lumatile-deploy@43.143.206.112` |
 | Variable | `LUMATILE_SSH_KNOWN_HOSTS` | 经现有可信 SSH 连接核对的服务器主机公钥记录，格式为 `43.143.206.112 ssh-ed25519 <主机公钥>`。 |
 
-生产环境若设置部署分支与标签白名单，放行 `main` 以及 Android 的 `android-v*` 和 `android-alpha-v*`。若设置必需审阅人，部署任务会等待审批。
+生产环境若设置部署分支与标签白名单，放行 `main` 和统一客户端标签 `v*`。若设置必需审阅人，部署任务会等待审批。
 
 部署账号需要官网、Console 的版本目录、Android 更新目录及部署锁的写权限。后端部署通过 `sudo -n /srv/apps/lumatile/deploy-portal.sh` 执行，由管理员维护 root 所有的脚本与 Compose 配置。GHCR 公共镜像可直接拉取，私有镜像由服务器配置只读拉取凭据。
 
