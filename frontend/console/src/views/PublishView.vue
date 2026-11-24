@@ -119,9 +119,8 @@ onMounted(async () => {
 <template>
   <section class="view">
     <div class="page-heading"><h1>发布</h1></div>
-    <div class="publish-grid">
-      <AndroidDistribution />
-      <div class="panel">
+    <div class="publish-layout">
+      <section class="panel">
         <div class="panel-heading">
           <h2>应用内公告</h2>
           <button v-if="permissions?.addDraft" type="button" :disabled="saving || publishing" @click="openEditor()">新建草稿</button>
@@ -133,11 +132,16 @@ onMounted(async () => {
             <option v-for="item in drafts" :key="item.id" :value="item.id">{{ item.title }}</option>
           </select></label>
         </div>
-        <StatusMessage :status="activeStatus" />
+        <div class="active-announcement" :data-active="hasActive">
+          <StatusMessage :status="activeStatus" />
+        </div>
         <details v-if="draft" class="preview" open>
           <summary>预览所选草稿</summary>
           <article>
-            <h3>{{ draft.title }}</h3>
+            <div class="preview-title">
+              <h3>{{ draft.title }}</h3>
+              <span class="badge" :data-tone="draft.level === 'warning' ? 'warning' : undefined">{{ draft.level === 'warning' ? '重要' : '普通' }}</span>
+            </div>
             <p class="feedback-body">{{ draft.body }}</p>
             <p v-if="draft.url" class="muted">详情链接 {{ draft.url }}</p>
             <p v-if="draft.expiresAt" class="muted">到期时间 {{ dateFormat.format(new Date(draft.expiresAt)) }}</p>
@@ -147,24 +151,41 @@ onMounted(async () => {
           <button class="primary" type="button" :disabled="!draft || publishing || saving" @click="publish">发布到所选渠道</button>
           <button type="button" :disabled="!hasActive || publishing" @click="withdraw">撤回当前公告</button>
           <button v-if="draft && permissions?.editDraft" type="button" :disabled="saving || publishing" @click="openEditor(draft)">编辑草稿</button>
-          <button v-if="draft && permissions?.deleteDraft" type="button" :disabled="saving || publishing" @click="deleteDraft">删除草稿</button>
+          <button v-if="draft && permissions?.deleteDraft" class="danger" type="button" :disabled="saving || publishing" @click="deleteDraft">删除草稿</button>
         </div>
         <StatusMessage :status="announcementStatus" />
         <form v-if="editorOpen" class="draft-form stack" @submit.prevent="saveDraft">
           <h3>{{ editing === undefined ? '新建公告草稿' : '编辑公告草稿' }}</h3>
           <label>标题<input ref="titleField" v-model="form.title" maxlength="120" required></label>
           <label>正文<textarea v-model="form.body" rows="5" required></textarea></label>
-          <label>级别<select v-model="form.level"><option value="info">普通</option><option value="warning">重要</option></select></label>
+          <div class="draft-options">
+            <label>级别<select v-model="form.level"><option value="info">普通</option><option value="warning">重要</option></select></label>
+            <label>到期时间（本机时间）<input v-model="form.expiresAt" type="datetime-local"></label>
+          </div>
           <label>详情链接<input v-model="form.url" type="url" maxlength="200" placeholder="https://"></label>
-          <label>到期时间（本机时间）<input v-model="form.expiresAt" type="datetime-local"></label>
-          <div class="actions"><button class="primary" type="submit" :disabled="saving || publishing">保存草稿</button><button type="button" :disabled="saving" @click="editorOpen = false">取消</button></div>
+          <div class="draft-actions"><button class="primary" type="submit" :disabled="saving || publishing">保存草稿</button><button type="button" :disabled="saving" @click="editorOpen = false">取消</button></div>
           <StatusMessage :status="draftStatus" />
         </form>
-      </div>
+      </section>
+      <AndroidDistribution />
     </div>
   </section>
 </template>
 
 <style scoped>
-.draft-form { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.publish-layout { display: grid; grid-template-columns: minmax(0, 1.58fr) minmax(245px, 1fr); align-items: start; gap: 16px; }
+.active-announcement { margin-top: 14px; border-radius: 9px; background: var(--page); }
+.active-announcement[data-active="true"] { background: var(--success-bg); }
+.active-announcement :deep(.message:not([data-state])) { padding: 9px 12px; }
+.preview { margin-top: 14px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
+.preview summary { cursor: pointer; color: var(--action); font-weight: 650; font-size: .85rem; }
+.preview article { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); }
+.preview-title { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.preview p { margin-top: 6px; }
+.feedback-body { white-space: pre-wrap; }
+.draft-form { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--page); }
+.draft-options { display: grid; grid-template-columns: minmax(70px, .5fr) minmax(0, 1fr); gap: 10px; }
+.draft-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 980px) { .publish-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 440px) { .draft-options { grid-template-columns: minmax(0, 1fr); } }
 </style>

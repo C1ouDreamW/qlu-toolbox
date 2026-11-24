@@ -26,7 +26,7 @@ async function load(start = 0) {
     if (current !== request) return
     offset.value = start
     page.value = result
-    status.value = result.items.length ? undefined : { text: '没有符合条件的操作记录。' }
+    status.value = result.items.length ? undefined : { text: '没有符合条件的操作记录。', state: 'empty' }
   } catch (error) {
     if (current === request) status.value = { text: errorText(error), state: 'error' }
   } finally {
@@ -41,16 +41,28 @@ onMounted(() => void load())
   <section class="view">
     <div class="page-heading"><h1>操作记录</h1></div>
     <div class="panel">
-      <form class="form-grid operation-filter" @submit.prevent="load()">
-        <label>搜索<input v-model="search" type="search" maxlength="120" placeholder="操作者、对象或结果"></label>
-        <button class="primary" type="submit">搜索</button>
-      </form>
-      <StatusMessage :status="status" />
-      <DataTable v-if="rows.length" :headers="['时间', '操作者', '对象', '结果']" :rows="rows" />
-      <div class="actions">
-        <button type="button" :disabled="loading || !offset" @click="load(Math.max(0, offset - 50))">上一页</button>
-        <button type="button" :disabled="loading || page?.nextOffset == null" @click="page?.nextOffset != null && load(page.nextOffset)">下一页</button>
+      <div class="panel-heading">
+        <h2>最近操作</h2>
+        <form class="form-grid operation-search" role="search" aria-label="搜索操作记录" @submit.prevent="load()">
+          <input v-model="search" type="search" aria-label="搜索操作者、对象或结果" maxlength="120" placeholder="操作者、对象或结果">
+          <button type="submit">搜索</button>
+        </form>
       </div>
+      <StatusMessage :status="status" />
+      <DataTable v-if="rows.length" class="operations-table" :headers="['时间', '操作者', '对象', '结果']" :rows="rows" />
+      <nav v-if="rows.length || offset" class="pagination" aria-label="操作记录分页">
+        <p class="muted" aria-live="polite">{{ rows.length ? `第 ${offset + 1}–${offset + rows.length} 条` : '' }}</p>
+        <div>
+          <button type="button" :disabled="loading || !offset" @click="load(Math.max(0, offset - 50))">上一页</button>
+          <button type="button" :disabled="loading || page?.nextOffset == null" @click="page?.nextOffset != null && load(page.nextOffset)">下一页</button>
+        </div>
+      </nav>
     </div>
   </section>
 </template>
+
+<style scoped>
+.operation-search { flex: 0 1 330px; }
+.operations-table :deep(table) { min-width: 470px; }
+.operations-table :deep(td:first-child) { white-space: nowrap; color: var(--muted); }
+</style>

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import type { Draft, DraftInput, Feedback, Session } from '../src/api/client'
+import type { Draft, DraftInput, Feedback, Session, StatisticsReport } from '../src/api/client'
 
 const site = 'http://127.0.0.1:4177'
 const api = 'https://api.lumatile.cn'
@@ -8,7 +8,20 @@ const nginx = readFileSync(new URL('../../../deploy/server/nginx/sites.conf.exam
 const csp = nginx.split('server_name console.lumatile.cn;')[1]?.match(/Content-Security-Policy "([^"]+)"/)?.[1] ?? ''
 if (!csp) throw new Error('找不到 Console 的 CSP 配置')
 
-async function mockApi(page: Page, signedIn: boolean, canManage = true) {
+const report: StatisticsReport = {
+  generated_at: '2026-11-20T00:25:00', range_days: 30, days: ['2026-11-18', '2026-11-19', '2026-11-20'],
+  dau: [43, 68, 57], new_installs: [17, 26, 14], raw_checks: [161, 219, 182], downloads: [18, 31, 26],
+  totals: { installs: 284, beacons: 840, manifest_checks: 216, update_checks: 1056, downloads_selfhosted: 115, downloads_github: 328 },
+  client_dist: [{ label: 'Android', count: 125 }, { label: '桌面端', count: 74 }],
+  version_dist: [{ label: '2.0.4', count: 118 }, { label: '2.0.3', count: 43 }, { label: '2.0.2', count: 25 }],
+  os_dist: [{ label: 'Android', count: 125 }, { label: 'Windows', count: 52 }, { label: 'macOS', count: 22 }],
+  arch_dist: [{ label: 'arm64', count: 146 }, { label: 'x64', count: 52 }],
+  top_files: [{ label: 'Android · Stable', count: 90 }, { label: 'Android · Alpha', count: 25 }],
+  github_by_asset: [{ label: 'Windows 安装包', count: 221 }, { label: 'macOS 安装包', count: 107 }],
+  github_snapshot_day: '2026-11-20',
+}
+
+async function mockApi(page: Page, signedIn: boolean, canManage = true, statistics = report) {
   const permissions: Session['permissions'] = {
     addDraft: canManage, editDraft: canManage, deleteDraft: canManage, viewOperations: canManage,
   }
@@ -70,9 +83,15 @@ async function mockApi(page: Page, signedIn: boolean, canManage = true) {
       return send(item)
     }
     if (url.pathname === '/v1/statistics') {
-      return send({ generated_at: '2026-11-20T00:25:00', range_days: 1, days: ['2026-11-20'], dau: [4], new_installs: [1], raw_checks: [5], downloads: [2],
-        totals: { installs: 4, beacons: 5, manifest_checks: 0, downloads_selfhosted: 2, downloads_github: 0 },
-        client_dist: [], version_dist: [], os_dist: [], arch_dist: [], top_files: [], github_by_asset: [], github_snapshot_day: null })
+      return send(statistics)
+    }
+    if (url.pathname === '/v1/operations') {
+      return send({ items: [{ actor: 'operator', resource: 'stable-announcement', value: 'withdrawn', created_at: '2026-11-20T01:20:00Z' }], nextOffset: null })
+    }
+    if (url.pathname === '/v1/auth/password' && method === 'POST') {
+      expect(request.postDataJSON()).toEqual({ old_password: 'synthetic', new_password1: 'new-synthetic', new_password2: 'new-synthetic' })
+      token = 'changed-password'
+      return send({ user: 'operator', permissions, csrfToken: token })
     }
     if (url.pathname === '/v1/distribution-policies/android') {
       if (method === 'PUT') mode = request.postDataJSON().mode
@@ -108,7 +127,7 @@ test('logs in from an old feedback link, updates feedback with CSRF, and logs ou
   await expect(page.getByText('合成反馈内容')).toBeVisible()
   await page.getByRole('button', { name: '标记已处理 · FB-A0000001' }).click()
   await expect(page.getByText(/反馈已标记为已处理/)).toBeVisible()
-  await page.getByLabel('状态').selectOption('resolved')
+  await page.getByRole('button', { name: /^已处理/ }).click()
   await expect(page.getByRole('button', { name: '重新打开 · FB-A0000001' })).toBeVisible()
   await page.getByText('operator', { exact: true }).click()
   await page.getByRole('button', { name: '退出登录' }).click()
@@ -122,7 +141,31 @@ test('displays legacy statistics links and falls back from operations without pe
   await expect(page.getByRole('link', { name: '操作记录' })).toHaveCount(0)
   await page.goto('/#stats')
   await expect(page.getByRole('heading', { name: '访问统计' })).toBeVisible()
+  const chart = page.getByRole('img', { name: /^日活每日趋势/ })
+  await expect(chart).toBeVisible()
+  await expect.poll(() => chart.evaluate((canvas: HTMLCanvasElement) =>
+    canvas.getContext('2d')?.getImageData(12, 0, canvas.width - 12, canvas.height).data.some((value, index) => index % 4 === 3 && value > 0)))
+    .toBe(true)
+  await page.getByRole('group', { name: '趋势指标' }).getByRole('button', { name: '新增安装' }).click()
+  const date = page.getByRole('slider', { name: '查看日期' })
+  await expect(date).toHaveAttribute('aria-valuetext', '2026-11-20，新增安装 14')
+  await date.press('ArrowLeft')
+  await expect(date).toHaveAttribute('aria-valuetext', '2026-11-19，新增安装 26')
+  await expect(page.getByRole('heading', { name: '版本分布' })).toBeVisible()
+  await page.getByText('逐日明细', { exact: true }).click()
   await expect(page.getByRole('cell', { name: '2026-11-20' })).toBeVisible()
+})
+
+test('shows an empty report on a narrow screen without overflowing the page', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 })
+  await mockApi(page, true, true, {
+    ...report, days: [], dau: [], new_installs: [], raw_checks: [], downloads: [], client_dist: [],
+  })
+  await page.goto('/#/stats')
+  await expect(page.getByText('暂无逐日数据')).toBeVisible()
+  await expect(page.getByRole('img', { name: /每日趋势/ })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '客户端分布' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360)
 })
 
 test('creates and publishes a draft, withdraws it, and saves the distribution policy', async ({ page }) => {
@@ -140,4 +183,20 @@ test('creates and publishes a draft, withdraws it, and saves the distribution po
   await page.getByLabel('分发方式').selectOption('server')
   await page.getByRole('button', { name: '保存策略' }).click()
   await expect(page.getByText('自建下载已开启')).toBeVisible()
+})
+
+test('reads the operations table and checks password confirmation before saving', async ({ page }) => {
+  await mockApi(page, true)
+  await page.goto('/#/operations')
+  await expect(page.getByRole('cell', { name: 'stable-announcement' })).toBeVisible()
+  await page.getByText('operator', { exact: true }).first().click()
+  await page.getByRole('link', { name: '修改密码' }).click()
+  await page.getByLabel('当前密码', { exact: true }).fill('synthetic')
+  await page.getByLabel('新密码', { exact: true }).fill('new-synthetic')
+  await page.getByLabel('确认新密码', { exact: true }).fill('different')
+  const save = page.getByRole('button', { name: '保存密码' })
+  await expect(save).toBeDisabled()
+  await page.getByLabel('确认新密码', { exact: true }).fill('new-synthetic')
+  await save.click()
+  await expect(page.getByText('密码已更新')).toBeVisible()
 })

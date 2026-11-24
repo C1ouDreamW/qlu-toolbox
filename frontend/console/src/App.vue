@@ -39,28 +39,27 @@ void initialize()
 <template>
   <a class="skip-link" href="#main" @click.prevent="focusMain">跳到主要内容</a>
   <LoginView v-if="!session?.user" />
-  <template v-else>
-    <header class="topbar">
-      <div class="topbar-inner">
-        <RouterLink class="brand" :to="{ name: 'overview' }">
-          <img class="brand-icon" src="/logo.png" width="32" height="32" alt="">LumaTile <small>控制台</small>
-        </RouterLink>
-        <nav class="console-nav" aria-label="控制台导航">
-          <RouterLink v-for="item in navigation" :key="item.name" :to="{ name: item.name }">{{ item.text }}</RouterLink>
-          <RouterLink v-if="showOperations" :to="{ name: 'operations' }">操作记录</RouterLink>
-        </nav>
-        <details ref="accountMenu" class="account">
-          <summary><span>{{ session.user }}</span></summary>
-          <div class="account-menu">
-            <RouterLink :to="{ name: 'account' }" @click="accountMenu?.removeAttribute('open')">修改密码</RouterLink>
-            <button type="button" :disabled="pending" @click="signOut">退出登录</button>
-          </div>
-        </details>
-      </div>
+  <div v-else class="console-shell">
+    <header class="sidebar">
+      <RouterLink class="brand" :to="{ name: 'overview' }">
+        <img class="brand-icon" src="/logo.png" width="36" height="36" alt="">
+        <div>LumaTile <small>运营控制台</small></div>
+      </RouterLink>
+      <nav class="console-nav" aria-label="控制台导航">
+        <RouterLink v-for="item in navigation" :key="item.name" :to="{ name: item.name }">{{ item.text }}</RouterLink>
+        <RouterLink v-if="showOperations" :to="{ name: 'operations' }">操作记录</RouterLink>
+      </nav>
+      <details ref="accountMenu" class="account">
+        <summary aria-label="账号菜单"><span>{{ session.user }}</span></summary>
+        <div class="account-menu">
+          <RouterLink :to="{ name: 'account' }" @click="accountMenu?.removeAttribute('open')">修改密码</RouterLink>
+          <button type="button" :disabled="pending" @click="signOut">退出登录</button>
+        </div>
+      </details>
     </header>
     <main id="main" class="workspace" tabindex="-1">
       <StatusMessage :status="status" />
       <RouterView v-if="allowed" />
     </main>
-  </template>
+  </div>
 </template>

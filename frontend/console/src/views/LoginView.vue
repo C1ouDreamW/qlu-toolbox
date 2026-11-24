@@ -47,7 +47,7 @@ async function signIn() {
               <button type="button" aria-controls="login-password" :aria-pressed="showPassword" @click="showPassword = !showPassword">{{ showPassword ? '隐藏' : '显示' }}</button>
             </div>
           </div>
-          <button class="primary" type="submit" :disabled="!session || checking || pending">登录</button>
+          <button class="primary" type="submit" :disabled="!session || checking || pending">{{ pending ? '登录中…' : '登录' }}</button>
           <button v-if="connectionError" type="button" @click="initialize">重试连接</button>
         </form>
       </div>
