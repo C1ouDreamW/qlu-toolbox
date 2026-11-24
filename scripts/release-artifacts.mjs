@@ -4,7 +4,7 @@ import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/pro
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { artifactFileNames, compareVersions, desktopTarget, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
-import { extractReleaseNotes, parseReleaseTag, resolveRelease, validateReleaseConfig } from './release-config.mjs'
+import { extractReleaseNotes, parseReleaseTag, releaseVersion, RELEASE_TARGETS, resolveRelease, validateReleaseConfig } from './release-config.mjs'
 import { generateDesktopManifest } from './generate-desktop-update-manifest.mjs'
 import { androidArtifactName, validateAndroidManifest } from '../packages/release-contract/android-update-contract.mjs'
 export { validateAndroidManifest } from '../packages/release-contract/android-update-contract.mjs'
@@ -37,13 +37,26 @@ export function taggedRelease(root, platform, tag, requireEnabled = true) {
   const policy = JSON.parse(git(['show', `${commit}:config/release-migration.json`]))
   const { bridgeVersion } = validateMigrationPolicy(policy)
   if (requireEnabled && channel === 'alpha' && policy.alphaPublishingEnabled !== true) throw new Error('Alpha publishing is disabled until its channel is configured')
-  if (requireEnabled && channel === 'stable' && policy.independentPublishingEnabled !== true) {
-    throw new Error('Independent publishing is disabled')
+  const stablePublishingEnabled = config.schemaVersion === 3 ? policy.stablePublishingEnabled : policy.independentPublishingEnabled
+  if (requireEnabled && channel === 'stable' && stablePublishingEnabled !== true) {
+    throw new Error('Stable publishing is disabled')
   }
   const androidSigningSha256 = channel === 'alpha' ? policy.androidAlphaSigningSha256 : policy.androidSigningSha256
   if (platform === 'android' && requireEnabled && (!/^[a-f0-9]{64}$/.test(androidSigningSha256) || (channel === 'alpha' && androidSigningSha256 === policy.androidSigningSha256))) throw new Error('Missing or invalid independent Android signing certificate digest')
   const release = resolveRelease(config, { platform, tag, channel })
-  if (channel === 'stable' && platform !== 'android' && bridgeVersion !== null && compareVersions(release.version, bridgeVersion) <= 0) throw new Error('Independent desktop version must exceed the bridge')
+  if (channel === 'stable' && platform !== 'android' && bridgeVersion !== null && compareVersions(release.version, bridgeVersion) <= 0) throw new Error('Desktop release version must exceed the bridge')
+  if (requireEnabled && config.schemaVersion === 3) {
+    const { prefix } = RELEASE_TARGETS[platform]
+    const legacyPrefix = channel === 'alpha' ? prefix.replace('-v', '-alpha-v') : prefix
+    const counter = platform === 'android' ? 'versionCode' : 'buildNumber'
+    for (const previousTag of git(['tag', '--list', `${legacyPrefix}*`]).split('\n').filter(Boolean)) {
+      let previousVersion
+      try { previousVersion = parseReleaseTag(platform, previousTag).version } catch { continue }
+      if (compareChannelVersions(release.version, previousVersion, channel) <= 0) throw new Error(`Release version must exceed historical tag ${previousTag}`)
+      const previous = releaseVersion(JSON.parse(git(['show', `${previousTag}^{commit}:config/release-versions.json`])), platform, channel)
+      if (release[counter] <= (previous[counter] ?? 1)) throw new Error(`Release ${counter} must exceed historical tag ${previousTag}`)
+    }
+  }
   const notes = extractReleaseNotes(git(['show', `${commit}:changelogs/${platform}.md`]), release.version)
   const identity = { ...release, commit, information: buildInformation(release, commit), bridgeVersion, androidSigningSha256,
     publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString(), notes }

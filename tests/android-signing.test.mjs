@@ -75,11 +75,11 @@ test('signature-only job independently checks the build receipt digest before tr
 test('Android release YAML separates no-secret build, signature-only credentials and publication write access', async () => {
   const workflow = yaml.load(await readFile(new URL('../.github/workflows/release-android.yml', import.meta.url), 'utf8'))
   assert.deepEqual(Object.keys(workflow.on), ['push'])
-  assert.deepEqual(workflow.on.push.tags, ['android-v*', 'android-alpha-v*'])
+  assert.deepEqual(workflow.on.push.tags, ['v*'])
   assert.deepEqual(workflow.permissions, { contents: 'read' })
-  const { build, sign, publish, deploy } = workflow.jobs
-  assert.deepEqual(sign.needs, ['build'])
-  assert.deepEqual(publish.needs, ['build', 'sign'])
+  const { android: build, sign, publish, deploy } = workflow.jobs
+  assert.deepEqual(sign.needs, ['android'])
+  assert.deepEqual(publish.needs, ['windows', 'macos', 'android', 'sign'])
   assert.deepEqual(publish.permissions, { contents: 'write' })
   for (const [name, job] of Object.entries({ build, sign, publish })) {
     assert.equal(job.environment, undefined, 'Use existing repository Secrets, not Environment')
@@ -95,16 +95,16 @@ test('Android release YAML separates no-secret build, signature-only credentials
         const keys = Object.keys(step.env).filter(key => key.startsWith('ANDROID_')).sort()
         assert.deepEqual(keys, ['ANDROID_KEYSTORE_BASE64', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD'].sort())
         const channel = step.if.includes("== 'alpha'") ? 'alpha' : 'stable'
-        assert.equal(step.if, "${{ needs.build.outputs.channel == '" + channel + "' }}")
+        assert.equal(step.if, "${{ needs.android.outputs.channel == '" + channel + "' }}")
         for (const key of keys) assert.equal(step.env[key], '${{ secrets.' + (channel === 'alpha' ? key.replace('ANDROID_', 'ANDROID_ALPHA_') : key) + ' }}')
       }
       if (name === 'sign') assert.doesNotMatch(step.run ?? '', /\b(?:npm|npx|gradle|gradlew|uv)\b/, 'Do not execute business build tools in the signing job')
     }
   }
   assert.equal(sign.steps.filter(step => /secrets\s*[.\[]/.test(JSON.stringify(step))).length, 2)
-  assert.deepEqual(deploy.needs, ['build', 'sign', 'publish'])
+  assert.deepEqual(deploy.needs, ['android', 'sign', 'publish'])
   assert.equal(deploy.uses, './.github/workflows/deploy-server.yml')
-  assert.equal(deploy.with.artifact, '${{ needs.sign.outputs.artifact }}')
+  assert.equal(deploy.with.artifact, '${{ needs.sign.outputs.deploy_artifact }}')
   assert.deepEqual(deploy.permissions, { contents: 'read', actions: 'read' })
   assert.deepEqual(Object.keys(deploy.secrets), ['LUMATILE_DEPLOY_KEY'])
 })
@@ -201,29 +201,23 @@ test('Alpha signing receipts bind the separate app ID and certificate and cannot
   }
 })
 
-test('desktop releases keep build jobs read-only and grant write access only to a fresh verified publisher', async () => {
-  for (const [platform, prefix] of [['windows', 'win'], ['macos', 'mac']]) {
-    const workflow = yaml.load(await readFile(new URL(`../.github/workflows/release-${platform}.yml`, import.meta.url), 'utf8'))
-    assert.deepEqual(Object.keys(workflow.on), ['push'])
-    assert.deepEqual(workflow.on.push.tags, [`${prefix}-v*`, `${prefix}-alpha-v*`])
-    assert.deepEqual(workflow.permissions, { contents: 'read' })
-    assert.deepEqual(Object.keys(workflow.jobs), ['build', 'publish'])
-    assert.deepEqual(workflow.jobs.publish.needs, ['build'])
-    assert.deepEqual(workflow.jobs.publish.permissions, { contents: 'write' })
-    assert.equal(workflow.jobs.build.permissions?.contents ?? workflow.permissions.contents, 'read')
-    assert.doesNotMatch(JSON.stringify(workflow.jobs.build), /secrets\s*[.\[]|github.token/)
-    for (const [name, job] of Object.entries(workflow.jobs)) {
-      assert.equal(job.environment, undefined)
-      for (const step of job.steps) {
-        if (step.uses) assert.match(step.uses, /^[\w-]+\/[\w-]+@[a-f0-9]{40}$/)
-        if (step.uses?.startsWith('actions/checkout@')) assert.equal(step.with['persist-credentials'], false)
-        if (name === 'publish') assert.doesNotMatch(step.run ?? '', /\b(?:npm|npx|gradle|uv)\b/)
-      }
+test('the shared publisher waits for the verified bundles from all three platforms', async () => {
+  const workflow = yaml.load(await readFile(new URL('../.github/workflows/release-android.yml', import.meta.url), 'utf8'))
+  const publisher = workflow.jobs.publish
+  for (const platform of ['windows', 'macos']) {
+    const build = workflow.jobs[platform]
+    assert.equal(build.permissions?.contents ?? workflow.permissions.contents, 'read')
+    assert.doesNotMatch(JSON.stringify(build), /secrets\s*[.\[]|github.token/)
+    for (const step of build.steps) {
+      if (step.uses) assert.match(step.uses, /^[\w-]+\/[\w-]+@[a-f0-9]{40}$/)
+      if (step.uses?.startsWith('actions/checkout@')) assert.equal(step.with['persist-credentials'], false)
     }
-    const upload = workflow.jobs.build.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
-    const download = workflow.jobs.publish.steps.find(step => step.uses?.startsWith('actions/download-artifact@'))
-    assert.equal(download.with.name, upload.with.name.replaceAll('steps.version', 'needs.build'))
-    assert.match(download.with.name, /github.run_id.*github.run_attempt/)
-    assert.match(workflow.jobs.publish.steps.find(step => step.name?.startsWith('Recheck')).run, /validate-independent-release/)
+    assert.equal(build.outputs.artifact, '${{ steps.bundle.outputs.name }}')
+    assert.match(build.steps.find(step => step.id === 'bundle').run, /GITHUB_RUN_ID.*GITHUB_RUN_ATTEMPT/)
   }
+  for (const [platform, job] of [['windows', 'windows'], ['macos', 'macos'], ['android', 'sign']]) {
+    const download = publisher.steps.find(step => step.with?.path === `bundles/${platform}`)
+    assert.equal(download.with.name, '${{ needs.' + job + '.outputs.artifact }}')
+  }
+  assert.equal(publisher.steps.filter(step => step.run?.includes('publish-release.mjs')).length, 1)
 })

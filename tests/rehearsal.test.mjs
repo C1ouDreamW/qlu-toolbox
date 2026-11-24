@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { rehearsalIdentity } from '../scripts/rehearse-release.mjs'
 import { assertWindowsProductVersion, assertWindowsX64, createReleaseBundle } from '../scripts/release-artifacts.mjs'
-import { publishPlatformRelease } from '../scripts/publish-platform-release.mjs'
+import { publishPlatformRelease } from '../scripts/publish-release.mjs'
 import { assertAndroidApkIdentity } from '../scripts/android-apk-verification.mjs'
 
 async function fixture(t) {

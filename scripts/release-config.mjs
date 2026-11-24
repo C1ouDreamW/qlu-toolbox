@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { assertChannelVersion } from '../packages/release-contract/channel-contract.mjs'
+import { assertChannelVersion, versionChannel } from '../packages/release-contract/channel-contract.mjs'
 export { assertStableVersion } from '../packages/release-contract/update-contract.mjs'
 
 export const RELEASE_TARGETS = Object.freeze({
@@ -9,15 +9,22 @@ export const RELEASE_TARGETS = Object.freeze({
   android: { target: 'android', prefix: 'android-v' },
 })
 
+function versionEntry(config, platform, channel) {
+  if (config.schemaVersion === 1) return channel === 'stable' ? config[platform] : null
+  if (config.schemaVersion === 2) return config[platform]?.[channel]
+  const entry = config[channel]
+  return { ...entry?.[platform], version: entry?.version }
+}
+
 export function validateReleaseConfig(config) {
-  if (!config || ![1, 2].includes(config.schemaVersion)) throw new Error('Unsupported release config schema')
+  if (!config || ![1, 2, 3].includes(config.schemaVersion)) throw new Error('Unsupported release config schema')
   for (const platform of Object.keys(RELEASE_TARGETS)) {
     for (const channel of config.schemaVersion === 1 ? ['stable'] : ['stable', 'alpha']) {
-      const entry = config.schemaVersion === 1 ? config[platform] : config[platform]?.[channel]
+      const entry = versionEntry(config, platform, channel)
       assertChannelVersion(entry?.version, channel)
       if (platform === 'android') {
         if (!Number.isSafeInteger(entry.versionCode) || entry.versionCode <= 0 || entry.versionCode > 2100000000) throw new Error('Android versionCode must be an integer between 1 and 2100000000')
-      } else if (config.schemaVersion === 2) {
+      } else if (config.schemaVersion !== 1) {
         if (!Number.isSafeInteger(entry.buildNumber) || entry.buildNumber < 1 || entry.buildNumber > (platform === 'windows' ? 65535 : 9999)) throw new Error('Invalid native buildNumber')
         if (platform === 'windows' && entry.version.split('-')[0].split('.').some(part => Number(part) > 65535)) throw new Error('Windows native version component exceeds 65535')
       }
@@ -29,8 +36,8 @@ export function validateReleaseConfig(config) {
 export function releaseVersion(config, platform, channel = 'stable') {
   validateReleaseConfig(config)
   if (!Object.hasOwn(RELEASE_TARGETS, platform) || !['stable', 'alpha', 'debug'].includes(channel)) throw new Error('Unknown platform or channel')
-  const sourceChannel = channel === 'debug' ? (config.schemaVersion === 2 ? 'alpha' : 'stable') : channel
-  const entry = config.schemaVersion === 1 ? (sourceChannel === 'stable' ? config[platform] : null) : config[platform][sourceChannel]
+  const sourceChannel = channel === 'debug' ? (config.schemaVersion === 1 ? 'stable' : 'alpha') : channel
+  const entry = versionEntry(config, platform, sourceChannel)
   if (!entry) throw new Error('This version config has no Alpha channel')
   return channel === 'debug' ? { ...entry, version: `${entry.version.split('-')[0]}-debug.0` } : entry
 }
@@ -52,7 +59,8 @@ export function resolveRelease(config, { platform, tag, channel = 'stable', targ
   const definition = RELEASE_TARGETS[platform]
   if (target !== undefined && target !== definition.target) throw new Error(`Unsupported target: ${target} for ${platform}`)
   const { version, versionCode, buildNumber } = releaseVersion(config, platform, channel)
-  const prefix = channel === 'alpha' ? definition.prefix.replace('-v', '-alpha-v') : definition.prefix
+  const prefix = config.schemaVersion === 3 ? 'v'
+    : channel === 'alpha' ? definition.prefix.replace('-v', '-alpha-v') : definition.prefix
   const expectedTag = channel === 'debug' ? undefined : `${prefix}${version}`
   if (channel === 'debug' && tag !== undefined) throw new Error('Debug builds cannot have release tags')
   if (tag !== undefined && tag !== expectedTag) throw new Error(`Tag mismatch: expected ${expectedTag}, received ${tag}`)
@@ -62,13 +70,18 @@ export function resolveRelease(config, { platform, tag, channel = 'stable', targ
 
 export function parseReleaseTag(platform, tag) {
   const definition = RELEASE_TARGETS[platform]
-  if (!definition || typeof tag !== 'string') throw new Error('Invalid independent release tag')
+  if (!definition || typeof tag !== 'string') throw new Error('Invalid release tag')
+  if (tag.startsWith('v')) {
+    const version = tag.slice(1)
+    const channel = versionChannel(version)
+    if (channel !== 'debug') return { channel, version: assertChannelVersion(version, channel) }
+  }
   for (const channel of ['stable', 'alpha']) {
     const prefix = channel === 'alpha' ? definition.prefix.replace('-v', '-alpha-v') : definition.prefix
     if (!tag.startsWith(prefix)) continue
     return { channel, version: assertChannelVersion(tag.slice(prefix.length), channel) }
   }
-  throw new Error('Invalid independent release tag for this platform')
+  throw new Error('Invalid release tag for this platform')
 }
 
 export function extractReleaseNotes(markdown, version) {

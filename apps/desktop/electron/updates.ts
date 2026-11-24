@@ -1,5 +1,5 @@
 import {
-  desktopTagVersion, desktopTarget, GITHUB_REPOSITORY,
+  artifactFileNames, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY,
   isArtifactUrl, UPDATE_ORIGIN, validateDesktopManifest,
   type DesktopTarget, type DesktopManifest,
 } from '../../../packages/release-contract/update-contract.mjs'
@@ -52,7 +52,14 @@ export async function checkGithubUpdate(current: string, target: DesktopTarget, 
     for (const item of value) {
       if (!item || typeof item !== 'object' || item.draft !== false || item.prerelease !== (channel === 'alpha')) continue
       const version = desktopTagVersion(item.tag_name, target, bridgeVersion, channel)
-      if (version && compareChannelVersions(version, current, channel) > 0) candidates.push({ release: item as Release, version })
+      if (!version || compareChannelVersions(version, current, channel) <= 0) continue
+      // Older combined stable releases predate the per-platform manifests.
+      if (channel === 'stable' && item.tag_name === `v${version}` && version !== bridgeVersion && Array.isArray(item.assets)) {
+        const legacyName = artifactFileNames(target, version, true)[target.primary]
+        if (item.assets.some((asset: Asset) => asset.name === legacyName) ||
+            !item.assets.some((asset: Asset) => asset.name === `update-${target.id}.json` || asset.name === 'release-record.json')) continue
+      }
+      candidates.push({ release: item as Release, version })
     }
     if (!response.headers.get('link')?.includes('rel="next"') && value.length < 100) break
   }

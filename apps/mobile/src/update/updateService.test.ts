@@ -112,6 +112,23 @@ it('GitHub paginates unrelated releases, enforces prerelease and selects the hig
   expect(update.apkUrl).toBe(githubUrl(higher))
   expect(fetcher.mock.calls.some(([url]) => url.endsWith('page=2'))).toBe(true)
 })
+it('merges a shared GitHub tag and the platform-tagged mirror for the same APK', async () => {
+  alpha()
+  const mirror = manifest('alpha')
+  const shared = { ...mirror, tag: `v${mirror.versionName}` }
+  const release = record(shared)
+  const routes = new Map<string, unknown>([
+    [androidUpdateSources('alpha')[0], mirror],
+    [`${api}/releases?per_page=100&page=1`, [release]],
+    [release.assets[0].browser_download_url, { ...shared, apkUrl: githubUrl(shared) }],
+    [`${api}/commits/${shared.tag}`, { sha: commit }],
+  ])
+  network(routes)
+  const update = (await findAvailableUpdate(current))!
+  expect(update.versionName).toBe(shared.versionName)
+  expect(update.apkUrl).toContain(`/releases/${mirror.tag}/`)
+  expect(update.fallbackApkUrls).toContain(githubUrl(shared))
+})
 it('rejects GitHub tag commit, size, digest, missing asset and rate limit failures', async () => {
   alpha()
   for (const fault of ['commit', 'size', 'digest', 'asset', 'rate']) {

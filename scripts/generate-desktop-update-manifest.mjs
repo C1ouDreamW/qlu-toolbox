@@ -4,7 +4,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { artifactFileNames, assertStableVersion, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
+import { artifactFileNames, desktopTagVersion, desktopTarget, GITHUB_REPOSITORY, UPDATE_ORIGIN, validateDesktopManifest, validateMigrationPolicy } from '../packages/release-contract/update-contract.mjs'
 import { parseReleaseTag, releaseVersion, validateReleaseConfig } from './release-config.mjs'
 import { buildInformation } from '../packages/release-contract/channel-contract.mjs'
 
@@ -37,13 +37,13 @@ export async function generateDesktopManifest({ platform, version, tag, commit, 
 }
 
 export function taggedDesktopIdentity(root, tag, platform) {
-  const channel = typeof tag === 'string' && tag.startsWith('v') ? (assertStableVersion(tag.slice(1)), 'stable') : parseReleaseTag(platform, tag).channel
+  const { channel } = parseReleaseTag(platform, tag)
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
   const commit = git(['rev-parse', '--verify', `refs/tags/${tag}^{commit}`])
   if (git(['rev-parse', 'HEAD']) !== commit) throw new Error('Release tag must point to the checked-out commit')
   const versions = validateReleaseConfig(JSON.parse(git(['show', `${commit}:config/release-versions.json`])))
   const policy = validateMigrationPolicy(JSON.parse(git(['show', `${commit}:config/release-migration.json`])))
-  if (!Object.hasOwn(versions, platform) || platform === 'android') throw new Error('Expected windows or macos')
+  if (platform !== 'windows' && platform !== 'macos') throw new Error('Expected windows or macos')
   const release = releaseVersion(versions, platform, channel)
   return { channel, version: release.version, buildNumber: release.buildNumber ?? 1, commit, bridgeVersion: policy.bridgeVersion,
     publishedAt: new Date(git(['show', '-s', '--format=%cI', commit])).toISOString() }

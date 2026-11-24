@@ -139,6 +139,6 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-普通 PR 演练仅使用 runner 自动生成的 Debug key。正式流程分离无 Secret 构建、读取本渠道仓库 Secrets 的签名步骤和独立发布，并核验最终 APK 的应用 ID、版本、证书与哈希。Alpha 后续使用独立的 `ANDROID_ALPHA_*` 仓库 Secrets。无需为继续开发找回原正式密码或将正式密钥放到 Mac；现有 Secret 有效时 CI 可直接使用。本轮文档调整不触发签名或发布。
+普通 PR 演练仅使用 runner 自动生成的 Debug key。发布流程分离无 Secret 构建、读取本渠道仓库 Secrets 的签名任务和三端共用的 GitHub Release，并核验最终 APK 的应用 ID、版本、证书与哈希。Alpha 使用独立的 `ANDROID_ALPHA_*` 仓库 Secrets。
 
 CI 可显式传入 `-PunsignedRelease=true` 构建 unsigned Release APK，随后在独立任务用 apksigner 签名。该模式拒绝同时提供签名配置；不传此参数的本地 `assembleRelease` 仍要求有效签名。unsigned APK 不能直接安装或作为公开更新包。

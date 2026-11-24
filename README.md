@@ -94,19 +94,19 @@
 
 安装包同时发布在 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 与自建更新源 `lumatile.ishua.cloud`（互为备用渠道）。详细版本变化见 [历史更新日志](changelogs/legacy.md)。
 
-下载表只列已公开版本。独立发布迁移尚未切换生产，当前三端仍为 2.0.4；后续各平台分别维护下载链接与版本，不以仓库的单个 latest Release 代表所有平台。迁移进度及平台更新日志见[平台版本说明](config/README.md)。
+下载表列出已公开的正式版，当前三端为 2.0.4。三端的安装包和更新说明按版本汇总到同一条 Release。各平台更新日志见[版本说明](config/README.md)。
 
 ### 选择渠道
 
 | 渠道 | 用途 | 下载与升级 |
 |---|---|---|
 | Stable | 日常使用 | 使用上表本平台的已公开安装包；后续仅接收本平台 Stable 更新 |
-| Alpha | 提前体验并反馈问题 | 当前尚未公开，暂不提供下载链接；首发后将在此按平台单列，之后只接收 Alpha 更新 |
+| Alpha | 提前体验并反馈问题 | 从同版本的 GitHub 预发布选择本平台的安装包，之后接收 Alpha 更新 |
 | Debug | 本地开发和 PR 验证 | 按[开发指南](CONTRIBUTING.md)构建，或由维护人指定 Debug 演练 artifact；不检查在线更新 |
 
 Alpha / Debug 使用独立应用身份和私有数据，可以与 Stable 共存。加入测试无需卸载 Stable；各渠道不自动读取对方的课表、设置或登录状态。需要转移课表时，由用户主动导出备份再导入，首次测试建议使用内置虚拟展示课表。Android Alpha 使用固定独立测试证书，Debug 的机器临时证书不能保证跨机器覆盖安装。
 
-Alpha 按平台独立发布 GitHub prerelease，Stable 按平台独立发布正式版本；Debug 构件由普通 CI 提供。构建和发版命令见 [发布指南](docs/releasing.md)。当前不发布新版本。
+Alpha 和 Stable 各自使用一个三端共用版本号。Windows、macOS 和 Android 安装包放在同一条 GitHub Release 中，Alpha 标记为预发布。Debug 构件由普通 CI 提供。构建和发版命令见 [发布指南](docs/releasing.md)。
 
 ## 桌面版
 
@@ -135,8 +135,8 @@ Alpha 按平台独立发布 GitHub prerelease，Stable 按平台独立发布正�
 
 前往 [GitHub Releases](https://github.com/C1ouDreamW/qlu-toolbox/releases) 下载对应平台的文件：
 
-- Windows 推荐使用 x64 Setup 安装包。独立发布后的文件名为 `LumaTile-Windows-v*-x64-Setup.exe`，现有 2.0.4 使用 `LumaTile_v2.0.4_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `LumaTile.exe`，不要只复制可执行文件。
-- Apple Silicon Mac 下载 arm64 DMG，打开后将 `LumaTile.app` 拖入“应用程序”。独立发布后的文件名为 `LumaTile-macOS-v*-arm64.dmg`，现有 2.0.4 使用 `LumaTile_v2.0.4_arm64.dmg`。当前不提供 Intel Mac 版本。
+- Windows 推荐使用 x64 Setup 安装包。新版文件名为 `LumaTile-Windows-v*-x64-Setup.exe`，2.0.4 的文件名为 `LumaTile_v2.0.4_x64_Setup.exe`。需要免安装使用时，下载 Windows ZIP，完整解压后运行 `LumaTile.exe`，不要只复制可执行文件。
+- Apple Silicon Mac 下载 arm64 DMG，打开后将 `LumaTile.app` 拖入“应用程序”。新版文件名为 `LumaTile-macOS-v*-arm64.dmg`，2.0.4 的文件名为 `LumaTile_v2.0.4_arm64.dmg`。当前不提供 Intel Mac 版本。
 
 macOS 构建使用 ad-hoc 签名校验完整应用及其内嵌组件，尚未使用 Apple 开发者证书签名或公证。首次启动若被阻止：
 
@@ -265,7 +265,7 @@ npm run doctor -- --platform all
 
 日常开发默认生成独立的 **LumaTile Debug**，不需要正式 / Alpha key，不读取 Stable 私有数据，也不请求在线更新。完整新机器检查和贡献流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 
-客户端版本统一维护在 [`config/release-versions.json`](config/release-versions.json)，开发和打包入口自动准备对应平台版本，可能产生可见的版本载体改动。只读检查、平台日志及独立发布迁移进度见[平台版本说明](config/README.md)。桌面开发仅支持原生 Windows x64、macOS arm64，Rosetta 下请切换到 arm64 Node/Python。
+客户端版本统一维护在 [`config/release-versions.json`](config/release-versions.json)，开发和打包入口自动准备渠道版本和平台构建号，可能产生可见的版本载体改动。只读检查和平台日志见[版本说明](config/README.md)。桌面开发仅支持原生 Windows x64、macOS arm64，Rosetta 下请切换到 arm64 Node/Python。
 
 首次启动开发环境前先编译 Electron 主进程：
 

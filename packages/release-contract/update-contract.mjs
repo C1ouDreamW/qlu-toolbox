@@ -24,6 +24,7 @@ export function validateMigrationPolicy(value) {
   const policy = /** @type {{ schemaVersion?: unknown, bridgeVersion?: unknown, alphaPublishingEnabled?: unknown, androidAlphaSigningSha256?: unknown }} */ (value)
   if (policy.schemaVersion !== 1 || !Object.hasOwn(policy, 'bridgeVersion')) throw new Error('Invalid release migration policy')
   if (Object.hasOwn(policy, 'independentPublishingEnabled') && typeof policy.independentPublishingEnabled !== 'boolean') throw new Error('Invalid independent publishing flag')
+  if (Object.hasOwn(policy, 'stablePublishingEnabled') && typeof policy.stablePublishingEnabled !== 'boolean') throw new Error('Invalid Stable publishing flag')
   if (Object.hasOwn(policy, 'alphaPublishingEnabled') && typeof policy.alphaPublishingEnabled !== 'boolean') throw new Error('Invalid Alpha publishing flag')
   if (Object.hasOwn(policy, 'androidAlphaSigningSha256') && policy.androidAlphaSigningSha256 !== null &&
       (typeof policy.androidAlphaSigningSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(policy.androidAlphaSigningSha256))) throw new Error('Invalid Alpha signing digest')
@@ -34,7 +35,7 @@ export function validateMigrationPolicy(value) {
 export function desktopTagVersion(tag, target, bridgeVersion = null, channel = 'stable') {
   if (typeof tag !== 'string' || !['stable', 'alpha'].includes(channel)) return null
   if (channel === 'stable' && bridgeVersion !== null && tag === `v${assertStableVersion(bridgeVersion)}`) return bridgeVersion
-  const prefix = channel === 'alpha' ? target.prefix.replace('-v', '-alpha-v') : target.prefix
+  const prefix = tag.startsWith('v') ? 'v' : channel === 'alpha' ? target.prefix.replace('-v', '-alpha-v') : target.prefix
   if (!tag.startsWith(prefix)) return null
   try { return assertChannelVersion(tag.slice(prefix.length), channel) } catch { return null }
 }

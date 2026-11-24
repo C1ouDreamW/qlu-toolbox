@@ -9,8 +9,8 @@ const commit = 'a'.repeat(40)
 const api = 'https://api.github.com/repos/C1ouDreamW/qlu-toolbox'
 const github = 'https://github.com/C1ouDreamW/qlu-toolbox/releases/download'
 
-function manifest(version = '2.0.6', target = windows, bridge = false) {
-  const tag = `${bridge ? 'v' : target.prefix}${version}`
+function manifest(version = '2.0.6', target = windows, bridge = false, shared = false) {
+  const tag = `${bridge || shared ? 'v' : target.prefix}${version}`
   const name = artifactFileNames(target, version, bridge)[target.primary]
   return { schemaVersion: 2, platform: target.platform, arch: target.arch, channel: 'stable',
     version, tag, commit, name: `LumaTile ${version}`, notes: '- Fix', publishedAt: '2026-11-06T00:00:00Z',
@@ -97,10 +97,23 @@ test('pagination finds this platform after more than 100 unrelated releases', as
 test('drafts, prereleases, unprefixed historical tags and other platforms never become updates', async () => {
   const next = manifest()
   const records = [{ ...release(next), draft: true }, { ...release(next), prerelease: true },
-    ...['v99.0.0', 'win-v2.0.6-beta', 'mac-v99.0.0', 'android-v99.0.0'].map(tag => ({ ...release(next), tag_name: tag }))]
+    { tag_name: 'v99.0.0', draft: false, prerelease: false, assets: [] },
+    ...['win-v2.0.6-beta', 'mac-v99.0.0', 'android-v99.0.0'].map(tag => ({ ...release(next), tag_name: tag }))]
   const net = network([next], { records })
   assert.equal(await checkGithubUpdate('2.0.4', windows, null, net.fetcher), null)
   assert.equal(net.calls.length, 1)
+})
+
+test('one shared tag selects the correct manifest for each desktop platform', async () => {
+  const win = manifest('2.0.7', windows, false, true)
+  const mac = manifest('2.0.7', macos, false, true)
+  const combined = release(win)
+  combined.assets.push(...release(mac).assets)
+  for (const [target, item] of [[windows, win], [macos, mac]]) {
+    const net = network([win, mac], { records: [combined] })
+    const update = await checkGithubUpdate('2.0.6', target, null, net.fetcher)
+    assert.equal(update.url, item.artifacts[target.primary].fallbackUrl)
+  }
 })
 
 test('unsupported architectures stop before requesting or recommending another package', async () => {

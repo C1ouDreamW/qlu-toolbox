@@ -1,15 +1,15 @@
 {
-  "schemaVersion": 2,
-  "windows": {
-    "stable": { "version": "2.0.4", "buildNumber": 1 },
-    "alpha": { "version": "2.0.5-alpha.1", "buildNumber": 1 }
+  "schemaVersion": 3,
+  "stable": {
+    "version": "2.0.4",
+    "windows": { "buildNumber": 1 },
+    "macos": { "buildNumber": 3 },
+    "android": { "versionCode": 15 }
   },
-  "macos": {
-    "stable": { "version": "2.0.4", "buildNumber": 3 },
-    "alpha": { "version": "2.0.5-alpha.1", "buildNumber": 1 }
-  },
-  "android": {
-    "stable": { "version": "2.0.4", "versionCode": 15 },
-    "alpha": { "version": "2.0.5-alpha.1", "versionCode": 1 }
+  "alpha": {
+    "version": "2.0.5-alpha.1",
+    "windows": { "buildNumber": 1 },
+    "macos": { "buildNumber": 1 },
+    "android": { "versionCode": 1 }
   }
 }

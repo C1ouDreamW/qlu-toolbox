@@ -1,8 +1,9 @@
-name: Release Android
+# Keep the workflow path that the Android deployment job already validates.
+name: Release LumaTile
 
 on:
   push:
-    tags: ['android-v*', 'android-alpha-v*']
+    tags: ['v*']
 
 permissions:
   contents: read
@@ -11,11 +12,160 @@ env:
   LUMATILE_BUILD_CHANNEL: stable
 
 concurrency:
-  group: release-android-${{ startsWith(github.ref_name, 'android-alpha-v') && 'alpha' || 'stable' }}
+  group: release-lumatile-${{ contains(github.ref_name, '-alpha.') && 'alpha' || 'stable' }}
   cancel-in-progress: false
 
 jobs:
-  build:
+  windows:
+    name: Build and verify Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      artifact: ${{ steps.bundle.outputs.name }}
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate immutable release identity and rollout gate
+        id: version
+        shell: bash
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node scripts/validate-release.mjs windows "$GITHUB_REF_NAME"
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: '3.12'
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          npm ci
+          uv sync --locked
+          uv lock --check
+      - name: Prepare and verify Windows version
+        shell: bash
+        run: |
+          node scripts/prepare-release.mjs --platform windows
+          node scripts/prepare-release.mjs --platform windows --verify
+      - name: Test and build Windows application
+        shell: bash
+        run: |
+          uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v
+          npm run test:release
+          npm run build:backend
+          npm run build
+          npm run test:desktop
+          npx electron-builder --win dir nsis --x64 --publish never
+      - name: Verify packaged executable, Electron and Python versions
+        run: node scripts/verify-release-build.mjs windows $env:GITHUB_REF_NAME release/win-unpacked verification.json
+      - name: Prepare installer and portable ZIP
+        shell: pwsh
+        run: |
+          $info = Get-Content apps/desktop/python/lumatile/build-info.json -Raw | ConvertFrom-Json
+          $version = $info.version
+          $prefix = if ($info.channel -eq 'alpha') { 'LumaTile-Alpha' } else { 'LumaTile' }
+          $productName = $info.productName
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item "release/${prefix}_v${version}_x64_Setup.exe" "artifacts/${prefix}-Windows-v${version}-x64-Setup.exe"
+          $ws = New-Object -ComObject WScript.Shell
+          $lnk = $ws.CreateShortcut("$PWD\release\win-unpacked\${productName}.lnk")
+          $lnk.TargetPath = ".\${productName}.exe"
+          $lnk.Save()
+          Rename-Item release/win-unpacked $prefix
+          Compress-Archive -Path "release/$prefix" -DestinationPath "artifacts/${prefix}-Windows-v${version}-x64.zip"
+      - name: Build Windows-only update source bundle
+        run: node scripts/build-release-bundle.mjs windows $env:GITHUB_REF_NAME artifacts verification.json update-source
+      - name: Name verified release bundle
+        id: bundle
+        shell: pwsh
+        run: |
+          "name=release-windows-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT" >> $env:GITHUB_OUTPUT
+      - name: Upload verified release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.bundle.outputs.name }}
+          path: update-source
+          if-no-files-found: error
+
+  macos:
+    name: Build and verify macOS arm64
+    runs-on: macos-15
+    timeout-minutes: 45
+    outputs:
+      artifact: ${{ steps.bundle.outputs.name }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate immutable release identity and rollout gate
+        id: version
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node scripts/validate-release.mjs macos "$GITHUB_REF_NAME"
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: '3.12'
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          uv sync --locked
+          uv lock --check
+      - name: Prepare and verify macOS version
+        run: |
+          test "$(uname -m)" = arm64
+          node scripts/prepare-release.mjs --platform macos
+          node scripts/prepare-release.mjs --platform macos --verify
+      - name: Test and build macOS application
+        run: |
+          uv run --locked --directory apps/desktop/python python -B -m unittest discover -s ../../../tests -v
+          npm run test:release
+          npm run build:backend
+          npm run build
+          npm run test:desktop
+          npx electron-builder --mac dmg --arm64 --publish never
+      - name: Verify mounted DMG, signature, architecture and runtime versions
+        run: |
+          version=$(node -p "require('./apps/desktop/python/lumatile/build-info.json').version")
+          product_name=$(node -p "require('./apps/desktop/python/lumatile/build-info.json').productName")
+          prefix=LumaTile
+          if [ "$LUMATILE_BUILD_CHANNEL" = alpha ]; then prefix=LumaTile-Alpha; fi
+          mount_dir=$(mktemp -d)
+          trap 'bash scripts/detach-dmg.sh "$mount_dir" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach "release/${prefix}_v${version}_arm64.dmg" -nobrowse -mountpoint "$mount_dir"
+          node scripts/verify-release-build.mjs macos "$GITHUB_REF_NAME" "$mount_dir/$product_name.app" verification.json
+          bash scripts/detach-dmg.sh "$mount_dir"
+          trap - EXIT
+          mkdir artifacts
+          cp "release/${prefix}_v${version}_arm64.dmg" "artifacts/${prefix}-macOS-v${version}-arm64.dmg"
+      - name: Build macOS-only update source bundle
+        run: node scripts/build-release-bundle.mjs macos "$GITHUB_REF_NAME" artifacts verification.json update-source
+      - name: Name verified release bundle
+        id: bundle
+        run: echo "name=release-macos-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - name: Upload verified release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.bundle.outputs.name }}
+          path: update-source
+          if-no-files-found: error
+
+  android:
     name: Build unsigned Android APK without signing secrets
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -25,6 +175,7 @@ jobs:
       channel: ${{ steps.receipt.outputs.channel }}
       unsigned_sha256: ${{ steps.receipt.outputs.unsigned_sha256 }}
       receipt_sha256: ${{ steps.receipt.outputs.receipt_sha256 }}
+      build_attempt: ${{ steps.receipt.outputs.build_attempt }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -37,7 +188,7 @@ jobs:
       - name: Validate tag, main ancestry and rollout gate
         run: |
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-          node scripts/validate-independent-release.mjs android "$GITHUB_REF_NAME"
+          node scripts/validate-release.mjs android "$GITHUB_REF_NAME"
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           distribution: temurin
@@ -72,19 +223,21 @@ jobs:
 
   sign:
     name: Sign the verified Android APK
-    needs: [build]
+    needs: [android]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
       artifact: ${{ steps.bundle.outputs.name }}
+      deploy_artifact: ${{ steps.bundle.outputs.deploy_name }}
     env:
-      RELEASE_EXPECTED_COMMIT: ${{ needs.build.outputs.commit }}
-      RELEASE_UNSIGNED_SHA256: ${{ needs.build.outputs.unsigned_sha256 }}
-      RELEASE_RECEIPT_SHA256: ${{ needs.build.outputs.receipt_sha256 }}
+      RELEASE_EXPECTED_COMMIT: ${{ needs.android.outputs.commit }}
+      RELEASE_UNSIGNED_SHA256: ${{ needs.android.outputs.unsigned_sha256 }}
+      RELEASE_RECEIPT_SHA256: ${{ needs.android.outputs.receipt_sha256 }}
+      RELEASE_BUILD_ATTEMPT: ${{ needs.android.outputs.build_attempt }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: ${{ needs.build.outputs.commit }}
+          ref: ${{ needs.android.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -93,7 +246,7 @@ jobs:
       - name: Recheck source before injecting signing credentials
         run: |
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-          node scripts/validate-independent-release.mjs android "$GITHUB_REF_NAME"
+          node scripts/validate-release.mjs android "$GITHUB_REF_NAME"
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           distribution: temurin
@@ -105,80 +258,93 @@ jobs:
         run: sdkmanager 'build-tools;36.0.0'
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: android-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          name: android-unsigned-${{ github.run_id }}-${{ needs.android.outputs.build_attempt }}
           path: unsigned
       - name: Check the exact build input without secrets
         run: |
           node scripts/prepare-android-signing.mjs verify "$GITHUB_REF_NAME" unsigned/app-release-unsigned.apk unsigned/unsigned-receipt.json
           mkdir artifacts
       - name: Sign Stable with the existing production repository Secrets
-        if: ${{ needs.build.outputs.channel == 'stable' }}
+        if: ${{ needs.android.outputs.channel == 'stable' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_VERSION: ${{ needs.android.outputs.version }}
         run: node scripts/prepare-android-signing.mjs sign "$GITHUB_REF_NAME" unsigned/app-release-unsigned.apk unsigned/unsigned-receipt.json "artifacts/LumaTile-Android-v$RELEASE_VERSION.apk" verification.json
       - name: Sign Alpha with its independent repository Secrets
-        if: ${{ needs.build.outputs.channel == 'alpha' }}
+        if: ${{ needs.android.outputs.channel == 'alpha' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_ALPHA_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_ALPHA_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_ALPHA_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_ALPHA_KEY_PASSWORD }}
-          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_VERSION: ${{ needs.android.outputs.version }}
         run: node scripts/prepare-android-signing.mjs sign "$GITHUB_REF_NAME" unsigned/app-release-unsigned.apk unsigned/unsigned-receipt.json "artifacts/LumaTile-Alpha-Android-v$RELEASE_VERSION.apk" verification.json
-      - name: Generate the deployment bundle from final signed bytes
+      - name: Generate release and mirror bundles from the signed bytes
         id: bundle
         env:
-          RELEASE_CHANNEL: ${{ needs.build.outputs.channel }}
-          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_CHANNEL: ${{ needs.android.outputs.channel }}
+          RELEASE_VERSION: ${{ needs.android.outputs.version }}
         run: |
           node scripts/build-release-bundle.mjs android "$GITHUB_REF_NAME" artifacts verification.json update-source
-          echo "name=update-source-android-$RELEASE_CHANNEL-$RELEASE_VERSION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          node scripts/build-release-bundle.mjs android "$GITHUB_REF_NAME" artifacts verification.json android-mirror --android-mirror
+          echo "name=release-android-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          echo "deploy_name=update-source-android-$RELEASE_CHANNEL-$RELEASE_VERSION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.bundle.outputs.name }}
           path: update-source
           if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.bundle.outputs.deploy_name }}
+          path: android-mirror
+          if-no-files-found: error
 
   publish:
-    name: Publish the verified Android release
-    needs: [build, sign]
+    name: Publish one verified release for all platforms
+    needs: [windows, macos, android, sign]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: write
     env:
-      RELEASE_EXPECTED_COMMIT: ${{ needs.build.outputs.commit }}
+      RELEASE_EXPECTED_COMMIT: ${{ needs.android.outputs.commit }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: ${{ needs.build.outputs.commit }}
+          ref: ${{ needs.android.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-      - name: Recheck immutable source before publication
-        run: |
-          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-          node scripts/validate-independent-release.mjs android "$GITHUB_REF_NAME"
+      - name: Check out the verified release commit
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ needs.windows.outputs.artifact }}
+          path: bundles/windows
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ needs.macos.outputs.artifact }}
+          path: bundles/macos
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ${{ needs.sign.outputs.artifact }}
-          path: update-source
-      - name: Publish complete assets through a verified draft
+          path: bundles/android
+      - name: Publish all verified assets through one draft
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/publish-platform-release.mjs android "$GITHUB_REF_NAME" "update-source/releases/$GITHUB_REF_NAME"
+        run: node scripts/publish-release.mjs "$GITHUB_REF_NAME" bundles
       - name: Prepare the backup-manifest branch without changing main
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RELEASE_CHANNEL: ${{ needs.build.outputs.channel }}
+          RELEASE_CHANNEL: ${{ needs.android.outputs.channel }}
         run: |
-          source_manifest="$GITHUB_WORKSPACE/update-source/releases/$GITHUB_REF_NAME/update-android.json"
+          source_manifest="$GITHUB_WORKSPACE/bundles/android/releases/$GITHUB_REF_NAME/update-android.json"
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           checkout_dir="$RUNNER_TEMP/android-manifest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           git worktree add --detach "$checkout_dir" origin/main
@@ -196,14 +362,14 @@ jobs:
 
   deploy:
     name: Deploy the signed APK to the update server
-    needs: [build, sign, publish]
+    needs: [android, sign, publish]
     permissions:
       contents: read
       actions: read
     uses: ./.github/workflows/deploy-server.yml
     with:
-      target: android-${{ needs.build.outputs.channel }}
+      target: android-${{ needs.android.outputs.channel }}
       run_id: ${{ format('{0}', github.run_id) }}
-      artifact: ${{ needs.sign.outputs.artifact }}
+      artifact: ${{ needs.sign.outputs.deploy_artifact }}
     secrets:
       LUMATILE_DEPLOY_KEY: ${{ secrets.LUMATILE_DEPLOY_KEY }}
