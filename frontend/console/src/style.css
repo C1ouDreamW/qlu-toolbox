@@ -314,8 +314,8 @@
 .table-scroll tr:last-child td { border-bottom: 0; }
 .table-scroll tbody tr:hover { background: var(--subtle); }
 
-.login { min-height: 100svh; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse at 18% 12%, #e0eafe 0, var(--page) 65%); }
-.login-shell { display: grid; grid-template-columns: .87fr 1fr; width: min(100%, 860px); border-radius: 20px; background: var(--surface); box-shadow: 0 22px 70px #172b4c20; }
+.login { min-height: 100svh; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px; background: radial-gradient(ellipse at 18% 12%, #e0eafe 0, var(--page) 65%); }
+.login-shell { display: grid; grid-template-columns: .87fr 1fr; width: min(100%, 860px); margin-block: auto; border-radius: 20px; background: var(--surface); box-shadow: 0 22px 70px #172b4c20; }
 .login-brand { isolation: isolate; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 7px; min-height: 410px; padding: clamp(24px, 5vw, 48px); border-radius: 20px 0 0 20px; background: linear-gradient(150deg, var(--nav), #213f7b); color: #fff; }
 .login-brand::after { position: absolute; z-index: -1; inset: auto -64px -95px auto; width: 245px; aspect-ratio: 1; border: 1px solid #d5e2ffa1; box-shadow: 0 0 0 32px #c3d7ff29, 0 0 0 64px #c3d7ff12; border-radius: 49px; transform: rotate(-23deg); content: ""; }
 .login-brand .brand-icon { margin-bottom: 12px; }
@@ -331,6 +331,9 @@
 .password-input { display: flex; gap: 6px; }
 .password-input input { min-width: 0; flex: 1; }
 .password-input button { color: var(--action); }
+.login-footer { font-size: .75rem; }
+.console .login-footer a { color: var(--muted); font-weight: 400; }
+.console .login-footer a:is(:hover, :focus-visible) { color: var(--action-hover); text-decoration: underline; text-underline-offset: 3px; }
 
 @media (max-width: 960px) {
   .console-shell { grid-template-columns: 172px minmax(0, 1fr); }
