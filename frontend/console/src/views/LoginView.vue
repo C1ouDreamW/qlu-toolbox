@@ -28,8 +28,8 @@ async function signIn() {
 </script>
 
 <template>
-  <main id="main" class="login" tabindex="-1">
-    <div class="login-shell">
+  <div class="login">
+    <main id="main" class="login-shell" tabindex="-1">
       <div class="login-brand">
         <img class="brand-icon" src="/logo.png" width="64" height="64" alt="">
         <p class="login-brand-name">LumaTile</p>
@@ -52,6 +52,9 @@ async function signIn() {
           <button v-if="connectionError" type="button" @click="initialize">重试连接</button>
         </form>
       </div>
-    </div>
-  </main>
+    </main>
+    <footer class="login-footer">
+      <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">豫ICP备2025156751号</a>
+    </footer>
+  </div>
 </template>
