@@ -794,6 +794,14 @@ p{
 .footer-bottom p{
   font-size:11px;
   color:#91a0b2}
+.footer-registration{
+  margin-top:12px;
+  font-size:12px;
+  text-align:center}
+.footer-registration a:hover,.footer-registration a:focus-visible{
+  color:var(--blue-dark);
+  text-decoration:underline;
+  text-underline-offset:3px}
 
 @media(min-width:1500px){
   .hero{
